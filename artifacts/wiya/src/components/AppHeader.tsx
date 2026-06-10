@@ -29,7 +29,7 @@ export default function AppHeader({ title, showBack = false, right, transparent 
       {title && (
         <h1 className="flex-1 text-base font-bold text-gray-900 truncate">{title}</h1>
       )}
-      {right && <div className="ml-auto">{right}</div>}
+      {right && <div className="ms-auto">{right}</div>}
     </header>
   );
 }

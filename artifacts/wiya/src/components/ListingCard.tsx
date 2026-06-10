@@ -32,13 +32,13 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             loading="lazy"
           />
           {listing.isBoosted && (
-            <div className="absolute top-1 left-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+            <div className="absolute top-1 start-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <Zap className="w-2.5 h-2.5" />
               {t("boosted")}
             </div>
           )}
           {listing.isUrgent && (
-            <div className="absolute top-1 left-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="absolute top-1 start-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               {t("urgent")}
             </div>
           )}
@@ -94,7 +94,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         />
         <button
           onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
+          className="absolute top-2 end-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
         >
           <Heart
             className={`w-3.5 h-3.5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-500"}`}
@@ -102,18 +102,18 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           />
         </button>
         {listing.isBoosted && (
-          <div className="absolute top-2 left-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+          <div className="absolute top-2 start-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
             <Zap className="w-2.5 h-2.5" />
             {t("boosted")}
           </div>
         )}
         {listing.isUrgent && !listing.isBoosted && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute top-2 start-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {t("urgent")}
           </div>
         )}
         {listing.condition === "new" && (
-          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {t("conditionNew")}
           </div>
         )}

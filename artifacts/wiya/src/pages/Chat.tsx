@@ -93,18 +93,18 @@ export default function ChatPage() {
                 <img
                   src={conv.otherUser.avatar}
                   alt=""
-                  className="w-7 h-7 rounded-full mr-2 mt-auto flex-shrink-0 bg-gray-200"
+                  className="w-7 h-7 rounded-full me-2 mt-auto flex-shrink-0 bg-gray-200"
                 />
               )}
               <div
                 className={`max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm
                   ${isMe
-                    ? "bg-[#1B6B3A] text-white rounded-br-sm"
-                    : "bg-white text-gray-900 rounded-bl-sm"
+                    ? "bg-[#1B6B3A] text-white rounded-br-sm rtl:rounded-br-2xl rtl:rounded-bl-sm"
+                    : "bg-white text-gray-900 rounded-bl-sm rtl:rounded-bl-2xl rtl:rounded-br-sm"
                   }`}
               >
                 <p className="text-sm leading-relaxed">{msg.text}</p>
-                <p className={`text-[10px] mt-1 ${isMe ? "text-green-200" : "text-gray-400"} text-right`}>
+                <p className={`text-[10px] mt-1 ${isMe ? "text-green-200" : "text-gray-400"} text-end`}>
                   {msg.time}
                 </p>
               </div>

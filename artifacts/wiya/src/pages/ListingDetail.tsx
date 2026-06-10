@@ -89,7 +89,7 @@ export default function ListingDetail() {
         )}
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex gap-1.5">
+        <div className="absolute top-3 start-3 flex gap-1.5">
           {listing.isBoosted && (
             <span className="bg-[#C8972B] text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
               <Zap className="w-3 h-3" /> {t("boosted")}

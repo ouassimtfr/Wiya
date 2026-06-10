@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 export type Lang = "fr" | "ar";
 
@@ -249,8 +249,20 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>("fr");
+  const [lang, setLangState] = useState<Lang>(() => {
+    try { return (localStorage.getItem("wiya_lang") as Lang) ?? "fr"; } catch { return "fr"; }
+  });
   const isRTL = lang === "ar";
+
+  const setLang = (l: Lang) => {
+    setLangState(l);
+    try { localStorage.setItem("wiya_lang", l); } catch { /* noop */ }
+  };
+
+  useEffect(() => {
+    document.documentElement.dir = isRTL ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [lang, isRTL]);
 
   const t = (key: TranslationKey): string => {
     return (translations[lang] as Record<string, string>)[key] ?? (translations.fr as Record<string, string>)[key] ?? key;

@@ -45,7 +45,7 @@ export default function BottomNav() {
                     strokeWidth={item.active ? 2.5 : 1.8}
                   />
                   {item.badge != null && item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#C8972B] rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -end-1.5 w-4 h-4 bg-[#C8972B] rounded-full text-white text-[9px] font-bold flex items-center justify-center">
                       {item.badge}
                     </span>
                   )}
