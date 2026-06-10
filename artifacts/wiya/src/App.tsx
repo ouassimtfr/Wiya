@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
+import { NotificationsProvider } from "@/lib/notifications";
+import NotificationToast from "@/components/NotificationToast";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
 import SearchPage from "@/pages/Search";
@@ -17,6 +19,7 @@ import PostListingPage from "@/pages/PostListing";
 import SellerProfilePage from "@/pages/SellerProfile";
 import BoostPage from "@/pages/Boost";
 import MapPage from "@/pages/MapPage";
+import NotificationsPage from "@/pages/Notifications";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -37,6 +40,7 @@ function AppShell() {
         <Route path="/seller/:id" component={SellerProfilePage} />
         <Route path="/boost/:id" component={BoostPage} />
         <Route path="/map" component={MapPage} />
+        <Route path="/notifications" component={NotificationsPage} />
         <Route component={NotFound} />
       </Switch>
 
@@ -47,6 +51,8 @@ function AppShell() {
         <Route path="/map" component={() => null} />
         <Route component={BottomNav} />
       </Switch>
+
+      <NotificationToast />
     </div>
   );
 }
@@ -56,12 +62,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <StoreProvider>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <AppShell />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
+          <NotificationsProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <AppShell />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </NotificationsProvider>
         </StoreProvider>
       </I18nProvider>
     </QueryClientProvider>

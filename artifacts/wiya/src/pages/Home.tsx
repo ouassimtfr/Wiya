@@ -4,6 +4,7 @@ import { Search, Bell, MapPin, ChevronRight, Zap, Map } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
+import { useNotifications } from "@/lib/notifications";
 import { LISTINGS, CATEGORIES } from "@/lib/data";
 import ListingCard from "@/components/ListingCard";
 
@@ -11,6 +12,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { t, lang, setLang, isRTL } = useI18n();
   const { user } = useStore();
+  const { unreadCount } = useNotifications();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const featured = LISTINGS.filter((l) => l.isBoosted);
@@ -52,9 +54,16 @@ export default function Home() {
               >
                 <Map className="w-4.5 h-4.5 text-white" />
               </button>
-              <button className="relative w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              <button
+                onClick={() => navigate("/notifications")}
+                className="relative w-9 h-9 rounded-full bg-white/20 flex items-center justify-center"
+              >
                 <Bell className="w-4.5 h-4.5 text-white" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#C8972B] rounded-full border border-[#1B6B3A]" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] bg-[#C8972B] rounded-full border border-[#1B6B3A] text-white text-[8px] font-bold flex items-center justify-center px-0.5">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
