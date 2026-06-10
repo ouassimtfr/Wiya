@@ -44,7 +44,7 @@ export default function MapPage() {
         </button>
         <div className="flex-1">
           <h1 className="text-white font-black text-base">Carte des Wilayas</h1>
-          <p className="text-green-300 text-xs">58 wilayas · Algérie</p>
+          <p className="text-green-300 text-xs">{WILAYAS_DATA.length} wilayas · Algérie</p>
         </div>
         <button
           onClick={() => setShowSearch(!showSearch)}

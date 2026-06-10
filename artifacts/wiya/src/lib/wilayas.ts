@@ -65,6 +65,17 @@ export const WILAYAS_DATA: Wilaya[] = [
   { code: 56, name: "Djanet", nameAr: "جانت", lat: 24.55, lon: 9.48 },
   { code: 57, name: "El M'Ghair", nameAr: "المغير", lat: 33.95, lon: 5.92 },
   { code: 58, name: "El Menia", nameAr: "المنيعة", lat: 30.58, lon: 2.88 },
+  { code: 59, name: "Hassi Messaoud", nameAr: "حاسي مسعود", lat: 31.70, lon: 6.07 },
+  { code: 60, name: "Ain Oussera", nameAr: "عين وسارة", lat: 35.45, lon: 2.90 },
+  { code: 61, name: "Bou Saâda", nameAr: "بوسعادة", lat: 35.21, lon: 4.18 },
+  { code: 62, name: "El Khroub", nameAr: "الخروب", lat: 36.27, lon: 6.69 },
+  { code: 63, name: "Kolea", nameAr: "قليعة", lat: 36.64, lon: 2.76 },
+  { code: 64, name: "Hadjout", nameAr: "حجوط", lat: 36.51, lon: 2.41 },
+  { code: 65, name: "Ain El Hammam", nameAr: "عين الحمام", lat: 36.57, lon: 4.31 },
+  { code: 66, name: "Baraki", nameAr: "براقي", lat: 36.67, lon: 3.10 },
+  { code: 67, name: "Sidi Amar", nameAr: "سيدي عمار", lat: 36.83, lon: 7.73 },
+  { code: 68, name: "El Eulma", nameAr: "العلمة", lat: 36.15, lon: 5.69 },
+  { code: 69, name: "Drean", nameAr: "الذرعان", lat: 36.69, lon: 7.75 },
 ];
 
 export function toSVG(lon: number, lat: number, w: number, h: number) {
