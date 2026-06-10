@@ -16,6 +16,7 @@ import AuthPage from "@/pages/Auth";
 import PostListingPage from "@/pages/PostListing";
 import SellerProfilePage from "@/pages/SellerProfile";
 import BoostPage from "@/pages/Boost";
+import MapPage from "@/pages/MapPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -35,13 +36,15 @@ function AppShell() {
         <Route path="/post" component={PostListingPage} />
         <Route path="/seller/:id" component={SellerProfilePage} />
         <Route path="/boost/:id" component={BoostPage} />
+        <Route path="/map" component={MapPage} />
         <Route component={NotFound} />
       </Switch>
 
-      {/* Hide bottom nav on auth and chat pages */}
+      {/* Hide bottom nav on auth, chat and map pages */}
       <Switch>
         <Route path="/auth" component={() => null} />
         <Route path="/messages/:id" component={() => null} />
+        <Route path="/map" component={() => null} />
         <Route component={BottomNav} />
       </Switch>
     </div>

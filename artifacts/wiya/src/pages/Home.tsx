@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, Bell, MapPin, ChevronRight, Zap } from "lucide-react";
+import { Search, Bell, MapPin, ChevronRight, Zap, Map } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -45,6 +45,12 @@ export default function Home() {
                 className="px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold border border-white/30"
               >
                 {lang === "fr" ? "العربية" : "Français"}
+              </button>
+              <button
+                onClick={() => navigate("/map")}
+                className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center"
+              >
+                <Map className="w-4.5 h-4.5 text-white" />
               </button>
               <button className="relative w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
                 <Bell className="w-4.5 h-4.5 text-white" />
