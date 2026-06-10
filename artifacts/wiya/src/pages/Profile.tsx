@@ -1,16 +1,48 @@
 import { useLocation } from "wouter";
-import { Star, MapPin, Shield, ChevronRight, Package, Heart, Settings, HelpCircle, LogOut, Zap, Bell } from "lucide-react";
+import { Star, MapPin, Shield, ChevronRight, Package, Heart, Settings, HelpCircle, LogOut, Zap, Bell, Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 import { LISTINGS } from "@/lib/data";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
+
+function DarkModeRow({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl shadow-sm"
+    >
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors
+        ${isDark ? "bg-indigo-950" : "bg-amber-50"}`}>
+        {isDark
+          ? <Moon className="w-4 h-4 text-indigo-300" />
+          : <Sun className="w-4 h-4 text-amber-500" />
+        }
+      </div>
+      <span className="flex-1 text-sm font-medium text-gray-800 text-left">
+        {isDark ? "Mode sombre" : "Mode clair"}
+      </span>
+      {/* Animated pill toggle */}
+      <div className={`relative w-11 h-6 rounded-full transition-colors duration-300 flex-shrink-0
+        ${isDark ? "bg-indigo-500" : "bg-gray-200"}`}>
+        <motion.div
+          layout
+          className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm"
+          animate={{ left: isDark ? "calc(100% - 22px)" : "2px" }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      </div>
+    </button>
+  );
+}
 
 export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
   const { user, logout, favorites } = useStore();
+  const { isDark, toggleTheme } = useTheme();
 
   if (!user) {
     return (
@@ -34,6 +66,11 @@ export default function ProfilePage() {
           >
             {t("createAccount")}
           </button>
+        </div>
+
+        {/* Dark mode toggle — available even when logged out */}
+        <div className="px-4 mt-2">
+          <DarkModeRow isDark={isDark} onToggle={toggleTheme} />
         </div>
       </div>
     );
@@ -135,7 +172,7 @@ export default function ProfilePage() {
 
         {/* Menu */}
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          {menuItems.map((item, i) => (
+          {menuItems.map((item) => (
             <motion.button
               key={item.label}
               whileTap={{ backgroundColor: "#f9fafb" }}
@@ -155,6 +192,9 @@ export default function ProfilePage() {
             </motion.button>
           ))}
         </div>
+
+        {/* Dark mode toggle */}
+        <DarkModeRow isDark={isDark} onToggle={toggleTheme} />
 
         {/* Logout */}
         <button

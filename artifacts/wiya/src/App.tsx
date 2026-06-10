@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
 import { NotificationsProvider } from "@/lib/notifications";
+import { ThemeProvider } from "@/lib/theme";
 import NotificationToast from "@/components/NotificationToast";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
@@ -60,6 +61,7 @@ function AppShell() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <I18nProvider>
         <StoreProvider>
           <NotificationsProvider>
@@ -72,6 +74,7 @@ function App() {
           </NotificationsProvider>
         </StoreProvider>
       </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
