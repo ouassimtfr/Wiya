@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { useNotifications } from "@/lib/notifications";
 import { LISTINGS, CATEGORIES, WILAYAS } from "@/lib/data";
 import ListingCard from "@/components/ListingCard";
+import SearchAutocomplete from "@/components/SearchAutocomplete";
 
 type PriceRange = "all" | "u10" | "10_50" | "50_200" | "o200";
 type Condition = "all" | "new" | "used";
@@ -110,13 +111,7 @@ export default function Home() {
           </div>
 
           {/* Search bar */}
-          <button
-            onClick={() => navigate("/search")}
-            className="w-full bg-white rounded-2xl flex items-center gap-3 px-4 py-3 shadow-lg"
-          >
-            <Search className="w-4.5 h-4.5 text-[#1B6B3A]" />
-            <span className="text-gray-400 text-sm flex-1 text-left">{t("search")}</span>
-          </button>
+          <SearchAutocomplete placeholder={t("search")} />
         </div>
       </div>
 

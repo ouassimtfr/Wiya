@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useSearch } from "wouter";
 import { Search as SearchIcon, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -10,9 +11,11 @@ type SortOption = "newest" | "priceAsc" | "priceDesc";
 
 export default function SearchPage() {
   const { t, lang } = useI18n();
-  const [query, setQuery] = useState("");
+  const searchStr = useSearch();
+  const urlParams = new URLSearchParams(searchStr);
+  const [query, setQuery] = useState(() => urlParams.get("q") ?? "");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedWilaya, setSelectedWilaya] = useState<string | null>(null);
+  const [selectedWilaya, setSelectedWilaya] = useState<string | null>(() => urlParams.get("wilaya") ?? null);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
