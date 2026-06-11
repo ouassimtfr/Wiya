@@ -21,6 +21,7 @@ import SellerProfilePage from "@/pages/SellerProfile";
 import BoostPage from "@/pages/Boost";
 import MapPage from "@/pages/MapPage";
 import NotificationsPage from "@/pages/Notifications";
+import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ function AppShell() {
         <Route path="/boost/:id" component={BoostPage} />
         <Route path="/map" component={MapPage} />
         <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/admin" component={AdminPage} />
         <Route component={NotFound} />
       </Switch>
 
@@ -50,6 +52,7 @@ function AppShell() {
         <Route path="/auth" component={() => null} />
         <Route path="/messages/:id" component={() => null} />
         <Route path="/map" component={() => null} />
+        <Route path="/admin" component={() => null} />
         <Route component={BottomNav} />
       </Switch>
 
