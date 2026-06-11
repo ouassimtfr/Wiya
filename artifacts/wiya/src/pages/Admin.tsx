@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Shield, Eye, EyeOff, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
+import { useNotifications } from "@/lib/notifications";
 
 const ADMIN_PASSWORD = "Yanisimo2006";
 
@@ -11,6 +12,7 @@ type Tab = "pending" | "active" | "refused";
 export default function AdminPage() {
   const [, navigate] = useLocation();
   const { boostRequests, activateBoost, refuseBoost } = useStore();
+  const { pushNotification } = useNotifications();
 
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
@@ -235,13 +237,37 @@ export default function AdminPage() {
                 {req.status === "pending" && (
                   <div className="flex gap-2 px-4 pb-4">
                     <button
-                      onClick={() => activateBoost(req.id)}
+                      onClick={() => {
+                        activateBoost(req.id);
+                        pushNotification({
+                          listingId: req.listingId,
+                          listingTitle: req.listingTitle,
+                          listingImage: req.listingImage,
+                          listingPrice: req.price,
+                          wilaya: req.planLabel,
+                          category: "boost",
+                          matchedAlert: "⚡ Boost activé",
+                          read: false,
+                        });
+                      }}
                       className="flex-1 py-3 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-green-900"
                     >
                       <Check className="w-4 h-4" /> Activer
                     </button>
                     <button
-                      onClick={() => refuseBoost(req.id)}
+                      onClick={() => {
+                        refuseBoost(req.id);
+                        pushNotification({
+                          listingId: req.listingId,
+                          listingTitle: req.listingTitle,
+                          listingImage: req.listingImage,
+                          listingPrice: req.price,
+                          wilaya: req.planLabel,
+                          category: "boost",
+                          matchedAlert: "❌ Boost refusé",
+                          read: false,
+                        });
+                      }}
                       className="flex-1 py-3 bg-red-900/50 text-red-300 border border-red-500/20 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5"
                     >
                       <X className="w-4 h-4" /> Refuser

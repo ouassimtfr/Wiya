@@ -34,6 +34,7 @@ interface NotificationsContextType {
   markRead: (id: string) => void;
   unreadCount: number;
   dismissToast: (id: string) => void;
+  pushNotification: (n: Omit<AppNotification, "id" | "timestamp">) => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | null>(null);
@@ -175,6 +176,15 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     setToastQueue((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const pushNotification = useCallback((n: Omit<AppNotification, "id" | "timestamp">) => {
+    const notif: AppNotification = { ...n, id: `notif_push_${Date.now()}`, timestamp: Date.now() };
+    setNotifications((prev) => [notif, ...prev].slice(0, 50));
+    setToastQueue((prev) => [...prev, notif]);
+    setTimeout(() => {
+      setToastQueue((prev) => prev.filter((t) => t.id !== notif.id));
+    }, 6000);
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
@@ -198,7 +208,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   return (
     <NotificationsContext.Provider
-      value={{ alerts, notifications, toastQueue, addAlert, removeAlert, hasAlert, markAllRead, markRead, unreadCount, dismissToast }}
+      value={{ alerts, notifications, toastQueue, addAlert, removeAlert, hasAlert, markAllRead, markRead, unreadCount, dismissToast, pushNotification }}
     >
       {children}
     </NotificationsContext.Provider>
