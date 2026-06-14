@@ -1,3 +1,4 @@
+
 {
   "name": "@workspace/wiya",
   "version": "0.0.0",
@@ -71,3 +72,4 @@
     "zod": "catalog:"
   }
 }
+frozen-lockfile=false
