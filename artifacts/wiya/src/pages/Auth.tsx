@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Eye, EyeOff, ArrowLeft, Phone } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
-import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 
 type Mode = "login" | "register";
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
-  const { t, lang, setLang } = useI18n();
-  const { login, register } = useStore();
+  const { t } = useI18n();
 
   const [mode, setMode] = useState<Mode>("login");
   const [showPass, setShowPass] = useState(false);
@@ -20,26 +19,30 @@ export default function AuthPage() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (mode === "login") {
-      const ok = login(email, password);
-      if (ok) navigate("/profile");
-      else setError("Email ou mot de passe incorrect");
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setError("Email ou mot de passe incorrect");
+      else navigate("/");
     } else {
       if (!name || !email || !password) {
         setError("Veuillez remplir tous les champs");
         return;
       }
-      register(name, email, password, phone);
-      navigate("/profile");
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, phone } }
+      });
+      if (error) setError(error.message);
+      else navigate("/");
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Top decoration */}
       <div className="bg-[#1B6B3A] pt-12 pb-10 px-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-[#C8972B]" />
@@ -59,7 +62,6 @@ export default function AuthPage() {
       </div>
 
       <div className="flex-1 px-5 pt-6 pb-8">
-        {/* Mode tabs */}
         <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
           {(["login", "register"] as Mode[]).map((m) => (
             <button
@@ -169,14 +171,12 @@ export default function AuthPage() {
               {mode === "login" ? t("login") : t("register")}
             </button>
 
-            {/* Divider */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-gray-100" />
               <span className="text-xs text-gray-400">{t("orContinueWith")}</span>
               <div className="flex-1 h-px bg-gray-100" />
             </div>
 
-            {/* Social login */}
             <div className="flex gap-3">
               {[
                 { icon: "📱", label: "Google" },
