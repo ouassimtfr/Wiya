@@ -23,7 +23,7 @@ import MapPage from "@/pages/MapPage";
 import NotificationsPage from "@/pages/Notifications";
 import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
-
+import installbanner from "@/components/installbanner";
 const queryClient = new QueryClient();
 
 function AppShell() {
