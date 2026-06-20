@@ -3,13 +3,14 @@ import { useLocation } from "wouter";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
-import { supabase } from "@/lib/supabase";
+import { useStore } from "@/lib/store";
 
 type Mode = "login" | "register";
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
+  const { login, register } = useStore();
 
   const [mode, setMode] = useState<Mode>("login");
   const [showPass, setShowPass] = useState(false);
@@ -18,27 +19,28 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
+
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError("Email ou mot de passe incorrect");
+      const success = await login(email, password);
+      if (!success) setError("Email ou mot de passe incorrect");
       else navigate("/");
     } else {
       if (!name || !email || !password) {
         setError("Veuillez remplir tous les champs");
+        setLoading(false);
         return;
       }
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name, phone } }
-      });
-      if (error) setError(error.message);
-      else navigate("/");
+      await register(name, email, password, phone);
+      navigate("/");
     }
+
+    setLoading(false);
   };
 
   return (
@@ -166,9 +168,10 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              className="w-full py-4 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 mt-2"
+              disabled={loading}
+              className="w-full py-4 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 mt-2 disabled:opacity-50"
             >
-              {mode === "login" ? t("login") : t("register")}
+              {loading ? "Chargement..." : mode === "login" ? t("login") : t("register")}
             </button>
 
             <div className="flex items-center gap-3">
