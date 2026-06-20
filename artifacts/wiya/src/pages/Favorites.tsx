@@ -1,8 +1,9 @@
+import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { LISTINGS } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 import { useLocation } from "wouter";
@@ -11,14 +12,36 @@ export default function FavoritesPage() {
   const { t } = useI18n();
   const { favorites } = useStore();
   const [, navigate] = useLocation();
+  const [favListings, setFavListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const favListings = LISTINGS.filter((l) => favorites.includes(l.id));
+  useEffect(() => {
+    fetchFavorites();
+  }, [favorites]);
+
+  const fetchFavorites = async () => {
+    if (favorites.length === 0) {
+      setFavListings([]);
+      setLoading(false);
+      return;
+    }
+    const { data } = await supabase
+      .from("listings")
+      .select("*")
+      .in("id", favorites);
+    setFavListings(data ?? []);
+    setLoading(false);
+  };
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
       <AppHeader title={t("favorites")} />
 
-      {favListings.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : favListings.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-4">
           <motion.div
             animate={{ scale: [1, 1.1, 1] }}
@@ -38,7 +61,9 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div className="px-4 pt-4 space-y-2.5">
-          <p className="text-xs text-gray-500 font-medium">{favListings.length} annonce{favListings.length > 1 ? "s" : ""} sauvegardée{favListings.length > 1 ? "s" : ""}</p>
+          <p className="text-xs text-gray-500 font-medium">
+            {favListings.length} annonce{favListings.length > 1 ? "s" : ""} sauvegardée{favListings.length > 1 ? "s" : ""}
+          </p>
           {favListings.map((listing, i) => (
             <motion.div
               key={listing.id}
