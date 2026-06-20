@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Star, MapPin, Shield, ChevronRight, Package, Heart, Settings,
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
-import { LISTINGS } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
@@ -70,6 +70,20 @@ export default function ProfilePage() {
   const { user, logout, favorites, boostRequests } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "boosts">("profile");
+  const [myListings, setMyListings] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) fetchMyListings();
+  }, [user]);
+
+  const fetchMyListings = async () => {
+    const { data } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("user_id", user!.id)
+      .order("created_at", { ascending: false });
+    if (data) setMyListings(data);
+  };
 
   const pendingBoosts = boostRequests.filter((r) => r.status === "pending").length;
   const activeBoosts  = boostRequests.filter((r) => r.status === "active").length;
@@ -102,8 +116,6 @@ export default function ProfilePage() {
     );
   }
 
-  const myListings = LISTINGS.filter((l) => l.sellerId === "u1").slice(0, 3);
-
   const menuItems = [
     { icon: Package, label: t("myListings"),   action: () => {},                         badge: myListings.length },
     { icon: Heart,   label: t("favorites"),    action: () => navigate("/favorites"),      badge: favorites.length },
@@ -114,7 +126,6 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      {/* Green header */}
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-[#C8972B]" />
@@ -150,10 +161,9 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-3 mt-4">
           {[
-            { label: t("myListings"), value: "7" },
+            { label: t("myListings"), value: String(myListings.length) },
             { label: t("favorites"),  value: String(favorites.length) },
             { label: "Boosts actifs", value: String(activeBoosts) },
           ].map((stat) => (
@@ -165,7 +175,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Tab switcher */}
       <div className="flex bg-white border-b border-gray-100 px-4 gap-1 sticky top-0 z-30 shadow-sm">
         {(["profile", "boosts"] as const).map((t_) => {
           const labels = { profile: "Mon profil", boosts: "Mes boosts" };
@@ -192,7 +201,6 @@ export default function ProfilePage() {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* ── PROFIL TAB ── */}
         {tab === "profile" && (
           <motion.div
             key="profile"
@@ -202,7 +210,6 @@ export default function ProfilePage() {
             transition={{ duration: 0.18 }}
             className="px-4 pt-4 space-y-4"
           >
-            {/* Post new listing CTA */}
             <button
               onClick={() => navigate("/post")}
               className="w-full bg-gradient-to-r from-[#C8972B] to-[#E8B84A] rounded-2xl py-4 flex items-center justify-between px-5 shadow-md shadow-amber-200"
@@ -214,7 +221,6 @@ export default function ProfilePage() {
               <div className="text-2xl">📢</div>
             </button>
 
-            {/* My listings */}
             {myListings.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -222,12 +228,11 @@ export default function ProfilePage() {
                   <button className="text-xs text-[#1B6B3A] font-semibold">Voir tout</button>
                 </div>
                 <div className="space-y-2.5">
-                  {myListings.map((l) => <ListingCard key={l.id} listing={l} variant="list" />)}
+                  {myListings.slice(0, 3).map((l) => <ListingCard key={l.id} listing={l} variant="list" />)}
                 </div>
               </div>
             )}
 
-            {/* Menu */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
               {menuItems.map((item) => (
                 <motion.button
@@ -262,7 +267,6 @@ export default function ProfilePage() {
           </motion.div>
         )}
 
-        {/* ── BOOSTS TAB ── */}
         {tab === "boosts" && (
           <motion.div
             key="boosts"
@@ -272,7 +276,6 @@ export default function ProfilePage() {
             transition={{ duration: 0.18 }}
             className="px-4 pt-4 space-y-3 pb-6"
           >
-            {/* Summary chips */}
             {boostRequests.length > 0 && (
               <div className="flex gap-2">
                 {[
@@ -291,7 +294,6 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Empty state */}
             {boostRequests.length === 0 && (
               <div className="bg-white rounded-3xl p-8 text-center shadow-sm">
                 <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -299,7 +301,7 @@ export default function ProfilePage() {
                 </div>
                 <h3 className="text-base font-black text-gray-900 mb-1">Aucun boost soumis</h3>
                 <p className="text-sm text-gray-400 mb-5 leading-relaxed">
-                  Boostez une annonce pour lui donner plus de visibilité et attirer plus d'acheteurs.
+                  Boostez une annonce pour lui donner plus de visibilité.
                 </p>
                 <button
                   onClick={() => navigate("/boost/1")}
@@ -311,7 +313,6 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Boost request cards */}
             {boostRequests.map((req, i) => {
               const cfg = STATUS_CONFIG[req.status];
               const StatusIcon = cfg.icon;
@@ -323,7 +324,6 @@ export default function ProfilePage() {
                   transition={{ delay: i * 0.05 }}
                   className={`bg-white rounded-3xl shadow-sm border ${cfg.card} overflow-hidden`}
                 >
-                  {/* Status bar */}
                   <div className={`px-4 py-2 flex items-center justify-between ${
                     req.status === "active"  ? "bg-green-50 border-b border-green-100" :
                     req.status === "refused" ? "bg-red-50 border-b border-red-100" :
@@ -341,7 +341,6 @@ export default function ProfilePage() {
                     <span className="text-[10px] text-gray-400">{req.submittedAt}</span>
                   </div>
 
-                  {/* Listing row */}
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-50">
                     <img src={req.listingImage} alt="" className="w-12 h-12 rounded-2xl object-cover flex-shrink-0 bg-gray-100" />
                     <div className="flex-1 min-w-0">
@@ -352,9 +351,7 @@ export default function ProfilePage() {
                           {req.planLabel}
                         </span>
                         <span className="text-[10px] text-gray-400">·</span>
-                        <span className="text-[10px] font-bold text-gray-600">
-                          {req.price.toLocaleString()} DA
-                        </span>
+                        <span className="text-[10px] font-bold text-gray-600">{req.price.toLocaleString()} DA</span>
                         <span className="text-[10px] text-gray-400">·</span>
                         <span className="text-[10px] text-gray-400">{req.days} jours</span>
                       </div>
@@ -366,29 +363,22 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Footer actions */}
                   <div className="px-4 py-3">
                     {req.status === "pending" && (
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
-                        <p className="text-xs text-amber-600 font-medium">
-                          En cours de vérification — activation sous 24h
-                        </p>
+                        <p className="text-xs text-amber-600 font-medium">En cours de vérification — activation sous 24h</p>
                       </div>
                     )}
                     {req.status === "active" && (
                       <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-[#1B6B3A] fill-[#1B6B3A] flex-shrink-0" />
-                        <p className="text-xs text-[#1B6B3A] font-semibold">
-                          Boost actif · votre annonce est mise en avant
-                        </p>
+                        <p className="text-xs text-[#1B6B3A] font-semibold">Boost actif · votre annonce est mise en avant</p>
                       </div>
                     )}
                     {req.status === "refused" && (
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs text-red-400 font-medium flex-1">
-                          Reçu non validé — vérifiez le montant et réessayez
-                        </p>
+                        <p className="text-xs text-red-400 font-medium flex-1">Reçu non validé — vérifiez le montant et réessayez</p>
                         <button
                           onClick={() => navigate(`/boost/${req.listingId}`)}
                           className="flex items-center gap-1.5 px-3 py-2 bg-[#1B6B3A] text-white rounded-xl text-xs font-bold flex-shrink-0 shadow-sm"
@@ -403,7 +393,6 @@ export default function ProfilePage() {
               );
             })}
 
-            {/* Boost more CTA (when requests exist) */}
             {boostRequests.length > 0 && (
               <button
                 onClick={() => navigate("/boost/1")}
