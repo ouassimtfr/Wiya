@@ -278,4 +278,3 @@ export default function ListingDetail() {
     </div>
   );
 }
-EOF
