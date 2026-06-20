@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "./supabase";
 import { Conversation, CONVERSATIONS } from "./data";
 
 export interface User {
@@ -35,8 +36,8 @@ interface AppState {
   favorites: string[];
   conversations: Conversation[];
   boostRequests: BoostRequest[];
-  login: (email: string, password: string) => boolean;
-  register: (name: string, email: string, password: string, phone: string) => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone: string) => Promise<void>;
   logout: () => void;
   toggleFavorite: (listingId: string) => void;
   isFavorite: (listingId: string) => boolean;
@@ -49,19 +50,6 @@ interface AppState {
 
 const StoreContext = createContext<AppState | null>(null);
 
-const DEMO_USER: User = {
-  id: "me",
-  name: "Amine Messaoud",
-  email: "amine@example.com",
-  phone: "+213 770 000 001",
-  avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Amine",
-  wilaya: "Alger",
-  memberSince: "2023",
-  rating: 4.7,
-  reviews: 18,
-  verified: true,
-};
-
 const BOOST_KEY = "wiya_boost_requests";
 
 function loadBoosts(): BoostRequest[] {
@@ -72,22 +60,61 @@ function saveBoosts(reqs: BoostRequest[]) {
   try { localStorage.setItem(BOOST_KEY, JSON.stringify(reqs)); } catch { /* storage full */ }
 }
 
+function supabaseUserToUser(sbUser: any): User {
+  return {
+    id: sbUser.id,
+    name: sbUser.user_metadata?.name ?? sbUser.email?.split("@")[0] ?? "Utilisateur",
+    email: sbUser.email ?? "",
+    phone: sbUser.user_metadata?.phone ?? "",
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+    wilaya: sbUser.user_metadata?.wilaya ?? "Algérie",
+    memberSince: new Date(sbUser.created_at).getFullYear().toString(),
+    rating: 0,
+    reviews: 0,
+    verified: sbUser.email_confirmed_at != null,
+  };
+}
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [favorites, setFavorites] = useState<string[]>(["1", "5"]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
   const [boostRequests, setBoostRequests] = useState<BoostRequest[]>(loadBoosts);
 
-  const login = (email: string, _password: string) => {
-    if (email) { setUser({ ...DEMO_USER, email }); return true; }
-    return false;
+  // Écoute la session Supabase au démarrage et lors des changements
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setUser(supabaseUserToUser(session.user));
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) setUser(supabaseUserToUser(session.user));
+      else setUser(null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return false;
+    setUser(supabaseUserToUser(data.user));
+    return true;
   };
 
-  const register = (name: string, email: string, _password: string, phone: string) => {
-    setUser({ ...DEMO_USER, name, email, phone });
+  const register = async (name: string, email: string, password: string, phone: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, phone } }
+    });
+    if (!error && data.user) setUser(supabaseUserToUser(data.user));
   };
 
-  const logout = () => setUser(null);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   const toggleFavorite = (listingId: string) => {
     setFavorites((prev) =>
