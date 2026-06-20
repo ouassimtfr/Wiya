@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { CATEGORIES, WILAYAS } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 
 const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80",
@@ -28,6 +29,8 @@ export default function PostListingPage() {
   const [wilaya, setWilaya] = useState("");
   const [condition, setCondition] = useState<"new" | "used">("used");
   const [published, setPublished] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!user) {
     return (
@@ -50,9 +53,31 @@ export default function PostListingPage() {
 
   const removePhoto = (i: number) => setPhotos((p) => p.filter((_, idx) => idx !== i));
 
-  const handlePublish = () => {
-    setPublished(true);
-    setTimeout(() => navigate("/"), 2000);
+  const handlePublish = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const { error: insertError } = await supabase.from("listings").insert({
+        user_id: user.id,
+        title,
+        description,
+        price: price ? parseFloat(price) : null,
+        category,
+        wilaya,
+        images: photos.length > 0 ? photos : [PLACEHOLDER_IMAGES[0]],
+        is_active: true,
+      });
+
+      if (insertError) throw insertError;
+
+      setPublished(true);
+      setTimeout(() => navigate("/"), 2000);
+    } catch (err: any) {
+      setError("Erreur lors de la publication. Réessaie.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (published) {
@@ -97,12 +122,17 @@ export default function PostListingPage() {
       </div>
 
       <div className="px-4 space-y-5">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-2xl">
+            {error}
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
               <h2 className="text-base font-bold text-gray-900">📸 Photos de l'annonce</h2>
 
-              {/* Photo grid */}
               <div className="grid grid-cols-3 gap-2">
                 {photos.map((photo, i) => (
                   <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
@@ -230,7 +260,6 @@ export default function PostListingPage() {
                 </div>
               </div>
 
-              {/* Options */}
               <div className="space-y-3">
                 {[
                   { label: t("isNegotiable"), desc: "Acceptez les offres de prix", value: negotiable, set: setNegotiable },
@@ -269,10 +298,10 @@ export default function PostListingPage() {
         )}
         <button
           onClick={() => step < 3 ? setStep(step + 1) : handlePublish()}
-          disabled={step === 2 && !title}
+          disabled={(step === 2 && !title) || loading}
           className="flex-2 flex-1 py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-50"
         >
-          {step < 3 ? "Continuer" : t("publish")}
+          {loading ? "Publication..." : step < 3 ? "Continuer" : t("publish")}
         </button>
       </div>
     </div>
