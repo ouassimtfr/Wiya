@@ -1,394 +1,277 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { Zap, Check, ArrowLeft, Star, TrendingUp, Eye, Copy, CheckCheck, Upload, ImageIcon, X } from "lucide-react";
+import { Heart, Share2, MapPin, Eye, ChevronLeft, ChevronRight, Star, Phone, MessageCircle, Zap, Shield, Clock, Trash2, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { LISTINGS } from "@/lib/data";
+import { CATEGORIES } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
+import ListingCard from "@/components/ListingCard";
 
-type BoostPlan = "basic7" | "basic30" | "premium7" | "premium30";
-
-const PLANS: { id: BoostPlan; days: number; price: number; type: "basic" | "premium"; label: string; popular?: boolean }[] = [
-  { id: "basic7",    days: 7,  price: 500,  type: "basic",   label: "Standard 7j" },
-  { id: "basic30",   days: 30, price: 1500, type: "basic",   label: "Standard 30j", popular: true },
-  { id: "premium7",  days: 7,  price: 1200, type: "premium", label: "Premium 7j" },
-  { id: "premium30", days: 30, price: 3500, type: "premium", label: "Premium 30j" },
-];
-
-const CCP_NUMBER = "00799999004303446334";
-
-async function compressImage(dataUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 900;
-      const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * ratio);
-      canvas.height = Math.round(img.height * ratio);
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.72));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
-export default function BoostPage() {
+export default function ListingDetail() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const { t, isRTL } = useI18n();
-  const { user, submitBoostRequest } = useStore();
+  const { t, lang, isRTL } = useI18n();
+  const { toggleFavorite, isFavorite, user, startConversation } = useStore();
+  const [imgIndex, setImgIndex] = useState(0);
+  const [showMsgBox, setShowMsgBox] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [listing, setListing] = useState<any>(null);
+  const [similar, setSimilar] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [marking, setMarking] = useState(false);
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [selected, setSelected] = useState<BoostPlan | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [receipt, setReceipt] = useState<string | null>(null);
-  const [receiptName, setReceiptName] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    fetchListing();
+  }, [params.id]);
 
-  const listing = LISTINGS.find((l) => l.id === params.id) ?? LISTINGS[0];
-  const plan = PLANS.find((p) => p.id === selected);
+  const fetchListing = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("id", params.id)
+      .single();
 
-  const handleCopy = async () => {
-    try { await navigator.clipboard.writeText(CCP_NUMBER); } catch { /* noop */ }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!error && data) {
+      setListing(data);
+      const { data: sim } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("category", data.category)
+        .neq("id", data.id)
+        .eq("is_active", true)
+        .limit(4);
+      setSimilar(sim ?? []);
+    }
+    setLoading(false);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setReceiptName(file.name);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
-      const compressed = await compressImage(raw);
-      setReceipt(compressed);
-      setUploading(false);
-    };
-    reader.readAsDataURL(file);
+  const handleDelete = async () => {
+    if (!confirm("Supprimer cette annonce ?")) return;
+    setDeleting(true);
+    await supabase.from("listings").delete().eq("id", params.id);
+    navigate("/");
   };
 
-  const handleSubmit = () => {
-    if (!receipt || !plan) return;
-    submitBoostRequest({
-      listingId: listing.id,
-      listingTitle: listing.title,
-      listingImage: listing.images[0],
-      planId: plan.id,
-      planLabel: plan.label,
-      price: plan.price,
-      days: plan.days,
-      type: plan.type,
-      receiptImage: receipt,
-      sellerName: user?.name ?? "Vendeur",
-    });
-    setStep(4);
+  const handleMarkSold = async () => {
+    setMarking(true);
+    await supabase.from("listings").update({ is_active: false }).eq("id", params.id);
+    navigate("/");
   };
 
-  if (step === 4) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="min-h-screen bg-[#1B6B3A] flex flex-col items-center justify-center px-8 text-center gap-5"
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5, delay: 0.15 }}
-          className="w-24 h-24 bg-[#C8972B] rounded-full flex items-center justify-center shadow-2xl"
-        >
-          <CheckCheck className="w-12 h-12 text-white" />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <h2 className="text-white text-2xl font-black mb-2">Demande envoyée !</h2>
-          <p className="text-green-200 text-sm leading-relaxed">
-            Votre reçu est en cours de vérification.<br />
-            Le boost sera activé sous <strong className="text-white">24h</strong>.
-          </p>
-          <div className="mt-4 bg-white/10 rounded-2xl px-5 py-3">
-            <p className="text-green-100 text-xs">Plan: <strong className="text-white">{plan?.label}</strong></p>
-            <p className="text-green-100 text-xs mt-0.5">Annonce: <strong className="text-white">{listing.title}</strong></p>
-          </div>
-        </motion.div>
-        <motion.button
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
-          onClick={() => navigate("/")}
-          className="mt-4 px-8 py-3.5 bg-white text-[#1B6B3A] rounded-2xl font-bold text-sm shadow-lg"
-        >
-          Retour à l'accueil
-        </motion.button>
-      </motion.div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!listing) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-500">Annonce introuvable</p>
+    </div>
+  );
+
+  const images = listing.images ?? [];
+  const category = CATEGORIES.find((c) => c.id === listing.category);
+  const fav = isFavorite(listing.id);
+  const isMyListing = user?.id === listing.user_id;
+
+  const handleSendMessage = () => {
+    if (!user) { navigate("/auth"); return; }
+    if (!msgText.trim()) return;
+    const convId = startConversation(
+      listing.id, listing.title, images[0] ?? "",
+      listing.user_id, "Vendeur", "",
+      msgText.trim()
     );
-  }
+    setMsgText("");
+    setShowMsgBox(false);
+    navigate(`/messages/${convId}`);
+  };
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-32">
-      <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -bottom-4 right-4 w-32 h-32 rounded-full bg-[#C8972B]" />
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : window.history.back()}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 mb-4"
-          >
-            <ArrowLeft className={`w-4 h-4 text-white ${isRTL ? "rotate-180" : ""}`} />
+    <div className="bg-white min-h-screen pb-28">
+      {/* Image gallery */}
+      <div className="relative bg-gray-100 aspect-[4/3]">
+        {images.length > 0 ? (
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={imgIndex}
+              src={images[imgIndex]}
+              alt={listing.title}
+              className="w-full h-full object-cover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+          </AnimatePresence>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">📦</div>
+        )}
+
+        <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
+          <button onClick={() => navigate("/")} className="pointer-events-auto w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
           </button>
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-5 h-5 text-[#E8C84A] fill-[#E8C84A]" />
-            <h1 className="text-white font-black text-lg">{t("boostTitle")}</h1>
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all
-                  ${step >= s ? "bg-[#C8972B] text-white" : "bg-white/20 text-white/50"}`}>
-                  {step > s ? <Check className="w-3.5 h-3.5" /> : s}
-                </div>
-                {s < 3 && <div className={`w-8 h-0.5 rounded-full ${step > s ? "bg-[#C8972B]" : "bg-white/20"}`} />}
-              </div>
+          <button onClick={() => toggleFavorite(listing.id)} className="pointer-events-auto w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <Heart className={`w-4 h-4 ${fav ? "fill-red-500 text-red-500" : "text-white"}`} strokeWidth={fav ? 0 : 1.8} />
+          </button>
+        </div>
+
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_: any, i: number) => (
+              <button key={i} onClick={() => setImgIndex(i)} className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`} />
             ))}
-            <span className="text-green-200 text-xs ms-1">
-              {step === 1 ? "Choisir un plan" : step === 2 ? "Paiement BaridiMob" : "Envoyer le reçu"}
-            </span>
           </div>
+        )}
+
+        <div className="absolute top-3 start-3 flex gap-1.5">
+          {listing.is_boosted && (
+            <span className="bg-[#C8972B] text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+              <Zap className="w-3 h-3" /> {t("boosted")}
+            </span>
+          )}
+          {listing.is_urgent && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">{t("urgent")}</span>
+          )}
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
-        <div className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
-          <img src={listing.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate">{listing.title}</p>
-            <p className="text-sm font-bold text-[#1B6B3A]">{listing.price.toLocaleString()} DA</p>
+      <div className="px-4 pt-4 space-y-4">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-lg font-bold text-gray-900 flex-1 leading-snug">{listing.title}</h1>
+            <button className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100">
+              <Share2 className="w-4 h-4 text-gray-600" />
+            </button>
           </div>
-          {plan && step > 1 && (
-            <div className={`px-2.5 py-1 rounded-xl text-xs font-bold
-              ${plan.type === "premium" ? "bg-amber-50 text-[#C8972B]" : "bg-green-50 text-[#1B6B3A]"}`}>
-              {plan.label}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-2xl font-black text-[#1B6B3A]">{listing.price?.toLocaleString()} {t("da")}</span>
+            {listing.is_negotiable && (
+              <span className="text-xs text-[#C8972B] font-semibold bg-amber-50 px-2 py-1 rounded-full">{t("negotiable")}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {category && (
+            <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2">
+              <span className="text-base">{category.icon}</span>
+              <span className="text-xs font-medium text-gray-600">{t(listing.category as any)}</span>
             </div>
           )}
+          {listing.wilaya && (
+            <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2">
+              <MapPin className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-xs font-medium text-gray-600">{listing.wilaya}</span>
+            </div>
+          )}
+          {listing.condition && (
+            <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2">
+              <div className={`w-2 h-2 rounded-full ${listing.condition === "new" ? "bg-[#1B6B3A]" : "bg-orange-400"}`} />
+              <span className="text-xs font-medium text-gray-600">
+                {listing.condition === "new" ? t("conditionNew") : t("conditionUsed")}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs font-medium text-gray-600">{new Date(listing.created_at).toLocaleDateString("fr-FR")}</span>
+          </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { icon: Eye, label: "+5x vues", color: "bg-blue-50 text-blue-600" },
-                  { icon: TrendingUp, label: "Top résultats", color: "bg-green-50 text-[#1B6B3A]" },
-                  { icon: Star, label: "Badge vedette", color: "bg-amber-50 text-[#C8972B]" },
-                ].map((b) => (
-                  <div key={b.label} className={`${b.color.split(" ")[0]} rounded-2xl p-3 text-center`}>
-                    <b.icon className={`w-5 h-5 ${b.color.split(" ")[1]} mx-auto mb-1`} />
-                    <p className={`text-[11px] font-bold ${b.color.split(" ")[1]}`}>{b.label}</p>
-                  </div>
+        {listing.description && (
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <h3 className="text-sm font-bold text-gray-800 mb-2">{t("description")}</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">{listing.description}</p>
+          </div>
+        )}
+
+        {/* Boutons gestion si c'est mon annonce */}
+        {isMyListing && (
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase">Gérer mon annonce</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate(`/boost/${listing.id}`)}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#C8972B] text-white font-semibold text-sm"
+              >
+                <Zap className="w-4 h-4 fill-white" />
+                Booster
+              </button>
+              <button
+                onClick={handleMarkSold}
+                disabled={marking}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Vendu
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 text-red-500 font-semibold text-sm"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {similar.length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-3">{t("similarListings")}</h3>
+            <div className="grid grid-cols-2 gap-2.5">
+              {similar.map((l) => <ListingCard key={l.id} listing={l} />)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Message compose */}
+      <AnimatePresence>
+        {showMsgBox && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowMsgBox(false)}>
+            <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4">
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+              <h3 className="text-sm font-bold text-gray-900">{t("sendMessage")}</h3>
+              <div className="flex gap-2">
+                {["Toujours dispo ?", "Quel est votre meilleur prix ?", "Je suis intéressé !"].map((q) => (
+                  <button key={q} onClick={() => setMsgText(q)} className="flex-1 text-[11px] font-medium text-[#1B6B3A] bg-green-50 border border-green-100 rounded-xl py-2 px-1.5 text-center">{q}</button>
                 ))}
               </div>
-
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t("basicBoost")} — {t("basicBoostDesc")}</p>
-                </div>
-                <div className="flex gap-2 p-3">
-                  {PLANS.filter((p) => p.type === "basic").map((plan) => (
-                    <motion.button key={plan.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(plan.id)}
-                      className={`flex-1 p-3 rounded-2xl border-2 transition-all relative
-                        ${selected === plan.id ? "border-[#1B6B3A] bg-green-50" : "border-gray-100"}`}>
-                      {plan.popular && (
-                        <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[#C8972B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                          ⭐ Populaire
-                        </span>
-                      )}
-                      <p className="text-lg font-black text-gray-900">{plan.days}j</p>
-                      <p className="text-sm font-bold text-[#1B6B3A]">{plan.price} DA</p>
-                      <p className="text-[10px] text-gray-400">{Math.round(plan.price / plan.days)} DA{t("perDay")}</p>
-                      {selected === plan.id && (
-                        <div className="absolute top-2 end-2 w-4 h-4 bg-[#1B6B3A] rounded-full flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm overflow-hidden border border-[#C8972B]/20">
-                <div className="px-4 py-2 bg-[#C8972B]/10 border-b border-[#C8972B]/20 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#C8972B] fill-[#C8972B]" />
-                  <p className="text-xs font-bold text-[#C8972B] uppercase tracking-wide">{t("premiumBoost")} — {t("premiumBoostDesc")}</p>
-                </div>
-                <div className="flex gap-2 p-3">
-                  {PLANS.filter((p) => p.type === "premium").map((plan) => (
-                    <motion.button key={plan.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(plan.id)}
-                      className={`flex-1 p-3 rounded-2xl border-2 transition-all relative
-                        ${selected === plan.id ? "border-[#C8972B] bg-amber-100/60" : "border-[#C8972B]/20 bg-white/60"}`}>
-                      <p className="text-lg font-black text-gray-900">{plan.days}j</p>
-                      <p className="text-sm font-bold text-[#C8972B]">{plan.price} DA</p>
-                      <p className="text-[10px] text-gray-400">{Math.round(plan.price / plan.days)} DA{t("perDay")}</p>
-                      {selected === plan.id && (
-                        <div className="absolute top-2 end-2 w-4 h-4 bg-[#C8972B] rounded-full flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
+              <div className="flex gap-2">
+                <input className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none" placeholder={t("typeMessage")} value={msgText} onChange={(e) => setMsgText(e.target.value)} />
+                <button onClick={handleSendMessage} className="w-11 h-11 rounded-full bg-[#1B6B3A] flex items-center justify-center shadow-md">
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
               </div>
             </motion.div>
-          )}
-
-          {step === 2 && plan && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              <div className="bg-white rounded-3xl shadow-md overflow-hidden border border-green-100">
-                <div className="bg-gradient-to-r from-[#1B6B3A] to-[#25924F] px-5 py-4 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">🏦</div>
-                  <div>
-                    <p className="text-white font-black text-base">Paiement BaridiMob</p>
-                    <p className="text-green-200 text-xs">Virement CCP sécurisé</p>
-                  </div>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Numéro CCP destinataire</p>
-                    <div className="flex items-center gap-2 bg-gray-50 rounded-2xl p-3 border border-gray-200">
-                      <p className="flex-1 font-mono text-base font-black text-gray-900 tracking-wider break-all">{CCP_NUMBER}</p>
-                      <button onClick={handleCopy} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${copied ? "bg-green-500 text-white" : "bg-[#1B6B3A] text-white"}`}>
-                        {copied ? <><CheckCheck className="w-3.5 h-3.5" /> Copié</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Montant à virer</p>
-                    <div className="bg-amber-50 border border-[#C8972B]/30 rounded-2xl p-3 text-center">
-                      <p className="text-2xl font-black text-[#C8972B]">{plan.price.toLocaleString()} DA</p>
-                      <p className="text-xs text-amber-600 mt-0.5">{plan.label} — {plan.days} jours</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Motif du virement</p>
-                    <div className="bg-gray-50 rounded-2xl p-3 border border-gray-200">
-                      <p className="font-mono text-sm text-gray-700 font-semibold">Boost Wiya #{listing.id}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Étapes à suivre</p>
-                    <div className="space-y-2.5">
-                      {[
-                        "Ouvrez l'application BaridiMob",
-                        "Appuyez sur « Virement vers CCP »",
-                        `Saisissez le numéro CCP ci-dessus`,
-                        `Entrez le montant : ${plan.price.toLocaleString()} DA`,
-                        `Motif : Boost Wiya #${listing.id}`,
-                        "Confirmez avec votre code secret",
-                        "Prenez une capture d'écran du reçu ✅",
-                      ].map((step, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <div className="w-5 h-5 rounded-full bg-[#1B6B3A] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
-                          <p className="text-sm text-gray-700 leading-snug">{step}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex gap-2.5">
-                <span className="text-base flex-shrink-0">ℹ️</span>
-                <p className="text-xs text-blue-700 leading-relaxed">Après avoir effectué le virement, passez à l'étape suivante pour envoyer votre reçu. Le boost sera activé sous <strong>24h</strong>.</p>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              <div className="bg-white rounded-3xl shadow-md p-5 space-y-4">
-                <div>
-                  <h3 className="text-base font-black text-gray-900 mb-1">Envoyez votre reçu</h3>
-                  <p className="text-sm text-gray-500">Prenez une capture d'écran du reçu BaridiMob et importez-la ici.</p>
-                </div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                {!receipt ? (
-                  <motion.button whileTap={{ scale: 0.97 }} onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[#1B6B3A]/30 rounded-2xl py-10 flex flex-col items-center gap-3 bg-green-50/50 active:bg-green-50">
-                    {uploading ? (
-                      <div className="w-10 h-10 rounded-full border-2 border-[#1B6B3A] border-t-transparent animate-spin" />
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 rounded-2xl bg-[#1B6B3A]/10 flex items-center justify-center">
-                          <Upload className="w-7 h-7 text-[#1B6B3A]" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-bold text-[#1B6B3A]">Importer la capture d'écran</p>
-                          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG — max 10 Mo</p>
-                        </div>
-                      </>
-                    )}
-                  </motion.button>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="relative rounded-2xl overflow-hidden border border-green-200 shadow-sm">
-                      <img src={receipt} alt="Reçu" className="w-full object-contain max-h-72" />
-                      <button onClick={() => { setReceipt(null); setReceiptName(""); }} className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                      <div className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="w-3.5 h-3.5 text-white" />
-                          <span className="text-white text-xs font-medium truncate">{receiptName || "reçu.jpg"}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">
-                      Changer l'image
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="bg-amber-50 border border-[#C8972B]/30 rounded-2xl px-4 py-3 flex gap-2.5">
-                <span className="text-base flex-shrink-0">⚠️</span>
-                <p className="text-xs text-amber-700 leading-relaxed">Assurez-vous que le montant, le numéro CCP et la date sont bien visibles sur le reçu.</p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Bottom action bar - pb-10 pour Safari iPhone */}
-      <div className="fixed bottom-0 start-0 end-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 shadow-lg max-w-[430px] mx-auto">
-        {step === 1 && (
-          <>
-            {selected && (
-              <p className="text-center text-xs text-gray-500 mb-2">
-                Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong>
-              </p>
-            )}
-            <button onClick={() => setStep(2)} disabled={!selected}
-              className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
-              <Zap className="w-4 h-4 fill-white" />
-              Continuer vers le paiement
-            </button>
-          </>
+          </motion.div>
         )}
-        {step === 2 && (
-          <button onClick={() => setStep(3)}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2">
-            J'ai effectué le virement →
+      </AnimatePresence>
+
+      {/* Bottom action bar — masqué si c'est mon annonce */}
+      {!isMyListing && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 flex gap-3 shadow-lg z-40">
+          <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
+            <Phone className="w-4 h-4" />
+            {t("call")}
           </button>
-        )}
-        {step === 3 && (
-          <button onClick={handleSubmit} disabled={!receipt || uploading}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
-            <CheckCheck className="w-4 h-4" />
-            Soumettre la demande
+          <button
+            onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-8 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200"
+          >
+            <MessageCircle className="w-4 h-4" />
+            {t("sendMessage")}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
