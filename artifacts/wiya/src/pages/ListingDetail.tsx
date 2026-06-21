@@ -38,14 +38,28 @@ export default function ListingDetail() {
   const handleDelete = async () => {
     if (!confirm("Supprimer cette annonce ?")) return;
     setDeleting(true);
-    await supabase.from("listings").delete().eq("id", params.id);
-    navigate("/");
+    const { error } = await supabase.from("listings").delete().eq("id", params.id);
+    if (!error) {
+      navigate("/");
+    } else {
+      alert("Erreur suppression, réessaie.");
+      setDeleting(false);
+    }
   };
 
   const handleMarkSold = async () => {
     setMarking(true);
-    await supabase.from("listings").update({ is_active: false }).eq("id", params.id);
-    navigate("/");
+    const { error } = await supabase
+      .from("listings")
+      .update({ is_active: false })
+      .eq("id", params.id);
+    if (!error) {
+      alert("Annonce marquée comme vendue !");
+      navigate("/");
+    } else {
+      alert("Erreur, réessaie.");
+      setMarking(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
