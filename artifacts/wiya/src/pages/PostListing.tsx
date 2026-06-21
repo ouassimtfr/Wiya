@@ -7,12 +7,6 @@ import { useStore } from "@/lib/store";
 import { CATEGORIES, WILAYAS } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
-const PLACEHOLDER_IMAGES = [
-  "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80",
-  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80",
-  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&q=80",
-];
-
 export default function PostListingPage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
@@ -20,6 +14,7 @@ export default function PostListingPage() {
 
   const [step, setStep] = useState(1);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -45,10 +40,27 @@ export default function PostListingPage() {
     );
   }
 
-  const addPhoto = () => {
-    if (photos.length >= 5) return;
-    const img = PLACEHOLDER_IMAGES[photos.length % PLACEHOLDER_IMAGES.length];
-    setPhotos((p) => [...p, img]);
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || photos.length >= 5) return;
+
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("listings")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("listings").getPublicUrl(fileName);
+      setPhotos((p) => [...p, data.publicUrl]);
+    } catch (err) {
+      setError("Erreur upload photo. Réessaie.");
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const removePhoto = (i: number) => setPhotos((p) => p.filter((_, idx) => idx !== i));
@@ -64,8 +76,11 @@ export default function PostListingPage() {
         price: price ? parseFloat(price) : null,
         category,
         wilaya,
-        images: photos.length > 0 ? photos : [PLACEHOLDER_IMAGES[0]],
+        images: photos,
         is_active: true,
+        is_negotiable: negotiable,
+        is_urgent: urgent,
+        condition,
       });
       if (insertError) throw insertError;
       setPublished(true);
@@ -100,7 +115,6 @@ export default function PostListingPage() {
 
   return (
     <div className="bg-white min-h-screen pb-36">
-      {/* Header */}
       <div className="bg-[#1B6B3A] pt-12 pb-4 px-4 flex items-center gap-3">
         <button onClick={() => navigate("/" as any)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20">
           <ArrowLeft className="w-4 h-4 text-white" />
@@ -108,21 +122,15 @@ export default function PostListingPage() {
         <h1 className="text-white font-bold text-base">{t("postListing")}</h1>
       </div>
 
-      {/* Step indicator */}
       <div className="flex px-4 py-4 gap-1.5">
         {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-[#1B6B3A]" : "bg-gray-100"}`}
-          />
+          <div key={s} className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-[#1B6B3A]" : "bg-gray-100"}`} />
         ))}
       </div>
 
       <div className="px-4 space-y-5">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-2xl">
-            {error}
-          </div>
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-2xl">{error}</div>
         )}
 
         <AnimatePresence mode="wait">
@@ -137,17 +145,28 @@ export default function PostListingPage() {
                       <X className="w-3 h-3 text-white" />
                     </button>
                     {i === 0 && (
-                      <span className="absolute bottom-1 left-1 text-[9px] bg-[#1B6B3A] text-white px-1.5 py-0.5 rounded-full font-bold">
-                        Principale
-                      </span>
+                      <span className="absolute bottom-1 left-1 text-[9px] bg-[#1B6B3A] text-white px-1.5 py-0.5 rounded-full font-bold">Principale</span>
                     )}
                   </div>
                 ))}
                 {photos.length < 5 && (
-                  <button onClick={addPhoto} className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 active:bg-gray-50">
-                    <Camera className="w-6 h-6" />
-                    <span className="text-[10px] font-medium">{t("addPhoto")}</span>
-                  </button>
+                  <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 cursor-pointer active:bg-gray-50">
+                    {uploadingPhoto ? (
+                      <div className="w-6 h-6 border-2 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="w-6 h-6" />
+                        <span className="text-[10px] font-medium">{t("addPhoto")}</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                  </label>
                 )}
               </div>
               <p className="text-xs text-gray-400 text-center">{photos.length}/5 photos ajoutées</p>
@@ -166,9 +185,7 @@ export default function PostListingPage() {
                 <div className="relative">
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-sm outline-none">
                     <option value="">{t("selectCategory")}</option>
-                    {CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>{c.icon} {t(c.id as any)}</option>
-                    ))}
+                    {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {t(c.id as any)}</option>)}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
@@ -205,9 +222,7 @@ export default function PostListingPage() {
                 <div className="relative">
                   <select value={wilaya} onChange={(e) => setWilaya(e.target.value)} className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-sm outline-none">
                     <option value="">{t("selectWilaya")}</option>
-                    {WILAYAS.map((w) => (
-                      <option key={w} value={w}>{w}</option>
-                    ))}
+                    {WILAYAS.map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
@@ -233,7 +248,6 @@ export default function PostListingPage() {
         </AnimatePresence>
       </div>
 
-      {/* Bottom buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 flex gap-3">
         {step > 1 && (
           <button onClick={() => setStep(step - 1)} className="flex-1 py-3.5 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-sm">
