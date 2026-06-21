@@ -90,7 +90,6 @@ export default function BoostPage() {
     setStep(4);
   };
 
-  /* ── Step 4: Confirmation ── */
   if (step === 4) {
     return (
       <motion.div
@@ -130,7 +129,6 @@ export default function BoostPage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-32">
-      {/* Header */}
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -bottom-4 right-4 w-32 h-32 rounded-full bg-[#C8972B]" />
@@ -140,14 +138,12 @@ export default function BoostPage() {
             onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : window.history.back()}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 mb-4"
           >
-            <ArrowLeft className={`w-4.5 h-4.5 text-white ${isRTL ? "rotate-180" : ""}`} />
+            <ArrowLeft className={`w-4 h-4 text-white ${isRTL ? "rotate-180" : ""}`} />
           </button>
           <div className="flex items-center gap-2 mb-1">
             <Zap className="w-5 h-5 text-[#E8C84A] fill-[#E8C84A]" />
             <h1 className="text-white font-black text-lg">{t("boostTitle")}</h1>
           </div>
-
-          {/* Step indicator */}
           <div className="flex items-center gap-2 mt-3">
             {[1, 2, 3].map((s) => (
               <div key={s} className="flex items-center gap-2">
@@ -166,7 +162,6 @@ export default function BoostPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Listing preview — always visible */}
         <div className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
           <img src={listing.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -181,11 +176,9 @@ export default function BoostPage() {
           )}
         </div>
 
-        {/* ── STEP 1: Plan selection ── */}
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              {/* Benefits */}
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { icon: Eye, label: "+5x vues", color: "bg-blue-50 text-blue-600" },
@@ -199,7 +192,6 @@ export default function BoostPage() {
                 ))}
               </div>
 
-              {/* Basic plans */}
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
                   <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t("basicBoost")} — {t("basicBoostDesc")}</p>
@@ -227,7 +219,6 @@ export default function BoostPage() {
                 </div>
               </div>
 
-              {/* Premium plans */}
               <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm overflow-hidden border border-[#C8972B]/20">
                 <div className="px-4 py-2 bg-[#C8972B]/10 border-b border-[#C8972B]/20 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-[#C8972B] fill-[#C8972B]" />
@@ -253,10 +244,8 @@ export default function BoostPage() {
             </motion.div>
           )}
 
-          {/* ── STEP 2: BaridiMob instructions ── */}
           {step === 2 && plan && (
             <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              {/* BaridiMob card */}
               <div className="bg-white rounded-3xl shadow-md overflow-hidden border border-green-100">
                 <div className="bg-gradient-to-r from-[#1B6B3A] to-[#25924F] px-5 py-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">🏦</div>
@@ -265,26 +254,16 @@ export default function BoostPage() {
                     <p className="text-green-200 text-xs">Virement CCP sécurisé</p>
                   </div>
                 </div>
-
                 <div className="p-5 space-y-4">
-                  {/* CCP Number */}
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Numéro CCP destinataire</p>
                     <div className="flex items-center gap-2 bg-gray-50 rounded-2xl p-3 border border-gray-200">
-                      <p className="flex-1 font-mono text-base font-black text-gray-900 tracking-wider break-all">
-                        {CCP_NUMBER}
-                      </p>
-                      <button
-                        onClick={handleCopy}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-                          ${copied ? "bg-green-500 text-white" : "bg-[#1B6B3A] text-white"}`}
-                      >
+                      <p className="flex-1 font-mono text-base font-black text-gray-900 tracking-wider break-all">{CCP_NUMBER}</p>
+                      <button onClick={handleCopy} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${copied ? "bg-green-500 text-white" : "bg-[#1B6B3A] text-white"}`}>
                         {copied ? <><CheckCheck className="w-3.5 h-3.5" /> Copié</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
                       </button>
                     </div>
                   </div>
-
-                  {/* Amount */}
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Montant à virer</p>
                     <div className="bg-amber-50 border border-[#C8972B]/30 rounded-2xl p-3 text-center">
@@ -292,16 +271,12 @@ export default function BoostPage() {
                       <p className="text-xs text-amber-600 mt-0.5">{plan.label} — {plan.days} jours</p>
                     </div>
                   </div>
-
-                  {/* Motif */}
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Motif du virement</p>
                     <div className="bg-gray-50 rounded-2xl p-3 border border-gray-200">
                       <p className="font-mono text-sm text-gray-700 font-semibold">Boost Wiya #{listing.id}</p>
                     </div>
                   </div>
-
-                  {/* Steps */}
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Étapes à suivre</p>
                     <div className="space-y-2.5">
@@ -315,9 +290,7 @@ export default function BoostPage() {
                         "Prenez une capture d'écran du reçu ✅",
                       ].map((step, i) => (
                         <div key={i} className="flex items-start gap-3">
-                          <div className="w-5 h-5 rounded-full bg-[#1B6B3A] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">
-                            {i + 1}
-                          </div>
+                          <div className="w-5 h-5 rounded-full bg-[#1B6B3A] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
                           <p className="text-sm text-gray-700 leading-snug">{step}</p>
                         </div>
                       ))}
@@ -325,42 +298,24 @@ export default function BoostPage() {
                   </div>
                 </div>
               </div>
-
               <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex gap-2.5">
                 <span className="text-base flex-shrink-0">ℹ️</span>
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  Après avoir effectué le virement, passez à l'étape suivante pour envoyer votre reçu. Le boost sera activé sous <strong>24h</strong>.
-                </p>
+                <p className="text-xs text-blue-700 leading-relaxed">Après avoir effectué le virement, passez à l'étape suivante pour envoyer votre reçu. Le boost sera activé sous <strong>24h</strong>.</p>
               </div>
             </motion.div>
           )}
 
-          {/* ── STEP 3: Upload receipt ── */}
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
               <div className="bg-white rounded-3xl shadow-md p-5 space-y-4">
                 <div>
                   <h3 className="text-base font-black text-gray-900 mb-1">Envoyez votre reçu</h3>
-                  <p className="text-sm text-gray-500">
-                    Prenez une capture d'écran du reçu BaridiMob et importez-la ici.
-                  </p>
+                  <p className="text-sm text-gray-500">Prenez une capture d'écran du reçu BaridiMob et importez-la ici.</p>
                 </div>
-
-                {/* Upload area */}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                 {!receipt ? (
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[#1B6B3A]/30 rounded-2xl py-10 flex flex-col items-center gap-3 bg-green-50/50 active:bg-green-50"
-                  >
+                  <motion.button whileTap={{ scale: 0.97 }} onClick={() => fileRef.current?.click()}
+                    className="w-full border-2 border-dashed border-[#1B6B3A]/30 rounded-2xl py-10 flex flex-col items-center gap-3 bg-green-50/50 active:bg-green-50">
                     {uploading ? (
                       <div className="w-10 h-10 rounded-full border-2 border-[#1B6B3A] border-t-transparent animate-spin" />
                     ) : (
@@ -379,10 +334,7 @@ export default function BoostPage() {
                   <div className="space-y-3">
                     <div className="relative rounded-2xl overflow-hidden border border-green-200 shadow-sm">
                       <img src={receipt} alt="Reçu" className="w-full object-contain max-h-72" />
-                      <button
-                        onClick={() => { setReceipt(null); setReceiptName(""); }}
-                        className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
-                      >
+                      <button onClick={() => { setReceipt(null); setReceiptName(""); }} className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
                         <X className="w-4 h-4 text-white" />
                       </button>
                       <div className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
@@ -392,29 +344,23 @@ export default function BoostPage() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl"
-                    >
+                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">
                       Changer l'image
                     </button>
                   </div>
                 )}
               </div>
-
               <div className="bg-amber-50 border border-[#C8972B]/30 rounded-2xl px-4 py-3 flex gap-2.5">
                 <span className="text-base flex-shrink-0">⚠️</span>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Assurez-vous que le montant, le numéro CCP et la date sont bien visibles sur le reçu.
-                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">Assurez-vous que le montant, le numéro CCP et la date sont bien visibles sur le reçu.</p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Bottom action bar */}
-      <div className="fixed bottom-0 start-0 end-0 bg-white border-t border-gray-100 px-4 py-3 shadow-lg max-w-[430px] mx-auto">
+      {/* Bottom action bar - pb-10 pour Safari iPhone */}
+      <div className="fixed bottom-0 start-0 end-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 shadow-lg max-w-[430px] mx-auto">
         {step === 1 && (
           <>
             {selected && (
@@ -422,30 +368,22 @@ export default function BoostPage() {
                 Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong>
               </p>
             )}
-            <button
-              onClick={() => setStep(2)}
-              disabled={!selected}
-              className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2"
-            >
+            <button onClick={() => setStep(2)} disabled={!selected}
+              className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
               <Zap className="w-4 h-4 fill-white" />
               Continuer vers le paiement
             </button>
           </>
         )}
         {step === 2 && (
-          <button
-            onClick={() => setStep(3)}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2"
-          >
+          <button onClick={() => setStep(3)}
+            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2">
             J'ai effectué le virement →
           </button>
         )}
         {step === 3 && (
-          <button
-            onClick={handleSubmit}
-            disabled={!receipt || uploading}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2"
-          >
+          <button onClick={handleSubmit} disabled={!receipt || uploading}
+            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
             <CheckCheck className="w-4 h-4" />
             Soumettre la demande
           </button>
