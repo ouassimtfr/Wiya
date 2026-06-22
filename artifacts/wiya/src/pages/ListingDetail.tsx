@@ -18,6 +18,7 @@ export default function ListingDetail() {
   const [msgText, setMsgText] = useState("");
   const [listing, setListing] = useState<any>(null);
   const [similar, setSimilar] = useState<any[]>([]);
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -31,6 +32,8 @@ export default function ListingDetail() {
       setListing(data);
       const { data: sim } = await supabase.from("listings").select("*").eq("category", data.category).neq("id", data.id).eq("is_active", true).limit(4);
       setSimilar(sim ?? []);
+      const { data: profile } = await supabase.from("profiles").select("username, phone, avatar_url").eq("id", data.user_id).single();
+      if (profile) setSellerProfile(profile);
     }
     setLoading(false);
   };
@@ -39,27 +42,15 @@ export default function ListingDetail() {
     if (!confirm("Supprimer cette annonce ?")) return;
     setDeleting(true);
     const { error } = await supabase.from("listings").delete().eq("id", params.id);
-    if (!error) {
-      navigate("/");
-    } else {
-      alert("Erreur suppression, réessaie.");
-      setDeleting(false);
-    }
+    if (!error) navigate("/");
+    else { alert("Erreur suppression, réessaie."); setDeleting(false); }
   };
 
   const handleMarkSold = async () => {
     setMarking(true);
-    const { error } = await supabase
-      .from("listings")
-      .update({ is_active: false })
-      .eq("id", params.id);
-    if (!error) {
-      alert("Annonce marquée comme vendue !");
-      navigate("/");
-    } else {
-      alert("Erreur, réessaie.");
-      setMarking(false);
-    }
+    const { error } = await supabase.from("listings").update({ is_active: false }).eq("id", params.id);
+    if (!error) { alert("Annonce marquée comme vendue !"); navigate("/"); }
+    else { alert("Erreur, réessaie."); setMarking(false); }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
@@ -73,7 +64,7 @@ export default function ListingDetail() {
   const handleSendMessage = () => {
     if (!user) { navigate("/auth"); return; }
     if (!msgText.trim()) return;
-    const convId = startConversation(listing.id, listing.title, images[0] ?? "", listing.user_id, "Vendeur", "", msgText.trim());
+    const convId = startConversation(listing.id, listing.title, images[0] ?? "", listing.user_id, sellerProfile?.username ?? "Vendeur", "", msgText.trim());
     setMsgText(""); setShowMsgBox(false);
     navigate(`/messages/${convId}`);
   };
@@ -133,6 +124,19 @@ export default function ListingDetail() {
           </div>
         )}
 
+        {/* Profil vendeur */}
+        {sellerProfile && !isMyListing && (
+          <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center text-xl flex-shrink-0">
+              {sellerProfile.avatar_url ? <img src={sellerProfile.avatar_url} className="w-12 h-12 rounded-full object-cover" /> : "👤"}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-gray-900">{sellerProfile.username ?? "Vendeur"}</p>
+              {sellerProfile.phone && <p className="text-xs text-gray-500 mt-0.5">{sellerProfile.phone}</p>}
+            </div>
+          </div>
+        )}
+
         {isMyListing && (
           <div className="space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase">Gérer mon annonce</p>
@@ -183,10 +187,16 @@ export default function ListingDetail() {
       </AnimatePresence>
 
       {!isMyListing && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 flex gap-3 shadow-lg z-40">
-          <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
-            <Phone className="w-4 h-4" />{t("call")}
-          </button>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3 shadow-lg z-40">
+          {sellerProfile?.phone ? (
+            <a href={`tel:${sellerProfile.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
+              <Phone className="w-4 h-4" />{t("call")}
+            </a>
+          ) : (
+            <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm opacity-50">
+              <Phone className="w-4 h-4" />{t("call")}
+            </button>
+          )}
           <button onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }} className="flex-1 flex items-center justify-center gap-2 py-3 px-8 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200">
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
