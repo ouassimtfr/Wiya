@@ -21,7 +21,6 @@ export default function MessagesPage() {
   const fetchConversations = async () => {
     setLoading(true);
 
-    // Récupère tous les messages où l'utilisateur est sender ou receiver
     const { data: msgs } = await supabase
       .from("messages")
       .select("*")
@@ -30,16 +29,16 @@ export default function MessagesPage() {
 
     if (!msgs) { setLoading(false); return; }
 
-    // Groupe par listing_id pour créer des conversations
     const convMap = new Map<string, any>();
     for (const msg of msgs) {
-      if (!convMap.has(msg.listing_id)) {
-        convMap.set(msg.listing_id, msg);
+      const otherUserId = msg.sender_id === user!.id ? msg.receiver_id : msg.sender_id;
+      const key = `${msg.listing_id}__${otherUserId}`;
+      if (!convMap.has(key)) {
+        convMap.set(key, { ...msg, otherUserId });
       }
     }
 
-    // Récupère les infos des annonces
-    const listingIds = Array.from(convMap.keys());
+    const listingIds = [...new Set(Array.from(convMap.values()).map(v => v.listing_id))];
     if (listingIds.length === 0) { setConversations([]); setLoading(false); return; }
 
     const { data: listings } = await supabase
@@ -47,16 +46,14 @@ export default function MessagesPage() {
       .select("id, title, images, user_id")
       .in("id", listingIds);
 
-    const convList = listingIds.map((lid) => {
-      const lastMsg = convMap.get(lid);
-      const listing = listings?.find((l) => l.id === lid);
-      const otherUserId = lastMsg.sender_id === user!.id ? lastMsg.receiver_id : lastMsg.sender_id;
+    const convList = Array.from(convMap.entries()).map(([key, lastMsg]) => {
+      const listing = listings?.find((l) => l.id === lastMsg.listing_id);
       return {
-        id: lid,
-        listingId: lid,
+        id: key,
+        listingId: lastMsg.listing_id,
         listingTitle: listing?.title ?? "Annonce",
         listingImage: listing?.images?.[0] ?? "",
-        otherUserId,
+        otherUserId: lastMsg.otherUserId,
         lastMessage: lastMsg.content,
         lastMessageTime: new Date(lastMsg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
         unread: 0,
@@ -107,7 +104,7 @@ export default function MessagesPage() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/messages/${conv.id}`)}
+              onClick={() => navigate(`/messages/${conv.listingId}`)}
               className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors"
             >
               <div className="relative flex-shrink-0">
