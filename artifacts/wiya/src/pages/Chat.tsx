@@ -23,7 +23,7 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [listing, setListing] = useState<any>(null);
-  const [receiverId, setReceiverId] = useState<string>("");
+  const [otherUserId, setOtherUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +41,6 @@ export default function ChatPage() {
     if (!user) return;
     setLoading(true);
 
-    // Récupère l'annonce
     const { data: listingData } = await supabase
       .from("listings")
       .select("*")
@@ -50,12 +49,11 @@ export default function ChatPage() {
 
     if (listingData) {
       setListing(listingData);
-      // Le receiver c'est le vendeur si on est l'acheteur, sinon l'acheteur
-      const rid = listingData.user_id === user.id ? user.id : listingData.user_id;
-      setReceiverId(listingData.user_id);
+      if (listingData.user_id !== user.id) {
+        setOtherUserId(listingData.user_id);
+      }
     }
 
-    // Récupère les messages
     const { data: msgs } = await supabase
       .from("messages")
       .select("*")
@@ -63,7 +61,17 @@ export default function ChatPage() {
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
-    if (msgs) setMessages(msgs);
+    if (msgs && msgs.length > 0) {
+      setMessages(msgs);
+      if (listingData && listingData.user_id === user.id) {
+        const firstMsg = msgs[0];
+        const buyerId = firstMsg.sender_id === user.id ? firstMsg.receiver_id : firstMsg.sender_id;
+        setOtherUserId(buyerId);
+      }
+    } else if (msgs) {
+      setMessages(msgs);
+    }
+
     setLoading(false);
   };
 
@@ -76,10 +84,11 @@ export default function ChatPage() {
         table: "messages",
         filter: `listing_id=eq.${params.id}`,
       }, (payload) => {
+        const newMsg = payload.new as Message;
+        if (newMsg.sender_id !== user?.id && newMsg.receiver_id !== user?.id) return;
         setMessages((prev) => {
-          // Evite les doublons
-          if (prev.find(m => m.id === payload.new.id)) return prev;
-          return [...prev, payload.new as Message];
+          if (prev.find(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
         });
       })
       .subscribe();
@@ -91,30 +100,30 @@ export default function ChatPage() {
     const msgText = customText ?? text.trim();
     if (!msgText || !user || !listing) return;
 
+    const receiverId = listing.user_id === user.id ? otherUserId : listing.user_id;
+    if (!receiverId) return;
+
     const tempId = `temp-${Date.now()}`;
     const newMsg: Message = {
       id: tempId,
       sender_id: user.id,
-      receiver_id: listing.user_id,
+      receiver_id: receiverId,
       content: msgText,
       created_at: new Date().toISOString(),
       listing_id: params.id,
     };
 
-    // Affiche immédiatement
     setMessages((prev) => [...prev, newMsg]);
     setText("");
 
-    // Envoie à Supabase
     const { data, error } = await supabase.from("messages").insert({
       listing_id: params.id,
       sender_id: user.id,
-      receiver_id: listing.user_id,
+      receiver_id: receiverId,
       content: msgText,
     }).select().single();
 
     if (!error && data) {
-      // Remplace le message temporaire par le vrai
       setMessages((prev) => prev.map(m => m.id === tempId ? data : m));
     }
   };
@@ -126,9 +135,10 @@ export default function ChatPage() {
     }
   };
 
+  const isVendeur = listing?.user_id === user?.id;
+
   return (
     <div className="bg-[#F0F2F0] flex flex-col h-screen">
-      {/* Header */}
       <div className="bg-[#1B6B3A] px-4 pt-12 pb-3 flex items-center gap-3 flex-shrink-0">
         <button onClick={() => navigate("/messages")} className="w-8 h-8 flex items-center justify-center">
           <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
@@ -137,7 +147,7 @@ export default function ChatPage() {
           {listing?.images?.[0] ? <img src={listing.images[0]} alt="" className="w-full h-full object-cover" /> : <span className="text-white text-sm font-bold">{listing?.title?.[0] ?? "?"}</span>}
         </div>
         <div className="flex-1">
-          <p className="text-white text-sm font-bold leading-tight">{listing?.user_id === user?.id ? "Acheteur" : "Vendeur"}</p>
+          <p className="text-white text-sm font-bold leading-tight">{isVendeur ? "Acheteur" : "Vendeur"}</p>
           <p className="text-green-200 text-[11px] truncate">{listing?.title ?? "Annonce"}</p>
         </div>
         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20">
@@ -145,7 +155,6 @@ export default function ChatPage() {
         </button>
       </div>
 
-      {/* Listing preview */}
       {listing && (
         <div onClick={() => navigate(`/listing/${listing.id}`)} className="bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3 cursor-pointer">
           {listing.images?.[0] && <img src={listing.images[0]} alt="" className="w-10 h-10 rounded-xl object-cover" />}
@@ -156,7 +165,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loading ? (
           <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>
@@ -189,7 +197,6 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex items-center gap-2 flex-shrink-0">
         <button className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100">
           <ImageIcon className="w-4 h-4 text-gray-500" />
