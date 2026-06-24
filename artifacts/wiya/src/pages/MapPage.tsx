@@ -1,14 +1,34 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Search, X, MapPin, ChevronDown, ArrowLeft } from "lucide-react";
+import { Search, X, MapPin, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
-import { WILAYAS_DATA, toSVG, ALGERIA_PATH, type Wilaya } from "@/lib/wilayas";
-import { LISTINGS } from "@/lib/data";
+import { WILAYAS_DATA, toSVG, type Wilaya } from "@/lib/wilayas";
+import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
 const SVG_W = 400;
 const SVG_H = 510;
+
+// Forme Algeria SVG améliorée — tracé plus fidèle
+const ALGERIA_PATH = `
+  M 178,18 L 192,16 L 210,18 L 228,22 L 242,20 L 255,24 L 265,20 L 278,22
+  L 285,28 L 292,26 L 300,30 L 308,28 L 318,32 L 325,38 L 330,46 L 335,52
+  L 338,60 L 342,68 L 345,76 L 348,84 L 350,92 L 352,100 L 354,110 L 356,120
+  L 358,130 L 360,142 L 362,155 L 363,168 L 364,182 L 365,196 L 366,210
+  L 367,224 L 368,238 L 369,252 L 370,266 L 371,280 L 372,294 L 373,308
+  L 374,322 L 375,336 L 376,348 L 377,360 L 378,370 L 379,380 L 380,390
+  L 381,400 L 382,410 L 383,418 L 384,425 L 384,432 L 383,438 L 380,442
+  L 375,445 L 368,447 L 360,448 L 350,448 L 338,447 L 325,446 L 310,445
+  L 295,444 L 278,443 L 260,442 L 242,441 L 224,440 L 206,439 L 188,438
+  L 170,437 L 152,436 L 136,434 L 122,431 L 110,427 L 100,422 L 92,416
+  L 86,409 L 82,401 L 80,392 L 79,382 L 79,371 L 80,359 L 81,346 L 82,332
+  L 82,318 L 82,304 L 81,290 L 80,276 L 78,262 L 76,248 L 73,235 L 70,222
+  L 67,210 L 64,199 L 61,189 L 58,180 L 55,171 L 52,162 L 49,152 L 46,141
+  L 43,129 L 41,117 L 40,105 L 40,94 L 41,84 L 44,75 L 48,67 L 54,60
+  L 61,54 L 70,49 L 80,44 L 91,40 L 103,36 L 116,32 L 130,28 L 144,24
+  L 158,20 L 170,18 L 178,18 Z
+`;
 
 export default function MapPage() {
   const [, navigate] = useLocation();
@@ -16,9 +36,25 @@ export default function MapPage() {
   const [selected, setSelected] = useState<Wilaya | null>(null);
   const [query, setQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [listings, setListings] = useState<any[]>([]);
+  const [loadingListings, setLoadingListings] = useState(false);
 
+  // Charge toutes les annonces actives au démarrage
+  useEffect(() => {
+    fetchAllListings();
+  }, []);
+
+  const fetchAllListings = async () => {
+    const { data } = await supabase
+      .from("listings")
+      .select("id, title, price, wilaya, images, category, condition, is_active, created_at, user_id, is_boosted, is_urgent, is_negotiable")
+      .eq("is_active", true);
+    if (data) setListings(data);
+  };
+
+  // Charge les annonces d'une wilaya sélectionnée
   const listingsForWilaya = selected
-    ? LISTINGS.filter((l) => l.wilaya === selected.name)
+    ? listings.filter((l) => l.wilaya === selected.name)
     : [];
 
   const filteredWilayas = query
@@ -30,7 +66,7 @@ export default function MapPage() {
     : [];
 
   const countForWilaya = (name: string) =>
-    LISTINGS.filter((l) => l.wilaya === name).length;
+    listings.filter((l) => l.wilaya === name).length;
 
   return (
     <div className="bg-[#0f3d22] min-h-screen pb-20 flex flex-col">
@@ -40,7 +76,7 @@ export default function MapPage() {
           onClick={() => navigate("/")}
           className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"
         >
-          <ArrowLeft className="w-4.5 h-4.5 text-white" />
+          <ArrowLeft className="w-4 h-4 text-white" />
         </button>
         <div className="flex-1">
           <h1 className="text-white font-black text-base">Carte des Wilayas</h1>
@@ -128,10 +164,9 @@ export default function MapPage() {
             className="w-full"
             style={{ background: "transparent" }}
           >
-            {/* Ocean / background */}
             <rect width={SVG_W} height={SVG_H} fill="#0d3320" rx="16" />
 
-            {/* Algeria land shape */}
+            {/* Forme Algérie */}
             <path
               d={ALGERIA_PATH}
               fill="#1e7a44"
@@ -140,14 +175,13 @@ export default function MapPage() {
               strokeLinejoin="round"
             />
 
-            {/* Sahara shading */}
+            {/* Dégradé Sahara */}
             <path
               d={ALGERIA_PATH}
               fill="url(#sahara)"
               opacity="0.4"
             />
 
-            {/* Gradient definitions */}
             <defs>
               <radialGradient id="sahara" cx="50%" cy="70%" r="60%">
                 <stop offset="0%" stopColor="#c8972b" stopOpacity="0.3" />
@@ -162,7 +196,7 @@ export default function MapPage() {
               </filter>
             </defs>
 
-            {/* Wilaya markers */}
+            {/* Marqueurs wilayas */}
             {WILAYAS_DATA.map((wilaya) => {
               const { x, y } = toSVG(wilaya.lon, wilaya.lat, SVG_W, SVG_H);
               const count = countForWilaya(wilaya.name);
@@ -170,55 +204,32 @@ export default function MapPage() {
               const hasListings = count > 0;
 
               const r = isSelected ? 8 : hasListings ? 6 : 4;
-              const fill = isSelected
-                ? "#ff6b35"
-                : hasListings
-                ? "#E8C84A"
-                : "rgba(255,255,255,0.35)";
+              const fill = isSelected ? "#ff6b35" : hasListings ? "#E8C84A" : "rgba(255,255,255,0.35)";
               const stroke = isSelected ? "#fff" : hasListings ? "#fff8" : "rgba(255,255,255,0.2)";
 
               return (
                 <g key={wilaya.code} onClick={() => setSelected(isSelected ? null : wilaya)}>
-                  {/* Pulse ring for selected */}
                   {isSelected && (
                     <circle cx={x} cy={y} r={14} fill="none" stroke="#ff6b35" strokeWidth="1.5" opacity="0.5" />
                   )}
-
-                  {/* Main dot */}
                   <circle
-                    cx={x}
-                    cy={y}
-                    r={r}
-                    fill={fill}
-                    stroke={stroke}
+                    cx={x} cy={y} r={r}
+                    fill={fill} stroke={stroke}
                     strokeWidth={isSelected ? 2 : hasListings ? 1 : 0.8}
                     style={{ cursor: "pointer" }}
                     filter={isSelected || hasListings ? "url(#glow)" : undefined}
                   />
-
-                  {/* Count badge */}
-                  {hasListings && !isSelected && count > 0 && (
+                  {hasListings && !isSelected && (
                     <>
                       <circle cx={x + 7} cy={y - 7} r={6} fill="#1B6B3A" stroke="#E8C84A" strokeWidth="1" />
-                      <text
-                        x={x + 7}
-                        y={y - 7}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize="6"
-                        fontWeight="bold"
-                        fill="white"
-                      >
+                      <text x={x + 7} y={y - 7} textAnchor="middle" dominantBaseline="central" fontSize="6" fontWeight="bold" fill="white">
                         {count}
                       </text>
                     </>
                   )}
-
-                  {/* Wilaya code label */}
                   {(hasListings || isSelected) && (
                     <text
-                      x={x}
-                      y={y + r + 7}
+                      x={x} y={y + r + 7}
                       textAnchor="middle"
                       fontSize={isSelected ? "7" : "6"}
                       fontWeight="bold"
@@ -232,31 +243,15 @@ export default function MapPage() {
               );
             })}
 
-            {/* Selected wilaya name label */}
+            {/* Label wilaya sélectionnée */}
             {selected && (() => {
               const { x, y } = toSVG(selected.lon, selected.lat, SVG_W, SVG_H);
               const labelX = Math.min(Math.max(x, 50), SVG_W - 50);
               const labelY = y > SVG_H - 60 ? y - 30 : y + 22;
               return (
                 <g>
-                  <rect
-                    x={labelX - 35}
-                    y={labelY - 10}
-                    width={70}
-                    height={16}
-                    rx={8}
-                    fill="#ff6b35"
-                    opacity="0.95"
-                  />
-                  <text
-                    x={labelX}
-                    y={labelY - 10 + 8}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize="7"
-                    fontWeight="bold"
-                    fill="white"
-                  >
+                  <rect x={labelX - 35} y={labelY - 10} width={70} height={16} rx={8} fill="#ff6b35" opacity="0.95" />
+                  <text x={labelX} y={labelY - 10 + 8} textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">
                     {selected.name}
                   </text>
                 </g>
@@ -265,7 +260,7 @@ export default function MapPage() {
           </svg>
         </div>
 
-        {/* Wilaya grid list (mini) */}
+        {/* Liste wilayas */}
         {!selected && (
           <div className="w-full mt-4">
             <p className="text-green-300 text-xs font-semibold px-1 mb-2">
@@ -298,7 +293,7 @@ export default function MapPage() {
         )}
       </div>
 
-      {/* Bottom sheet for selected wilaya */}
+      {/* Bottom sheet wilaya sélectionnée */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -309,7 +304,6 @@ export default function MapPage() {
             className="fixed bottom-16 left-0 right-0 max-w-[430px] mx-auto z-50"
           >
             <div className="bg-white rounded-t-3xl shadow-2xl max-h-[55vh] flex flex-col">
-              {/* Handle */}
               <div className="flex-shrink-0 pt-3 pb-2 px-5">
                 <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
                 <div className="flex items-center justify-between">
@@ -336,7 +330,6 @@ export default function MapPage() {
                 </div>
               </div>
 
-              {/* Listings */}
               <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
                 {listingsForWilaya.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
@@ -345,10 +338,7 @@ export default function MapPage() {
                       Aucune annonce à {selected.name}
                     </p>
                     <button
-                      onClick={() => {
-                        setSelected(null);
-                        navigate("/post");
-                      }}
+                      onClick={() => { setSelected(null); navigate("/post"); }}
                       className="text-xs text-[#1B6B3A] font-semibold mt-1"
                     >
                       Soyez le premier à publier ici →
@@ -361,7 +351,6 @@ export default function MapPage() {
                 )}
               </div>
 
-              {/* Browse all in wilaya */}
               {listingsForWilaya.length > 0 && (
                 <div className="px-4 pb-4 flex-shrink-0">
                   <button
