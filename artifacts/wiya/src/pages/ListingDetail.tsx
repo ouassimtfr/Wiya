@@ -12,7 +12,7 @@ export default function ListingDetail() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { t, isRTL } = useI18n();
-  const { toggleFavorite, isFavorite, user, startConversation } = useStore();
+  const { toggleFavorite, isFavorite, user } = useStore();
   const [imgIndex, setImgIndex] = useState(0);
   const [showMsgBox, setShowMsgBox] = useState(false);
   const [msgText, setMsgText] = useState("");
@@ -22,6 +22,7 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [marking, setMarking] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => { fetchListing(); }, [params.id]);
 
@@ -53,6 +54,25 @@ export default function ListingDetail() {
     else { alert("Erreur, réessaie."); setMarking(false); }
   };
 
+  const handleSendMessage = async (customText?: string) => {
+    if (!user) { navigate("/auth"); return; }
+    const msg = customText ?? msgText.trim();
+    if (!msg || !listing) return;
+    setSending(true);
+
+    await supabase.from("messages").insert({
+      listing_id: listing.id,
+      sender_id: user.id,
+      receiver_id: listing.user_id,
+      content: msg,
+    });
+
+    setMsgText("");
+    setShowMsgBox(false);
+    setSending(false);
+    navigate(`/messages/${listing.id}`);
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
   if (!listing) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">Annonce introuvable</p></div>;
 
@@ -61,16 +81,9 @@ export default function ListingDetail() {
   const fav = isFavorite(listing.id);
   const isMyListing = user?.id === listing.user_id;
 
-  const handleSendMessage = () => {
-    if (!user) { navigate("/auth"); return; }
-    if (!msgText.trim()) return;
-    const convId = startConversation(listing.id, listing.title, images[0] ?? "", listing.user_id, sellerProfile?.username ?? "Vendeur", "", msgText.trim());
-    setMsgText(""); setShowMsgBox(false);
-    navigate(`/messages/${convId}`);
-  };
-
   return (
     <div className="bg-white min-h-screen pb-28">
+      {/* Image gallery */}
       <div className="relative bg-gray-100 aspect-[4/3]">
         {images.length > 0 ? (
           <AnimatePresence mode="wait">
@@ -99,6 +112,7 @@ export default function ListingDetail() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+        {/* Titre et prix */}
         <div>
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-lg font-bold text-gray-900 flex-1 leading-snug">{listing.title}</h1>
@@ -110,6 +124,7 @@ export default function ListingDetail() {
           </div>
         </div>
 
+        {/* Chips */}
         <div className="flex flex-wrap gap-2">
           {category && <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><span className="text-base">{category.icon}</span><span className="text-xs font-medium text-gray-600">{t(listing.category as any)}</span></div>}
           {listing.wilaya && <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><MapPin className="w-3.5 h-3.5 text-gray-400" /><span className="text-xs font-medium text-gray-600">{listing.wilaya}</span></div>}
@@ -117,6 +132,7 @@ export default function ListingDetail() {
           <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><Clock className="w-3.5 h-3.5 text-gray-400" /><span className="text-xs font-medium text-gray-600">{new Date(listing.created_at).toLocaleDateString("fr-FR")}</span></div>
         </div>
 
+        {/* Description */}
         {listing.description && (
           <div className="bg-gray-50 rounded-2xl p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t("description")}</h3>
@@ -127,8 +143,8 @@ export default function ListingDetail() {
         {/* Profil vendeur */}
         {sellerProfile && !isMyListing && (
           <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center text-xl flex-shrink-0">
-              {sellerProfile.avatar_url ? <img src={sellerProfile.avatar_url} className="w-12 h-12 rounded-full object-cover" /> : "👤"}
+            <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {sellerProfile.avatar_url ? <img src={sellerProfile.avatar_url} className="w-12 h-12 rounded-full object-cover" alt="" /> : <span className="text-xl">👤</span>}
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-900">{sellerProfile.username ?? "Vendeur"}</p>
@@ -137,6 +153,7 @@ export default function ListingDetail() {
           </div>
         )}
 
+        {/* Gestion de mon annonce */}
         {isMyListing && (
           <div className="space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase">Gérer mon annonce</p>
@@ -154,6 +171,7 @@ export default function ListingDetail() {
           </div>
         )}
 
+        {/* Annonces similaires */}
         {similar.length > 0 && (
           <div>
             <h3 className="text-sm font-bold text-gray-800 mb-3">{t("similarListings")}</h3>
@@ -164,6 +182,7 @@ export default function ListingDetail() {
         )}
       </div>
 
+      {/* Message compose */}
       <AnimatePresence>
         {showMsgBox && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowMsgBox(false)}>
@@ -172,12 +191,24 @@ export default function ListingDetail() {
               <h3 className="text-sm font-bold text-gray-900">{t("sendMessage")}</h3>
               <div className="flex gap-2">
                 {["Toujours dispo ?", "Quel est votre meilleur prix ?", "Je suis intéressé !"].map((q) => (
-                  <button key={q} onClick={() => setMsgText(q)} className="flex-1 text-[11px] font-medium text-[#1B6B3A] bg-green-50 border border-green-100 rounded-xl py-2 px-1.5 text-center">{q}</button>
+                  <button key={q} onClick={() => handleSendMessage(q)} className="flex-1 text-[11px] font-medium text-[#1B6B3A] bg-green-50 border border-green-100 rounded-xl py-2 px-1.5 text-center">
+                    {q}
+                  </button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none" placeholder={t("typeMessage")} value={msgText} onChange={(e) => setMsgText(e.target.value)} />
-                <button onClick={handleSendMessage} className="w-11 h-11 rounded-full bg-[#1B6B3A] flex items-center justify-center shadow-md">
+                <input
+                  className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none"
+                  placeholder={t("typeMessage")}
+                  value={msgText}
+                  onChange={(e) => setMsgText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSendMessage(); }}
+                />
+                <button
+                  onClick={() => handleSendMessage()}
+                  disabled={!msgText.trim() || sending}
+                  className="w-11 h-11 rounded-full bg-[#1B6B3A] flex items-center justify-center shadow-md disabled:opacity-50"
+                >
                   <ChevronRight className="w-5 h-5 text-white" />
                 </button>
               </div>
@@ -186,6 +217,7 @@ export default function ListingDetail() {
         )}
       </AnimatePresence>
 
+      {/* Bottom action bar */}
       {!isMyListing && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3 shadow-lg z-40">
           {sellerProfile?.phone ? (
@@ -197,7 +229,10 @@ export default function ListingDetail() {
               <Phone className="w-4 h-4" />{t("call")}
             </button>
           )}
-          <button onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }} className="flex-1 flex items-center justify-center gap-2 py-3 px-8 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200">
+          <button
+            onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-8 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200"
+          >
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
         </div>
