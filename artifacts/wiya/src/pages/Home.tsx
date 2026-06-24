@@ -10,25 +10,7 @@ import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 import SearchAutocomplete from "@/components/SearchAutocomplete";
 
-type PriceRange = "all" | "u10" | "10_50" | "50_200" | "o200";
 type Condition = "all" | "new" | "used";
-
-const PRICE_RANGES: { id: PriceRange; label: string }[] = [
-  { id: "all", label: "Tous" },
-  { id: "u10", label: "< 10k" },
-  { id: "10_50", label: "10k–50k" },
-  { id: "50_200", label: "50k–200k" },
-  { id: "o200", label: "> 200k" },
-];
-
-function matchesPrice(price: number, range: PriceRange) {
-  if (range === "all") return true;
-  if (range === "u10") return price < 10000;
-  if (range === "10_50") return price >= 10000 && price < 50000;
-  if (range === "50_200") return price >= 50000 && price < 200000;
-  if (range === "o200") return price >= 200000;
-  return true;
-}
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -36,7 +18,6 @@ export default function Home() {
   const { user } = useStore();
   const { unreadCount } = useNotifications();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [priceRange, setPriceRange] = useState<PriceRange>("all");
   const [condition, setCondition] = useState<Condition>("all");
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
@@ -62,10 +43,9 @@ export default function Home() {
     setLoading(false);
   };
 
-  const hasFilters = priceRange !== "all" || condition !== "all" || activeWilaya !== null;
+  const hasFilters = condition !== "all" || activeWilaya !== null;
 
   const clearFilters = () => {
-    setPriceRange("all");
     setCondition("all");
     setActiveWilaya(null);
   };
@@ -73,7 +53,6 @@ export default function Home() {
   const featured = listings.filter((l) => l.is_boosted);
   const recent = listings.filter((l) => {
     if (activeCategory && l.category !== activeCategory) return false;
-    if (!matchesPrice(l.price, priceRange)) return false;
     if (condition !== "all" && l.condition !== condition) return false;
     if (activeWilaya && l.wilaya !== activeWilaya) return false;
     return true;
@@ -163,25 +142,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Quick Filters */}
+        {/* Quick Filters — État + Wilaya seulement */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4">
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400" />
             </div>
-            {PRICE_RANGES.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => setPriceRange(priceRange === r.id && r.id !== "all" ? "all" : r.id)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all
-                  ${priceRange === r.id ? "bg-[#1B6B3A] text-white shadow-sm shadow-green-200" : "bg-white text-gray-600 border border-gray-200"}`}
-              >
-                {r.label} DA
-              </button>
-            ))}
-          </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4">
             {(["all", "new", "used"] as Condition[]).map((c) => (
               <button
                 key={c}
