@@ -114,7 +114,7 @@ export default function PostListingPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen pb-36">
+    <div className="bg-white min-h-screen pb-48">
       <div className="bg-[#1B6B3A] pt-12 pb-4 px-4 flex items-center gap-3">
         <button onClick={() => navigate("/" as any)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20">
           <ArrowLeft className="w-4 h-4 text-white" />
@@ -248,7 +248,7 @@ export default function PostListingPage() {
         </AnimatePresence>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-10 flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
         {step > 1 && (
           <button onClick={() => setStep(step - 1)} className="flex-1 py-3.5 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-sm">
             Retour
