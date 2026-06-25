@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 
-// 1. Déclaration du type
 export interface WilayaItem {
   id: number;
   name: string;
   count?: number;
 }
 
-// 2. Liste complète des 69 wilayas
 const wilayasData: WilayaItem[] = [
   { id: 1, name: "Adrar", count: 2 }, { id: 2, name: "Chlef", count: 1 }, { id: 3, name: "Laghouat", count: 3 }, 
   { id: 4, name: "Oum El Bouaghi" }, { id: 5, name: "Batna" }, { id: 6, name: "Béjaïa", count: 1 }, 
@@ -54,9 +52,6 @@ const styles = {
     borderRadius: '16px',
     padding: '20px',
     border: '1px solid #1c2e21',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
   },
   title: {
     fontSize: '20px',
@@ -83,6 +78,7 @@ const styles = {
     borderRadius: '20px',
     border: '1px solid #1c3322',
     cursor: 'pointer',
+    transition: 'background-color 0.2s',
   },
   id: {
     fontSize: '12px',
@@ -109,54 +105,40 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iframe: {
+    width: '100%',
+    height: '420px',
+    border: 'none',
+    borderRadius: '8px',
   }
 };
 
 export default function MapPage() {
-  const [hoveredWilaya, setHoveredWilaya] = useState<string | null>(null);
+  const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Toutes les wilayas ({wilayasData.length})</h1>
 
-      {/* Rendu SVG natif sans bibliothèque externe pour garantir le Build Vercel */}
+      {/* Intégration d'une carte vectorielle OpenSource propre et fluide */}
       <div style={styles.cardContainer}>
-        <svg 
-          viewBox="0 0 500 500" 
-          style={{ width: '100%', maxHeight: '400px' }}
-        >
-          {/* Silhouette stylisée de l'Algérie découpée (Illustration simplifiée fluide) */}
-          <g fill={hoveredWilaya ? "#1e3322" : "#1e3322"} stroke="#0a0f0b" strokeWidth="2">
-            {/* Nord-Ouest */}
-            <path d="M150,120 Q180,100 220,110 L210,150 L160,160 Z" fill={hoveredWilaya === 'Oran' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Oran')} onMouseLeave={() => setHoveredWilaya(null)} />
-            {/* Centre / Alger */}
-            <path d="M220,110 Q260,100 300,125 L280,170 L210,150 Z" fill={hoveredWilaya === 'Alger' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Alger')} onMouseLeave={() => setHoveredWilaya(null)} />
-            {/* Nord-Est */}
-            <path d="M300,125 Q350,110 390,130 L360,185 L280,170 Z" fill={hoveredWilaya === 'Annaba' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Annaba')} onMouseLeave={() => setHoveredWilaya(null)} />
-            {/* Hauts Plateaux Ouest */}
-            <path d="M120,170 L160,160 L210,150 L190,210 L110,210 Z" />
-            {/* Hauts Plateaux Est */}
-            <path d="M210,150 L280,170 L360,185 L380,240 L260,230 L190,210 Z" />
-            {/* Sahara Nord */}
-            <path d="M110,210 L190,210 L260,230 L380,240 L420,310 L290,340 L160,300 L90,260 Z" />
-            {/* Grand Sud Adrar / Tamanrasset */}
-            <path d="M90,260 L160,300 L290,340 L420,310 L400,380 L350,470 L250,440 L150,380 Z" />
-          </g>
-        </svg>
+        <iframe 
+          src="https://bndong.github.io/algeria-maps/" 
+          style={styles.iframe}
+          title="Carte d'Algérie"
+        />
       </div>
 
-      {/* Grille des 69 boutons */}
       <div style={styles.pillsGrid}>
         {wilayasData.map((wilaya) => (
           <div 
             key={wilaya.id} 
-            style={{
-              ...styles.pill,
-              backgroundColor: hoveredWilaya?.toLowerCase() === wilaya.name.toLowerCase() ? '#4ade80' : '#142217'
-            }}
+            style={styles.pill}
+            onClick={() => setActiveWilaya(wilaya.name)}
           >
             <span style={styles.id}>{wilaya.id}:</span>
-            <span style={{ ...styles.name, color: hoveredWilaya?.toLowerCase() === wilaya.name.toLowerCase() ? '#111' : '#fff' }}>{wilaya.name}</span>
+            <span style={styles.name}>{wilaya.name}</span>
             {wilaya.count && <span style={styles.count}>{wilaya.count}</span>}
           </div>
         ))}
