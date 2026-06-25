@@ -1,3 +1,4 @@
+cat > /mnt/user-data/outputs/wilayas.ts << 'ENDOFFILE'
 export interface Wilaya {
   code: number;
   name: string;
@@ -79,121 +80,19 @@ export const WILAYAS_DATA: Wilaya[] = [
 ];
 
 export function toSVG(lon: number, lat: number, w: number, h: number) {
-  // Bounding box exacte de l'Algérie
   const LON_MIN = -8.7;
   const LON_MAX = 12.0;
   const LAT_MIN = 18.9;
   const LAT_MAX = 37.1;
-
-  // Padding de 5% pour ne pas coller les bords
   const PAD_X = w * 0.05;
   const PAD_Y = h * 0.05;
   const usableW = w - PAD_X * 2;
   const usableH = h - PAD_Y * 2;
-
   const x = PAD_X + ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * usableW;
   const y = PAD_Y + ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * usableH;
   return { x, y };
 }
 
-// Forme SVG de l'Algérie tracée depuis les vraies coordonnées géographiques
-// projetées avec toSVG(lon, lat, 400, 510)
-export const ALGERIA_PATH = `
-  M 358,28
-  L 352,26
-  L 342,24
-  L 330,22
-  L 318,21
-  L 305,20
-  L 292,20
-  L 278,21
-  L 265,22
-  L 252,24
-  L 240,26
-  L 228,29
-  L 217,33
-  L 207,38
-  L 198,44
-  L 190,51
-  L 183,59
-  L 177,68
-  L 172,78
-  L 167,88
-  L 163,98
-  L 160,108
-  L 157,118
-  L 155,128
-  L 153,138
-  L 151,148
-  L 149,158
-  L 147,168
-  L 145,178
-  L 142,190
-  L 139,202
-  L 136,215
-  L 133,228
-  L 130,242
-  L 128,256
-  L 126,270
-  L 124,284
-  L 122,298
-  L 121,312
-  L 120,326
-  L 119,340
-  L 119,354
-  L 119,368
-  L 119,382
-  L 120,394
-  L 122,405
-  L 125,414
-  L 130,421
-  L 137,426
-  L 146,429
-  L 157,431
-  L 170,432
-  L 184,433
-  L 199,433
-  L 215,433
-  L 231,433
-  L 247,432
-  L 263,431
-  L 279,430
-  L 294,428
-  L 308,426
-  L 321,423
-  L 332,419
-  L 341,414
-  L 348,408
-  L 354,401
-  L 358,393
-  L 361,384
-  L 362,374
-  L 363,363
-  L 363,352
-  L 363,340
-  L 363,328
-  L 363,316
-  L 363,304
-  L 363,292
-  L 363,280
-  L 363,268
-  L 363,255
-  L 363,242
-  L 363,228
-  L 363,214
-  L 362,200
-  L 361,186
-  L 360,172
-  L 360,158
-  L 359,144
-  L 359,130
-  L 358,116
-  L 358,102
-  L 358,88
-  L 358,74
-  L 358,60
-  L 358,46
-  L 358,34
-  L 358,28
-  Z
-`;
+// Contour réel de l'Algérie — calculé depuis les coordonnées GeoJSON Natural Earth
+export const ALGERIA_PATH = `M 20.3,270.2 L 20.6,265.4 L 20.6,263.7 L 20.5,233.8 L 48.5,215.2 L 65.9,211.3 L 80.1,204.5 L 86.8,191.9 L 107.1,181.9 L 107.9,163.3 L 117.9,161.1 L 125.8,151.7 L 148.6,147.5 L 151.7,137.7 L 147.2,132.3 L 141.2,105.7 L 140.1,90.4 L 133.6,74.2 L 150.3,60.4 L 169.1,56 L 180.1,45.6 L 196.8,38 L 226.3,33.5 L 255.1,31.4 L 263.8,35.2 L 280.2,25.2 L 298.8,25 L 305.9,30.9 L 317.8,29.4 L 314.2,42.3 L 317,66.4 L 312.9,87.2 L 302.2,101.2 L 303.7,120.2 L 317.9,135.2 L 318.1,141.4 L 328.8,151.5 L 336.2,196.8 L 341.8,219.1 L 342.8,230.8 L 339.7,251.4 L 341,262.9 L 338.8,276.7 L 340.3,292.5 L 333.4,303.1 L 343.7,321.4 L 344.3,332.2 L 350.5,346.3 L 358.6,341.7 L 372.4,353.4 L 380,369.2 L 320.4,417.3 L 270,466.8 L 245.5,478.1 L 226.2,480.5 L 226,464.5 L 218,460.4 L 207.1,453.2 L 203,441.4 L 144.3,386.3 L 85.7,331.3 L 20.3,270.2 Z`;
+ENDOFFILE
