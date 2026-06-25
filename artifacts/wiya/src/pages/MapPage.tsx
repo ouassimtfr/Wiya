@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface WilayaItem {
   id: number;
@@ -26,7 +26,7 @@ const wilayasData: WilayaItem[] = [
   { id: 49, name: "El M'Ghair" }, { id: 50, name: "El Meniaa" }, { id: 51, name: "Ouled Djellal" }, 
   { id: 52, name: "Bordj Badji Mokhtar" }, { id: 53, name: "Béni Abbès" }, { id: 54, name: "In Salah" }, 
   { id: 55, name: "In Guezzam" }, { id: 56, name: "Touggourt" }, { id: 57, name: "Djanet" }, 
-  { id: 58, name: "Al M'Ghair_Double" },
+  { id: 58, name: "Al M'Ghair" },
   { id: 59, name: "Wilaya_59" }, { id: 60, name: "Wilaya_60" }, { id: 61, name: "Wilaya_61" }, 
   { id: 62, name: "Wilaya_62" }, { id: 63, name: "Wilaya_63" }, { id: 64, name: "Wilaya_64" }, 
   { id: 65, name: "Wilaya_65" }, { id: 66, name: "Wilaya_66" }, { id: 67, name: "Wilaya_67" }, 
@@ -35,14 +35,14 @@ const wilayasData: WilayaItem[] = [
 
 const styles = {
   container: {
-    padding: '24px',
+    padding: '16px',
     backgroundColor: '#0a0f0b',
     color: '#eee',
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    gap: '24px',
+    gap: '20px',
     fontFamily: 'sans-serif'
   },
   cardContainer: {
@@ -50,21 +50,25 @@ const styles = {
     maxWidth: '550px',
     backgroundColor: '#111c14',
     borderRadius: '16px',
-    padding: '20px',
+    padding: '16px',
     border: '1px solid #1c2e21',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '350px'
   },
   title: {
     fontSize: '20px',
     fontWeight: 'bold',
     color: '#4ade80',
-    marginBottom: '8px',
     alignSelf: 'flex-start',
     width: '100%',
     maxWidth: '550px',
+    marginTop: '10px'
   },
   pillsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '10px',
     width: '100%',
     maxWidth: '550px',
@@ -73,15 +77,14 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '8px 12px',
+    padding: '10px 14px',
     backgroundColor: '#142217',
-    borderRadius: '20px',
+    borderRadius: '12px',
     border: '1px solid #1c3322',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
   },
   id: {
-    fontSize: '12px',
+    fontSize: '13px',
     fontWeight: 'bold',
     color: '#4ade80',
     marginRight: '6px',
@@ -90,9 +93,6 @@ const styles = {
     fontSize: '13px',
     color: '#fff',
     flexGrow: 1,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
   },
   count: {
     fontSize: '11px',
@@ -106,43 +106,27 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iframe: {
-    width: '100%',
-    height: '420px',
-    border: 'none',
-    borderRadius: '8px',
+  loading: {
+    color: '#4ade80',
+    fontSize: '14px'
   }
 };
 
 export default function MapPage() {
-  const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+  const [hoveredWilaya, setHoveredWilaya] = useState<string | null>(null);
 
-  return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Toutes les wilayas ({wilayasData.length})</h1>
+  // Récupération d'un GeoJSON propre des frontières de l'Algérie
+  useEffect(() => {
+    fetch('https://raw.githubusercontent.com/bndong/algeria-maps/master/data/algeria-provinces.geojson')
+      .then(res => res.json())
+      .then(data => setGeoJsonData(data))
+      .catch(err => console.error("Erreur chargement carte:", err));
+  }, []);
 
-      {/* Intégration d'une carte vectorielle OpenSource propre et fluide */}
-      <div style={styles.cardContainer}>
-        <iframe 
-          src="https://bndong.github.io/algeria-maps/" 
-          style={styles.iframe}
-          title="Carte d'Algérie"
-        />
-      </div>
-
-      <div style={styles.pillsGrid}>
-        {wilayasData.map((wilaya) => (
-          <div 
-            key={wilaya.id} 
-            style={styles.pill}
-            onClick={() => setActiveWilaya(wilaya.name)}
-          >
-            <span style={styles.id}>{wilaya.id}:</span>
-            <span style={styles.name}>{wilaya.name}</span>
-            {wilaya.count && <span style={styles.count}>{wilaya.count}</span>}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  // Fonction simple pour convertir les coordonnées géographiques en pixels SVG (Projection Mercator simplifiée)
+  const project = (coord: [number, number]) => {
+    const lon = coord[0];
+    const lat = coord[1];
+    // Centré et zoomé pour la boîte englobante de l'Algérie
+    const x =
