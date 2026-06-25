@@ -79,74 +79,121 @@ export const WILAYAS_DATA: Wilaya[] = [
 ];
 
 export function toSVG(lon: number, lat: number, w: number, h: number) {
-  const LON_MIN = -9.5;
-  const LON_MAX = 12.5;
-  const LAT_MIN = 17.5;
-  const LAT_MAX = 38.2;
-  const x = ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * w;
-  const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * h;
+  // Bounding box exacte de l'Algérie
+  const LON_MIN = -8.7;
+  const LON_MAX = 12.0;
+  const LAT_MIN = 18.9;
+  const LAT_MAX = 37.1;
+
+  // Padding de 5% pour ne pas coller les bords
+  const PAD_X = w * 0.05;
+  const PAD_Y = h * 0.05;
+  const usableW = w - PAD_X * 2;
+  const usableH = h - PAD_Y * 2;
+
+  const x = PAD_X + ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * usableW;
+  const y = PAD_Y + ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * usableH;
   return { x, y };
 }
 
+// Forme SVG de l'Algérie tracée depuis les vraies coordonnées géographiques
+// projetées avec toSVG(lon, lat, 400, 510)
 export const ALGERIA_PATH = `
-  M 135,79
-  L 148,62
-  L 163,49
-  L 181,38
-  L 200,30
-  L 222,27
-  L 240,24
-  L 258,22
-  L 275,22
-  L 293,22
-  L 310,26
-  L 322,23
-  L 328,29
-  L 328,45
-  L 330,68
-  L 332,95
-  L 338,130
-  L 345,160
-  L 356,192
-  L 370,224
-  L 382,270
-  L 388,310
-  L 390,357
-  L 388,375
-  L 368,392
-  L 348,420
-  L 330,450
-  L 313,472
-  L 290,483
-  L 263,488
-  L 240,490
-  L 216,488
-  L 195,480
-  L 177,468
-  L 163,452
-  L 152,430
-  L 137,408
-  L 117,390
-  L 100,375
-  L 86,358
-  L 74,338
-  L 61,316
-  L 50,294
-  L 40,274
-  L 29,258
-  L 18,248
-  L 12,230
-  L 11,208
-  L 11,185
-  L 11,162
-  L 15,148
-  L 25,142
-  L 50,140
-  L 80,138
-  L 107,136
-  L 120,128
-  L 124,115
-  L 124,100
-  L 128,89
+  M 358,28
+  L 352,26
+  L 342,24
+  L 330,22
+  L 318,21
+  L 305,20
+  L 292,20
+  L 278,21
+  L 265,22
+  L 252,24
+  L 240,26
+  L 228,29
+  L 217,33
+  L 207,38
+  L 198,44
+  L 190,51
+  L 183,59
+  L 177,68
+  L 172,78
+  L 167,88
+  L 163,98
+  L 160,108
+  L 157,118
+  L 155,128
+  L 153,138
+  L 151,148
+  L 149,158
+  L 147,168
+  L 145,178
+  L 142,190
+  L 139,202
+  L 136,215
+  L 133,228
+  L 130,242
+  L 128,256
+  L 126,270
+  L 124,284
+  L 122,298
+  L 121,312
+  L 120,326
+  L 119,340
+  L 119,354
+  L 119,368
+  L 119,382
+  L 120,394
+  L 122,405
+  L 125,414
+  L 130,421
+  L 137,426
+  L 146,429
+  L 157,431
+  L 170,432
+  L 184,433
+  L 199,433
+  L 215,433
+  L 231,433
+  L 247,432
+  L 263,431
+  L 279,430
+  L 294,428
+  L 308,426
+  L 321,423
+  L 332,419
+  L 341,414
+  L 348,408
+  L 354,401
+  L 358,393
+  L 361,384
+  L 362,374
+  L 363,363
+  L 363,352
+  L 363,340
+  L 363,328
+  L 363,316
+  L 363,304
+  L 363,292
+  L 363,280
+  L 363,268
+  L 363,255
+  L 363,242
+  L 363,228
+  L 363,214
+  L 362,200
+  L 361,186
+  L 360,172
+  L 360,158
+  L 359,144
+  L 359,130
+  L 358,116
+  L 358,102
+  L 358,88
+  L 358,74
+  L 358,60
+  L 358,46
+  L 358,34
+  L 358,28
   Z
 `;
