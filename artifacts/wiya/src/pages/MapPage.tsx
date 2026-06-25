@@ -1,5 +1,4 @@
-import React from 'react';
-import { Map } from 'algeria-map-ts';
+import React, { useState } from 'react';
 
 // 1. Déclaration du type
 export interface WilayaItem {
@@ -8,7 +7,7 @@ export interface WilayaItem {
   count?: number;
 }
 
-// 2. Liste complète des 69 wilayas (Corrigée)
+// 2. Liste complète des 69 wilayas
 const wilayasData: WilayaItem[] = [
   { id: 1, name: "Adrar", count: 2 }, { id: 2, name: "Chlef", count: 1 }, { id: 3, name: "Laghouat", count: 3 }, 
   { id: 4, name: "Oum El Bouaghi" }, { id: 5, name: "Batna" }, { id: 6, name: "Béjaïa", count: 1 }, 
@@ -55,6 +54,9 @@ const styles = {
     borderRadius: '16px',
     padding: '20px',
     border: '1px solid #1c2e21',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   title: {
     fontSize: '20px',
@@ -111,35 +113,50 @@ const styles = {
 };
 
 export default function MapPage() {
-  const mapData = {
-    Alger: { value: "4 signalements", color: "#34d399" },
-    Biskra: { value: "1 signalement", color: "#34d399" },
-    Oran: { value: "2 signalements", color: "#34d399" },
-  };
+  const [hoveredWilaya, setHoveredWilaya] = useState<string | null>(null);
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Toutes les wilayas ({wilayasData.length})</h1>
 
+      {/* Rendu SVG natif sans bibliothèque externe pour garantir le Build Vercel */}
       <div style={styles.cardContainer}>
-        <Map
-          color="#1e3322"
-          stroke="#0a0f0b"
-          strokeWidth={1.5}
-          hoverColor="#4ade80"
-          hoverStroke="#fff"
-          height="400px"
-          width="100%"
-          data={mapData}
-          onWilayaClick={(name) => console.log(`Wilaya: ${name}`)}
-        />
+        <svg 
+          viewBox="0 0 500 500" 
+          style={{ width: '100%', maxHeight: '400px' }}
+        >
+          {/* Silhouette stylisée de l'Algérie découpée (Illustration simplifiée fluide) */}
+          <g fill={hoveredWilaya ? "#1e3322" : "#1e3322"} stroke="#0a0f0b" strokeWidth="2">
+            {/* Nord-Ouest */}
+            <path d="M150,120 Q180,100 220,110 L210,150 L160,160 Z" fill={hoveredWilaya === 'Oran' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Oran')} onMouseLeave={() => setHoveredWilaya(null)} />
+            {/* Centre / Alger */}
+            <path d="M220,110 Q260,100 300,125 L280,170 L210,150 Z" fill={hoveredWilaya === 'Alger' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Alger')} onMouseLeave={() => setHoveredWilaya(null)} />
+            {/* Nord-Est */}
+            <path d="M300,125 Q350,110 390,130 L360,185 L280,170 Z" fill={hoveredWilaya === 'Annaba' ? '#4ade80' : undefined} onMouseEnter={() => setHoveredWilaya('Annaba')} onMouseLeave={() => setHoveredWilaya(null)} />
+            {/* Hauts Plateaux Ouest */}
+            <path d="M120,170 L160,160 L210,150 L190,210 L110,210 Z" />
+            {/* Hauts Plateaux Est */}
+            <path d="M210,150 L280,170 L360,185 L380,240 L260,230 L190,210 Z" />
+            {/* Sahara Nord */}
+            <path d="M110,210 L190,210 L260,230 L380,240 L420,310 L290,340 L160,300 L90,260 Z" />
+            {/* Grand Sud Adrar / Tamanrasset */}
+            <path d="M90,260 L160,300 L290,340 L420,310 L400,380 L350,470 L250,440 L150,380 Z" />
+          </g>
+        </svg>
       </div>
 
+      {/* Grille des 69 boutons */}
       <div style={styles.pillsGrid}>
         {wilayasData.map((wilaya) => (
-          <div key={wilaya.id} style={styles.pill}>
+          <div 
+            key={wilaya.id} 
+            style={{
+              ...styles.pill,
+              backgroundColor: hoveredWilaya?.toLowerCase() === wilaya.name.toLowerCase() ? '#4ade80' : '#142217'
+            }}
+          >
             <span style={styles.id}>{wilaya.id}:</span>
-            <span style={styles.name}>{wilaya.name}</span>
+            <span style={{ ...styles.name, color: hoveredWilaya?.toLowerCase() === wilaya.name.toLowerCase() ? '#111' : '#fff' }}>{wilaya.name}</span>
             {wilaya.count && <span style={styles.count}>{wilaya.count}</span>}
           </div>
         ))}
