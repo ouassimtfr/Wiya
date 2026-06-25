@@ -81,6 +81,9 @@ export default function ListingDetail() {
   const fav = isFavorite(listing.id);
   const isMyListing = user?.id === listing.user_id;
 
+  // FIX: Utilise contact_phone de l'annonce en priorité, sinon le numéro du profil
+  const displayPhone = listing.contact_phone || sellerProfile?.phone || null;
+
   return (
     <div className="bg-white min-h-screen pb-28">
       {/* Image gallery */}
@@ -148,7 +151,8 @@ export default function ListingDetail() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-900">{sellerProfile.username ?? "Vendeur"}</p>
-              {sellerProfile.phone && <p className="text-xs text-gray-500 mt-0.5">{sellerProfile.phone}</p>}
+              {/* Affiche contact_phone de l'annonce, pas le numéro du profil */}
+              {displayPhone && <p className="text-xs text-gray-500 mt-0.5">{displayPhone}</p>}
             </div>
           </div>
         )}
@@ -220,8 +224,8 @@ export default function ListingDetail() {
       {/* Bottom action bar */}
       {!isMyListing && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3 shadow-lg z-40">
-          {sellerProfile?.phone ? (
-            <a href={`tel:${sellerProfile.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
+          {displayPhone ? (
+            <a href={`tel:${displayPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
               <Phone className="w-4 h-4" />{t("call")}
             </a>
           ) : (
