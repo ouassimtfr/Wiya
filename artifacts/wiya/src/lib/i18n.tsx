@@ -118,6 +118,21 @@ const translations = {
     addToFavorites: "Ajouté aux favoris",
     removedFromFavorites: "Retiré des favoris",
     typeHere: "Tapez ici...",
+    // Clés manquantes ajoutées
+    notifications: "Notifications",
+    myBoosts: "Mes boosts",
+    myProfile: "Mon profil",
+    publishNewListing: "Publier une nouvelle annonce",
+    publishNewListingDesc: "Vendez rapidement avec Wiya",
+    helpSupport: "Aide & Support",
+    lightMode: "Mode clair",
+    activeBoosts: "Boosts actifs",
+    boostListing: "Booster mon annonce",
+    myAlerts: "Mes alertes",
+    noBoosts: "Aucun boost actif",
+    noBoostsDesc: "Boostez une annonce pour la mettre en avant",
+    settings: "Paramètres",
+    deleteAccount: "Supprimer le compte",
   },
   ar: {
     appName: "ويا",
@@ -234,6 +249,21 @@ const translations = {
     addToFavorites: "تمت الإضافة للمفضلة",
     removedFromFavorites: "تمت الإزالة من المفضلة",
     typeHere: "اكتب هنا...",
+    // Clés manquantes ajoutées
+    notifications: "الإشعارات",
+    myBoosts: "تعزيزاتي",
+    myProfile: "ملفي الشخصي",
+    publishNewListing: "نشر إعلان جديد",
+    publishNewListingDesc: "بع بسرعة مع ويا",
+    helpSupport: "المساعدة والدعم",
+    lightMode: "الوضع النهاري",
+    activeBoosts: "التعزيزات النشطة",
+    boostListing: "تعزيز إعلاني",
+    myAlerts: "تنبيهاتي",
+    noBoosts: "لا توجد تعزيزات نشطة",
+    noBoostsDesc: "عزز إعلاناً لإبرازه",
+    settings: "الإعدادات",
+    deleteAccount: "حذف الحساب",
   },
 };
 
@@ -256,7 +286,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLang = (l: Lang) => {
     setLangState(l);
-    try { localStorage.setItem("wiya_lang", l); } catch { /* noop */ }
+    try { localStorage.setItem("wiya_lang", l); } catch { }
   };
 
   useEffect(() => {
