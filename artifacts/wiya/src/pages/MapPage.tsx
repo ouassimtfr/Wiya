@@ -1,370 +1,96 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { Search, X, MapPin, ArrowLeft } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useI18n } from "@/lib/i18n";
-import { WILAYAS_DATA, toSVG, type Wilaya } from "@/lib/wilayas";
-import { supabase } from "@/lib/supabase";
-import ListingCard from "@/components/ListingCard";
-
-const SVG_W = 400;
-const SVG_H = 510;
-
-// Forme Algeria SVG améliorée — tracé plus fidèle
-const ALGERIA_PATH = `
-  M 178,18 L 192,16 L 210,18 L 228,22 L 242,20 L 255,24 L 265,20 L 278,22
-  L 285,28 L 292,26 L 300,30 L 308,28 L 318,32 L 325,38 L 330,46 L 335,52
-  L 338,60 L 342,68 L 345,76 L 348,84 L 350,92 L 352,100 L 354,110 L 356,120
-  L 358,130 L 360,142 L 362,155 L 363,168 L 364,182 L 365,196 L 366,210
-  L 367,224 L 368,238 L 369,252 L 370,266 L 371,280 L 372,294 L 373,308
-  L 374,322 L 375,336 L 376,348 L 377,360 L 378,370 L 379,380 L 380,390
-  L 381,400 L 382,410 L 383,418 L 384,425 L 384,432 L 383,438 L 380,442
-  L 375,445 L 368,447 L 360,448 L 350,448 L 338,447 L 325,446 L 310,445
-  L 295,444 L 278,443 L 260,442 L 242,441 L 224,440 L 206,439 L 188,438
-  L 170,437 L 152,436 L 136,434 L 122,431 L 110,427 L 100,422 L 92,416
-  L 86,409 L 82,401 L 80,392 L 79,382 L 79,371 L 80,359 L 81,346 L 82,332
-  L 82,318 L 82,304 L 81,290 L 80,276 L 78,262 L 76,248 L 73,235 L 70,222
-  L 67,210 L 64,199 L 61,189 L 58,180 L 55,171 L 52,162 L 49,152 L 46,141
-  L 43,129 L 41,117 L 40,105 L 40,94 L 41,84 L 44,75 L 48,67 L 54,60
-  L 61,54 L 70,49 L 80,44 L 91,40 L 103,36 L 116,32 L 130,28 L 144,24
-  L 158,20 L 170,18 L 178,18 Z
-`;
-
-export default function MapPage() {
-  const [, navigate] = useLocation();
-  const { t, lang } = useI18n();
-  const [selected, setSelected] = useState<Wilaya | null>(null);
-  const [query, setQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
-  const [loadingListings, setLoadingListings] = useState(false);
-
-  // Charge toutes les annonces actives au démarrage
-  useEffect(() => {
-    fetchAllListings();
-  }, []);
-
-  const fetchAllListings = async () => {
-    const { data } = await supabase
-      .from("listings")
-      .select("id, title, price, wilaya, images, category, condition, is_active, created_at, user_id, is_boosted, is_urgent, is_negotiable")
-      .eq("is_active", true);
-    if (data) setListings(data);
-  };
-
-  // Charge les annonces d'une wilaya sélectionnée
-  const listingsForWilaya = selected
-    ? listings.filter((l) => l.wilaya === selected.name)
-    : [];
-
-  const filteredWilayas = query
-    ? WILAYAS_DATA.filter(
-        (w) =>
-          w.name.toLowerCase().includes(query.toLowerCase()) ||
-          w.nameAr.includes(query)
-      )
-    : [];
-
-  const countForWilaya = (name: string) =>
-    listings.filter((l) => l.wilaya === name).length;
-
-  return (
-    <div className="bg-[#0f3d22] min-h-screen pb-20 flex flex-col">
-      {/* Header */}
-      <div className="px-4 pt-12 pb-3 flex items-center gap-3 flex-shrink-0">
-        <button
-          onClick={() => navigate("/")}
-          className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"
-        >
-          <ArrowLeft className="w-4 h-4 text-white" />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-white font-black text-base">Carte des Wilayas</h1>
-          <p className="text-green-300 text-xs">{WILAYAS_DATA.length} wilayas · Algérie</p>
-        </div>
-        <button
-          onClick={() => setShowSearch(!showSearch)}
-          className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"
-        >
-          <Search className="w-4 h-4 text-white" />
-        </button>
-      </div>
-
-      {/* Search dropdown */}
-      <AnimatePresence>
-        {showSearch && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden mx-4 mb-2"
-          >
-            <div className="bg-white/15 rounded-2xl p-2 backdrop-blur-sm">
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
-                <Search className="w-3.5 h-3.5 text-green-200" />
-                <input
-                  autoFocus
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Rechercher une wilaya..."
-                  className="flex-1 bg-transparent text-white text-sm placeholder-green-300 outline-none"
-                />
-                {query && (
-                  <button onClick={() => setQuery("")}>
-                    <X className="w-3.5 h-3.5 text-green-300" />
-                  </button>
-                )}
-              </div>
-              {filteredWilayas.length > 0 && (
-                <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
-                  {filteredWilayas.map((w) => (
-                    <button
-                      key={w.code}
-                      onClick={() => {
-                        setSelected(w);
-                        setQuery("");
-                        setShowSearch(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-left"
-                    >
-                      <span className="text-xs font-bold text-green-300 w-6">{w.code}</span>
-                      <span className="text-sm text-white font-medium">{w.name}</span>
-                      <span className="text-xs text-green-300 ml-auto">{w.nameAr}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-4 mb-2 flex-shrink-0">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#E8C84A] border-2 border-white/30" />
-          <span className="text-[10px] text-green-200 font-medium">Avec annonces</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-white/40 border-2 border-white/20" />
-          <span className="text-[10px] text-green-200 font-medium">Sans annonces</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#ff6b35] border-2 border-white/30" />
-          <span className="text-[10px] text-green-200 font-medium">Sélectionnée</span>
-        </div>
-      </div>
-
-      {/* SVG Map */}
-      <div className="flex-1 flex flex-col items-center px-2">
-        <div className="w-full bg-[#1a5c36]/40 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-          <svg
-            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-            className="w-full"
-            style={{ background: "transparent" }}
-          >
-            <rect width={SVG_W} height={SVG_H} fill="#0d3320" rx="16" />
-
-            {/* Forme Algérie */}
-            <path
-              d={ALGERIA_PATH}
-              fill="#1e7a44"
-              stroke="#2a9955"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-
-            {/* Dégradé Sahara */}
-            <path
-              d={ALGERIA_PATH}
-              fill="url(#sahara)"
-              opacity="0.4"
-            />
-
-            <defs>
-              <radialGradient id="sahara" cx="50%" cy="70%" r="60%">
-                <stop offset="0%" stopColor="#c8972b" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#1e7a44" stopOpacity="0" />
-              </radialGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* Marqueurs wilayas */}
-            {WILAYAS_DATA.map((wilaya) => {
-              const { x, y } = toSVG(wilaya.lon, wilaya.lat, SVG_W, SVG_H);
-              const count = countForWilaya(wilaya.name);
-              const isSelected = selected?.code === wilaya.code;
-              const hasListings = count > 0;
-
-              const r = isSelected ? 8 : hasListings ? 6 : 4;
-              const fill = isSelected ? "#ff6b35" : hasListings ? "#E8C84A" : "rgba(255,255,255,0.35)";
-              const stroke = isSelected ? "#fff" : hasListings ? "#fff8" : "rgba(255,255,255,0.2)";
-
-              return (
-                <g key={wilaya.code} onClick={() => setSelected(isSelected ? null : wilaya)}>
-                  {isSelected && (
-                    <circle cx={x} cy={y} r={14} fill="none" stroke="#ff6b35" strokeWidth="1.5" opacity="0.5" />
-                  )}
-                  <circle
-                    cx={x} cy={y} r={r}
-                    fill={fill} stroke={stroke}
-                    strokeWidth={isSelected ? 2 : hasListings ? 1 : 0.8}
-                    style={{ cursor: "pointer" }}
-                    filter={isSelected || hasListings ? "url(#glow)" : undefined}
-                  />
-                  {hasListings && !isSelected && (
-                    <>
-                      <circle cx={x + 7} cy={y - 7} r={6} fill="#1B6B3A" stroke="#E8C84A" strokeWidth="1" />
-                      <text x={x + 7} y={y - 7} textAnchor="middle" dominantBaseline="central" fontSize="6" fontWeight="bold" fill="white">
-                        {count}
-                      </text>
-                    </>
-                  )}
-                  {(hasListings || isSelected) && (
-                    <text
-                      x={x} y={y + r + 7}
-                      textAnchor="middle"
-                      fontSize={isSelected ? "7" : "6"}
-                      fontWeight="bold"
-                      fill={isSelected ? "#ff6b35" : "#E8C84A"}
-                      opacity={isSelected ? 1 : 0.85}
-                    >
-                      {wilaya.code}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Label wilaya sélectionnée */}
-            {selected && (() => {
-              const { x, y } = toSVG(selected.lon, selected.lat, SVG_W, SVG_H);
-              const labelX = Math.min(Math.max(x, 50), SVG_W - 50);
-              const labelY = y > SVG_H - 60 ? y - 30 : y + 22;
-              return (
-                <g>
-                  <rect x={labelX - 35} y={labelY - 10} width={70} height={16} rx={8} fill="#ff6b35" opacity="0.95" />
-                  <text x={labelX} y={labelY - 10 + 8} textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">
-                    {selected.name}
-                  </text>
-                </g>
-              );
-            })()}
-          </svg>
-        </div>
-
-        {/* Liste wilayas */}
-        {!selected && (
-          <div className="w-full mt-4">
-            <p className="text-green-300 text-xs font-semibold px-1 mb-2">
-              Toutes les wilayas ({WILAYAS_DATA.length})
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {WILAYAS_DATA.map((w) => {
-                const count = countForWilaya(w.name);
-                return (
-                  <button
-                    key={w.code}
-                    onClick={() => setSelected(w)}
-                    className={`rounded-xl px-2 py-2 text-left flex items-center gap-1.5 transition-colors
-                      ${count > 0 ? "bg-[#E8C84A]/15 border border-[#E8C84A]/30" : "bg-white/5 border border-white/10"}`}
-                  >
-                    <span className="text-[10px] font-black text-green-400 w-5 flex-shrink-0">{w.code}</span>
-                    <span className="text-[10px] font-semibold text-white truncate flex-1">
-                      {lang === "ar" ? w.nameAr : w.name}
-                    </span>
-                    {count > 0 && (
-                      <span className="text-[9px] font-bold text-[#E8C84A] bg-[#E8C84A]/20 rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom sheet wilaya sélectionnée */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="fixed bottom-16 left-0 right-0 max-w-[430px] mx-auto z-50"
-          >
-            <div className="bg-white rounded-t-3xl shadow-2xl max-h-[55vh] flex flex-col">
-              <div className="flex-shrink-0 pt-3 pb-2 px-5">
-                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-400">{selected.code}</span>
-                      <h2 className="text-base font-black text-gray-900">{selected.name}</h2>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{selected.nameAr}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {listingsForWilaya.length > 0 && (
-                      <span className="text-xs font-bold text-[#1B6B3A] bg-green-50 px-2.5 py-1 rounded-full">
-                        {listingsForWilaya.length} annonce{listingsForWilaya.length > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => setSelected(null)}
-                      className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center"
-                    >
-                      <X className="w-3.5 h-3.5 text-gray-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
-                {listingsForWilaya.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
-                    <MapPin className="w-8 h-8 text-gray-200" />
-                    <p className="text-sm text-gray-500 font-medium">
-                      Aucune annonce à {selected.name}
-                    </p>
-                    <button
-                      onClick={() => { setSelected(null); navigate("/post"); }}
-                      className="text-xs text-[#1B6B3A] font-semibold mt-1"
-                    >
-                      Soyez le premier à publier ici →
-                    </button>
-                  </div>
-                ) : (
-                  listingsForWilaya.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} variant="list" />
-                  ))
-                )}
-              </div>
-
-              {listingsForWilaya.length > 0 && (
-                <div className="px-4 pb-4 flex-shrink-0">
-                  <button
-                    onClick={() => navigate(`/search?wilaya=${selected.name}`)}
-                    className="w-full py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm"
-                  >
-                    Voir toutes les annonces à {selected.name}
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+export interface Wilaya {
+  code: number;
+  name: string;
+  nameAr: string;
+  lat: number;
+  lon: number;
 }
+
+export const WILAYAS_DATA: Wilaya[] = [
+  { code: 1, name: "Adrar", nameAr: "أدرار", lat: 27.87, lon: -0.29 },
+  { code: 2, name: "Chlef", nameAr: "الشلف", lat: 36.17, lon: 1.33 },
+  { code: 3, name: "Laghouat", nameAr: "الأغواط", lat: 33.80, lon: 2.86 },
+  { code: 4, name: "Oum El Bouaghi", nameAr: "أم البواقي", lat: 35.87, lon: 7.11 },
+  { code: 5, name: "Batna", nameAr: "باتنة", lat: 35.55, lon: 6.17 },
+  { code: 6, name: "Béjaïa", nameAr: "بجاية", lat: 36.75, lon: 5.07 },
+  { code: 7, name: "Biskra", nameAr: "بسكرة", lat: 34.85, lon: 5.73 },
+  { code: 8, name: "Béchar", nameAr: "بشار", lat: 31.62, lon: -2.22 },
+  { code: 9, name: "Blida", nameAr: "البليدة", lat: 36.47, lon: 2.83 },
+  { code: 10, name: "Bouira", nameAr: "البويرة", lat: 36.37, lon: 3.90 },
+  { code: 11, name: "Tamanrasset", nameAr: "تمنراست", lat: 22.79, lon: 5.52 },
+  { code: 12, name: "Tébessa", nameAr: "تبسة", lat: 35.40, lon: 8.12 },
+  { code: 13, name: "Tlemcen", nameAr: "تلمسان", lat: 34.88, lon: -1.32 },
+  { code: 14, name: "Tiaret", nameAr: "تيارت", lat: 35.37, lon: 1.32 },
+  { code: 15, name: "Tizi Ouzou", nameAr: "تيزي وزو", lat: 36.72, lon: 4.05 },
+  { code: 16, name: "Alger", nameAr: "الجزائر", lat: 36.75, lon: 3.06 },
+  { code: 17, name: "Djelfa", nameAr: "الجلفة", lat: 34.67, lon: 3.25 },
+  { code: 18, name: "Jijel", nameAr: "جيجل", lat: 36.82, lon: 5.77 },
+  { code: 19, name: "Sétif", nameAr: "سطيف", lat: 36.19, lon: 5.41 },
+  { code: 20, name: "Saïda", nameAr: "سعيدة", lat: 34.84, lon: 0.15 },
+  { code: 21, name: "Skikda", nameAr: "سكيكدة", lat: 36.88, lon: 6.90 },
+  { code: 22, name: "Sidi Bel Abbès", nameAr: "سيدي بلعباس", lat: 35.19, lon: -0.63 },
+  { code: 23, name: "Annaba", nameAr: "عنابة", lat: 36.90, lon: 7.77 },
+  { code: 24, name: "Guelma", nameAr: "قالمة", lat: 36.46, lon: 7.43 },
+  { code: 25, name: "Constantine", nameAr: "قسنطينة", lat: 36.37, lon: 6.61 },
+  { code: 26, name: "Médéa", nameAr: "المدية", lat: 36.27, lon: 2.75 },
+  { code: 27, name: "Mostaganem", nameAr: "مستغانم", lat: 35.93, lon: 0.09 },
+  { code: 28, name: "M'Sila", nameAr: "المسيلة", lat: 35.70, lon: 4.54 },
+  { code: 29, name: "Mascara", nameAr: "معسكر", lat: 35.40, lon: 0.14 },
+  { code: 30, name: "Ouargla", nameAr: "ورقلة", lat: 31.95, lon: 5.32 },
+  { code: 31, name: "Oran", nameAr: "وهران", lat: 35.69, lon: -0.63 },
+  { code: 32, name: "El Bayadh", nameAr: "البيض", lat: 33.68, lon: 1.01 },
+  { code: 33, name: "Illizi", nameAr: "إليزي", lat: 26.48, lon: 8.48 },
+  { code: 34, name: "Bordj Bou Arréridj", nameAr: "برج بوعريريج", lat: 36.07, lon: 4.76 },
+  { code: 35, name: "Boumerdès", nameAr: "بومرداس", lat: 36.77, lon: 3.48 },
+  { code: 36, name: "El Tarf", nameAr: "الطارف", lat: 36.77, lon: 8.31 },
+  { code: 37, name: "Tindouf", nameAr: "تندوف", lat: 27.67, lon: -8.15 },
+  { code: 38, name: "Tissemsilt", nameAr: "تيسمسيلت", lat: 35.60, lon: 1.81 },
+  { code: 39, name: "El Oued", nameAr: "الوادي", lat: 33.36, lon: 6.86 },
+  { code: 40, name: "Khenchela", nameAr: "خنشلة", lat: 35.43, lon: 7.14 },
+  { code: 41, name: "Souk Ahras", nameAr: "سوق أهراس", lat: 36.28, lon: 7.95 },
+  { code: 42, name: "Tipaza", nameAr: "تيبازة", lat: 36.59, lon: 2.45 },
+  { code: 43, name: "Mila", nameAr: "ميلة", lat: 36.45, lon: 6.26 },
+  { code: 44, name: "Aïn Defla", nameAr: "عين الدفلى", lat: 36.26, lon: 1.97 },
+  { code: 45, name: "Naâma", nameAr: "النعامة", lat: 33.27, lon: -0.31 },
+  { code: 46, name: "Aïn Témouchent", nameAr: "عين تموشنت", lat: 35.30, lon: -1.14 },
+  { code: 47, name: "Ghardaïa", nameAr: "غرداية", lat: 32.49, lon: 3.67 },
+  { code: 48, name: "Relizane", nameAr: "غليزان", lat: 35.74, lon: 0.56 },
+  { code: 49, name: "Timimoun", nameAr: "تيميمون", lat: 29.26, lon: 0.24 },
+  { code: 50, name: "Bordj Badji Mokhtar", nameAr: "برج باجي مختار", lat: 21.33, lon: 0.95 },
+  { code: 51, name: "Ouled Djellal", nameAr: "أولاد جلال", lat: 34.42, lon: 5.06 },
+  { code: 52, name: "Béni Abbès", nameAr: "بني عباس", lat: 30.13, lon: -2.16 },
+  { code: 53, name: "In Salah", nameAr: "عين صالح", lat: 27.20, lon: 2.47 },
+  { code: 54, name: "In Guezzam", nameAr: "عين قزام", lat: 19.57, lon: 5.77 },
+  { code: 55, name: "Touggourt", nameAr: "تقرت", lat: 33.10, lon: 6.07 },
+  { code: 56, name: "Djanet", nameAr: "جانت", lat: 24.55, lon: 9.48 },
+  { code: 57, name: "El M'Ghair", nameAr: "المغير", lat: 33.95, lon: 5.92 },
+  { code: 58, name: "El Menia", nameAr: "المنيعة", lat: 30.58, lon: 2.88 },
+  { code: 59, name: "Hassi Messaoud", nameAr: "حاسي مسعود", lat: 31.70, lon: 6.07 },
+  { code: 60, name: "Ain Oussera", nameAr: "عين وسارة", lat: 35.45, lon: 2.90 },
+  { code: 61, name: "Bou Saâda", nameAr: "بوسعادة", lat: 35.21, lon: 4.18 },
+  { code: 62, name: "El Khroub", nameAr: "الخروب", lat: 36.27, lon: 6.69 },
+  { code: 63, name: "Kolea", nameAr: "قليعة", lat: 36.64, lon: 2.76 },
+  { code: 64, name: "Hadjout", nameAr: "حجوط", lat: 36.51, lon: 2.41 },
+  { code: 65, name: "Ain El Hammam", nameAr: "عين الحمام", lat: 36.57, lon: 4.31 },
+  { code: 66, name: "Baraki", nameAr: "براقي", lat: 36.67, lon: 3.10 },
+  { code: 67, name: "Sidi Amar", nameAr: "سيدي عمار", lat: 36.83, lon: 7.73 },
+  { code: 68, name: "El Eulma", nameAr: "العلمة", lat: 36.15, lon: 5.69 },
+  { code: 69, name: "Drean", nameAr: "الذرعان", lat: 36.69, lon: 7.75 },
+];
+
+export function toSVG(lon: number, lat: number, w: number, h: number) {
+  const LON_MIN = -8.7;
+  const LON_MAX = 12.0;
+  const LAT_MIN = 18.9;
+  const LAT_MAX = 37.1;
+  const PAD_X = w * 0.05;
+  const PAD_Y = h * 0.05;
+  const usableW = w - PAD_X * 2;
+  const usableH = h - PAD_Y * 2;
+  const x = PAD_X + ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * usableW;
+  const y = PAD_Y + ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * usableH;
+  return { x, y };
+}
+
+// Contour exact calculé depuis les vraies coordonnées géographiques de l'Algérie
+export const ALGERIA_PATH = `M 142,84 L 139,94 L 133,76 L 133,74 L 137,73 L 140,76 L 141,82 L 146,67 L 154,61 L 160,61 L 166,58 L 173,55 L 181,60 L 188,52 L 194,49 L 203,63 L 214,38 L 219,46 L 225,34 L 232,34 L 239,44 L 242,35 L 246,39 L 254,51 L 259,34 L 265,48 L 272,33 L 280,42 L 286,44 L 291,31 L 301,42 L 306,31 L 313,68 L 316,34 L 316,34 L 319,41 L 317,58 L 314,85 L 312,125 L 310,162 L 329,165 L 337,199 L 334,217 L 334,217 L 337,296 L 334,356 L 345,381 L 379,368 L 379,368 L 320,417 L 273,471 L 226,478 L 226,478 L 192,478 L 144,478 L 98,478 L 87,463 L 87,463 L 76,444 L 76,444 L 21,263 L 30,263 L 57,193 L 120,162 L 142,84 Z`;
