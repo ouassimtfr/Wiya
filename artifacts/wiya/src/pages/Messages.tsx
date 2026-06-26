@@ -29,12 +29,18 @@ export default function MessagesPage() {
 
     if (!msgs) { setLoading(false); return; }
 
+    // Groupe par listing_id + other_user_id
     const convMap = new Map<string, any>();
     for (const msg of msgs) {
       const otherUserId = msg.sender_id === user!.id ? msg.receiver_id : msg.sender_id;
       const key = `${msg.listing_id}__${otherUserId}`;
       if (!convMap.has(key)) {
-        convMap.set(key, { ...msg, otherUserId });
+        convMap.set(key, { ...msg, otherUserId, unreadCount: 0 });
+      }
+      // Compte les messages non lus reçus (pas envoyés par moi)
+      if (msg.receiver_id === user!.id && !msg.is_read) {
+        const existing = convMap.get(key);
+        if (existing) existing.unreadCount += 1;
       }
     }
 
@@ -56,12 +62,21 @@ export default function MessagesPage() {
         otherUserId: lastMsg.otherUserId,
         lastMessage: lastMsg.content,
         lastMessageTime: new Date(lastMsg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-        unread: 0,
+        unread: lastMsg.unreadCount ?? 0,
       };
     });
 
     setConversations(convList);
     setLoading(false);
+  };
+
+  const markAsRead = async (listingId: string) => {
+    // Marque les messages comme lus quand on ouvre la conversation
+    await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("listing_id", listingId)
+      .eq("receiver_id", user!.id);
   };
 
   if (!user) {
@@ -82,9 +97,13 @@ export default function MessagesPage() {
     );
   }
 
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
+
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      <AppHeader title={t("messages")} />
+      <AppHeader
+        title={`${t("messages")}${totalUnread > 0 ? ` (${totalUnread})` : ""}`}
+      />
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -104,21 +123,34 @@ export default function MessagesPage() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/messages/${conv.listingId}`)}
-              className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors"
+              onClick={async () => {
+                await markAsRead(conv.listingId);
+                // Met à jour le badge localement
+                setConversations(prev =>
+                  prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c)
+                );
+                navigate(`/messages/${conv.listingId}`);
+              }}
+              className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors ${conv.unread > 0 ? "bg-green-50/40" : ""}`}
             >
               <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center text-xl">
-                  {conv.listingImage ? <img src={conv.listingImage} alt="" className="w-12 h-12 rounded-full object-cover" /> : "💬"}
+                <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center text-xl overflow-hidden">
+                  {conv.listingImage
+                    ? <img src={conv.listingImage} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    : "💬"}
                 </div>
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-sm font-bold text-gray-900 truncate">{conv.listingTitle}</span>
+                  <span className={`text-sm truncate ${conv.unread > 0 ? "font-black text-gray-900" : "font-bold text-gray-900"}`}>
+                    {conv.listingTitle}
+                  </span>
                   <span className="text-[11px] text-gray-400 flex-shrink-0 ml-2">{conv.lastMessageTime}</span>
                 </div>
-                <p className="text-xs truncate text-gray-500">{conv.lastMessage}</p>
+                <p className={`text-xs truncate ${conv.unread > 0 ? "text-gray-800 font-semibold" : "text-gray-500"}`}>
+                  {conv.lastMessage}
+                </p>
               </div>
               {conv.unread > 0 && (
                 <span className="flex-shrink-0 w-5 h-5 bg-[#1B6B3A] rounded-full text-white text-[10px] font-bold flex items-center justify-center">
