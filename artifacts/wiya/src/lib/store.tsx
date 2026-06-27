@@ -43,22 +43,12 @@ interface AppState {
   isFavorite: (listingId: string) => boolean;
   sendMessage: (conversationId: string, text: string) => void;
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
-  submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => void;
+  submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => void;
   refuseBoost: (requestId: string) => void;
 }
 
 const StoreContext = createContext<AppState | null>(null);
-
-const BOOST_KEY = "wiya_boost_requests";
-
-function loadBoosts(): BoostRequest[] {
-  try { return JSON.parse(localStorage.getItem(BOOST_KEY) ?? "[]"); } catch { return []; }
-}
-
-function saveBoosts(reqs: BoostRequest[]) {
-  try { localStorage.setItem(BOOST_KEY, JSON.stringify(reqs)); } catch { /* storage full */ }
-}
 
 function supabaseUserToUser(sbUser: any): User {
   return {
@@ -79,21 +69,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
-  const [boostRequests, setBoostRequests] = useState<BoostRequest[]>(loadBoosts);
+  const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
 
-  // Écoute la session Supabase au démarrage et lors des changements
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setUser(supabaseUserToUser(session.user));
+      if (session?.user) {
+        setUser(supabaseUserToUser(session.user));
+        fetchBoostRequests(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) setUser(supabaseUserToUser(session.user));
-      else setUser(null);
+      if (session?.user) {
+        setUser(supabaseUserToUser(session.user));
+        fetchBoostRequests(session.user.id);
+      } else {
+        setUser(null);
+        setBoostRequests([]);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchBoostRequests = async (userId: string) => {
+    const { data } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .eq("user_id", userId)
+      .order("submitted_at", { ascending: false });
+
+    if (data) {
+      setBoostRequests(data.map((r: any) => ({
+        id: r.id,
+        listingId: r.listing_id,
+        listingTitle: r.listing_title,
+        listingImage: r.listing_image,
+        planId: r.plan_id,
+        planLabel: r.plan_label,
+        price: r.price,
+        days: r.days,
+        type: r.type,
+        receiptImage: r.receipt_image,
+        status: r.status,
+        submittedAt: r.submitted_at,
+        sellerName: r.seller_name,
+      })));
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -114,6 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setBoostRequests([]);
   };
 
   const toggleFavorite = (listingId: string) => {
@@ -161,34 +185,53 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return newConv.id;
   };
 
-  const submitBoostRequest = (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
-    const newReq: BoostRequest = {
-      ...req,
-      id: `boost_${Date.now()}`,
+  // FIX: Sauvegarde dans Supabase au lieu de localStorage
+  const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
+    if (!user) return;
+
+    const { data, error } = await supabase.from("boost_requests").insert({
+      listing_id: req.listingId,
+      listing_title: req.listingTitle,
+      listing_image: req.listingImage,
+      plan_id: req.planId,
+      plan_label: req.planLabel,
+      price: req.price,
+      days: req.days,
+      type: req.type,
+      receipt_image: req.receiptImage,
       status: "pending",
-      submittedAt: new Date().toLocaleString("fr-FR"),
-    };
-    setBoostRequests((prev) => {
-      const updated = [newReq, ...prev];
-      saveBoosts(updated);
-      return updated;
-    });
+      seller_name: req.sellerName,
+      user_id: user.id,
+    }).select().single();
+
+    if (!error && data) {
+      const newReq: BoostRequest = {
+        id: data.id,
+        listingId: data.listing_id,
+        listingTitle: data.listing_title,
+        listingImage: data.listing_image,
+        planId: data.plan_id,
+        planLabel: data.plan_label,
+        price: data.price,
+        days: data.days,
+        type: data.type,
+        receiptImage: data.receipt_image,
+        status: data.status,
+        submittedAt: data.submitted_at,
+        sellerName: data.seller_name,
+      };
+      setBoostRequests((prev) => [newReq, ...prev]);
+    }
   };
 
-  const activateBoost = (requestId: string) => {
-    setBoostRequests((prev) => {
-      const updated = prev.map((r) => r.id === requestId ? { ...r, status: "active" as const } : r);
-      saveBoosts(updated);
-      return updated;
-    });
+  const activateBoost = async (requestId: string) => {
+    await supabase.from("boost_requests").update({ status: "active" }).eq("id", requestId);
+    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "active" as const } : r));
   };
 
-  const refuseBoost = (requestId: string) => {
-    setBoostRequests((prev) => {
-      const updated = prev.map((r) => r.id === requestId ? { ...r, status: "refused" as const } : r);
-      saveBoosts(updated);
-      return updated;
-    });
+  const refuseBoost = async (requestId: string) => {
+    await supabase.from("boost_requests").update({ status: "refused" }).eq("id", requestId);
+    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "refused" as const } : r));
   };
 
   return (
