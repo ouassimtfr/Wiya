@@ -47,6 +47,7 @@ export default function BoostPage() {
   const [receipt, setReceipt] = useState<string | null>(null);
   const [receiptName, setReceiptName] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [listing, setListing] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -82,9 +83,11 @@ export default function BoostPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = () => {
+  // FIX: async + await pour attendre Supabase
+  const handleSubmit = async () => {
     if (!receipt || !plan || !listing) return;
-    submitBoostRequest({
+    setSubmitting(true);
+    await submitBoostRequest({
       listingId: listing.id,
       listingTitle: listing.title,
       listingImage: listing.images?.[0] ?? "",
@@ -96,6 +99,7 @@ export default function BoostPage() {
       receiptImage: receipt,
       sellerName: user?.name ?? "Vendeur",
     });
+    setSubmitting(false);
     setStep(4);
   };
 
@@ -149,7 +153,6 @@ export default function BoostPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Annonce preview */}
         <div className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
           {listing.images?.[0] ? (
             <img src={listing.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
@@ -304,7 +307,6 @@ export default function BoostPage() {
         </AnimatePresence>
       </div>
 
-      {/* FIX: Bouton fixed avec padding safe-area pour iPhone */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)" }}
@@ -336,10 +338,14 @@ export default function BoostPage() {
         {step === 3 && (
           <button
             onClick={handleSubmit}
-            disabled={!receipt || uploading}
+            disabled={!receipt || uploading || submitting}
             className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            <CheckCheck className="w-4 h-4" />Soumettre la demande
+            {submitting ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <><CheckCheck className="w-4 h-4" />Soumettre la demande</>
+            )}
           </button>
         )}
       </div>
