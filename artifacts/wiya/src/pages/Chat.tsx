@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { Send, Phone, MoreVertical, ChevronLeft, Image as ImageIcon } from "lucide-react";
+import { Send, MoreVertical, ChevronLeft, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -49,6 +49,7 @@ export default function ChatPage() {
 
     if (listingData) {
       setListing(listingData);
+      // Si je suis l'acheteur, receiver = vendeur
       if (listingData.user_id !== user.id) {
         setOtherUserId(listingData.user_id);
       }
@@ -63,6 +64,7 @@ export default function ChatPage() {
 
     if (msgs && msgs.length > 0) {
       setMessages(msgs);
+      // Si je suis le vendeur, trouver l'acheteur depuis les messages
       if (listingData && listingData.user_id === user.id) {
         const firstMsg = msgs[0];
         const buyerId = firstMsg.sender_id === user.id ? firstMsg.receiver_id : firstMsg.sender_id;
@@ -71,6 +73,13 @@ export default function ChatPage() {
     } else if (msgs) {
       setMessages(msgs);
     }
+
+    // Marquer les messages comme lus
+    await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("listing_id", params.id)
+      .eq("receiver_id", user.id);
 
     setLoading(false);
   };
@@ -100,6 +109,7 @@ export default function ChatPage() {
     const msgText = customText ?? text.trim();
     if (!msgText || !user || !listing) return;
 
+    // FIX: receiver = l'autre personne, jamais soi-même
     const receiverId = listing.user_id === user.id ? otherUserId : listing.user_id;
     if (!receiverId) return;
 
@@ -121,6 +131,7 @@ export default function ChatPage() {
       sender_id: user.id,
       receiver_id: receiverId,
       content: msgText,
+      is_read: false,
     }).select().single();
 
     if (!error && data) {
@@ -197,7 +208,7 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex items-center gap-2 flex-shrink-0">
+      <div className="bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex items-center gap-2 flex-shrink-0" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
         <button className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100">
           <ImageIcon className="w-4 h-4 text-gray-500" />
         </button>
