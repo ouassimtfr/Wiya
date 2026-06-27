@@ -7,6 +7,26 @@ import { useStore } from "@/lib/store";
 import { CATEGORIES, WILAYAS } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
+// Compresse l'image avant upload pour accélérer
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1200;
+      const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.75);
+    };
+    img.src = url;
+  });
+}
+
 export default function PostListingPage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
@@ -46,12 +66,15 @@ export default function PostListingPage() {
     if (!file || photos.length >= 5) return;
 
     setUploadingPhoto(true);
+    setError("");
     try {
-      const ext = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${ext}`;
+      // Compresse avant upload
+      const compressed = await compressImage(file);
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+      
       const { error: uploadError } = await supabase.storage
         .from("listings")
-        .upload(fileName, file);
+        .upload(fileName, compressed, { contentType: "image/jpeg" });
 
       if (uploadError) throw uploadError;
 
@@ -230,7 +253,6 @@ export default function PostListingPage() {
                 </div>
               </div>
 
-              {/* Numéro de contact */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
                   📞 Numéro de contact *
