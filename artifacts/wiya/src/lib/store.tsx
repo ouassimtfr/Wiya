@@ -185,7 +185,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return newConv.id;
   };
 
-  // FIX: Sauvegarde dans Supabase au lieu de localStorage
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
     if (!user) return;
 
