@@ -51,9 +51,7 @@ export default function BoostPage() {
   const [listing, setListing] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchListing();
-  }, [params.id]);
+  useEffect(() => { fetchListing(); }, [params.id]);
 
   const fetchListing = async () => {
     const { data } = await supabase.from("listings").select("*").eq("id", params.id).single();
@@ -83,7 +81,6 @@ export default function BoostPage() {
     reader.readAsDataURL(file);
   };
 
-  // FIX: async + await pour attendre Supabase
   const handleSubmit = async () => {
     if (!receipt || !plan || !listing) return;
     setSubmitting(true);
@@ -127,7 +124,7 @@ export default function BoostPage() {
   if (!listing) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 100px)" }}>
+    <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 120px)" }}>
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"><div className="absolute -bottom-4 right-4 w-32 h-32 rounded-full bg-[#C8972B]" /></div>
         <div className="relative">
@@ -161,14 +158,10 @@ export default function BoostPage() {
           )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900 truncate">{listing.title}</p>
-            <p className="text-sm font-bold text-[#1B6B3A]">
-              {listing.price ? `${listing.price.toLocaleString()} DA` : "Prix non défini"}
-            </p>
+            <p className="text-sm font-bold text-[#1B6B3A]">{listing.price ? `${listing.price.toLocaleString()} DA` : "Prix non défini"}</p>
           </div>
           {plan && step > 1 && (
-            <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${plan.type === "premium" ? "bg-amber-50 text-[#C8972B]" : "bg-green-50 text-[#1B6B3A]"}`}>
-              {plan.label}
-            </div>
+            <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${plan.type === "premium" ? "bg-amber-50 text-[#C8972B]" : "bg-green-50 text-[#1B6B3A]"}`}>{plan.label}</div>
           )}
         </div>
 
@@ -184,9 +177,7 @@ export default function BoostPage() {
                 ))}
               </div>
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t("basicBoost")} — {t("basicBoostDesc")}</p>
-                </div>
+                <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t("basicBoost")} — {t("basicBoostDesc")}</p></div>
                 <div className="flex gap-2 p-3">
                   {PLANS.filter((p) => p.type === "basic").map((plan) => (
                     <motion.button key={plan.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(plan.id)} className={`flex-1 p-3 rounded-2xl border-2 transition-all relative ${selected === plan.id ? "border-[#1B6B3A] bg-green-50" : "border-gray-100"}`}>
@@ -268,37 +259,21 @@ export default function BoostPage() {
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                 {!receipt ? (
                   <motion.button whileTap={{ scale: 0.97 }} onClick={() => fileRef.current?.click()} className="w-full border-2 border-dashed border-[#1B6B3A]/30 rounded-2xl py-10 flex flex-col items-center gap-3 bg-green-50/50">
-                    {uploading ? (
-                      <div className="w-10 h-10 rounded-full border-2 border-[#1B6B3A] border-t-transparent animate-spin" />
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 rounded-2xl bg-[#1B6B3A]/10 flex items-center justify-center">
-                          <Upload className="w-7 h-7 text-[#1B6B3A]" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-bold text-[#1B6B3A]">Importer la capture d'écran</p>
-                          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG — max 10 Mo</p>
-                        </div>
-                      </>
-                    )}
+                    {uploading ? <div className="w-10 h-10 rounded-full border-2 border-[#1B6B3A] border-t-transparent animate-spin" /> : <>
+                      <div className="w-14 h-14 rounded-2xl bg-[#1B6B3A]/10 flex items-center justify-center"><Upload className="w-7 h-7 text-[#1B6B3A]" /></div>
+                      <div className="text-center"><p className="text-sm font-bold text-[#1B6B3A]">Importer la capture d'écran</p><p className="text-xs text-gray-400 mt-0.5">JPG, PNG — max 10 Mo</p></div>
+                    </>}
                   </motion.button>
                 ) : (
                   <div className="space-y-3">
                     <div className="relative rounded-2xl overflow-hidden border border-green-200 shadow-sm">
                       <img src={receipt} alt="Reçu" className="w-full object-contain max-h-72" />
-                      <button onClick={() => { setReceipt(null); setReceiptName(""); }} className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <X className="w-4 h-4 text-white" />
-                      </button>
+                      <button onClick={() => { setReceipt(null); setReceiptName(""); }} className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"><X className="w-4 h-4 text-white" /></button>
                       <div className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="w-3.5 h-3.5 text-white" />
-                          <span className="text-white text-xs font-medium truncate">{receiptName || "reçu.jpg"}</span>
-                        </div>
+                        <div className="flex items-center gap-2"><ImageIcon className="w-3.5 h-3.5 text-white" /><span className="text-white text-xs font-medium truncate">{receiptName || "reçu.jpg"}</span></div>
                       </div>
                     </div>
-                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">
-                      Changer l'image
-                    </button>
+                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">Changer l'image</button>
                   </div>
                 )}
               </div>
@@ -307,47 +282,17 @@ export default function BoostPage() {
         </AnimatePresence>
       </div>
 
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)" }}
-      >
-        {step === 1 && (
-          <>
-            {selected && (
-              <p className="text-center text-xs text-gray-500 mb-2">
-                Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong>
-              </p>
-            )}
-            <button
-              onClick={() => setStep(2)}
-              disabled={!selected}
-              className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 fill-white" />Continuer vers le paiement
-            </button>
-          </>
-        )}
-        {step === 2 && (
-          <button
-            onClick={() => setStep(3)}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2"
-          >
-            J'ai effectué le virement →
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
+        {step === 1 && (<>
+          {selected && <p className="text-center text-xs text-gray-500 mb-2">Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong></p>}
+          <button onClick={() => setStep(2)} disabled={!selected} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
+            <Zap className="w-4 h-4 fill-white" />Continuer vers le paiement
           </button>
-        )}
-        {step === 3 && (
-          <button
-            onClick={handleSubmit}
-            disabled={!receipt || uploading || submitting}
-            className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2"
-          >
-            {submitting ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <><CheckCheck className="w-4 h-4" />Soumettre la demande</>
-            )}
-          </button>
-        )}
+        </>)}
+        {step === 2 && <button onClick={() => setStep(3)} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2">J'ai effectué le virement →</button>}
+        {step === 3 && <button onClick={handleSubmit} disabled={!receipt || uploading || submitting} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
+          {submitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCheck className="w-4 h-4" />Soumettre la demande</>}
+        </button>}
       </div>
     </div>
   );
