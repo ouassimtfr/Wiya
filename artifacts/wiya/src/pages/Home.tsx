@@ -16,7 +16,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { t, lang, setLang, isRTL } = useI18n();
   const { user } = useStore();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications(); // Gardé uniquement pour la cloche des notifications système
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [condition, setCondition] = useState<Condition>("all");
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
@@ -25,9 +25,49 @@ export default function Home() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Correction : Nouvel état pour le compteur de messages de la messagerie du bas
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
   useEffect(() => {
     fetchListings();
   }, []);
+
+  // Correction : Écoute en temps réel des vrais messages non lus pour l'utilisateur connecté
+  useEffect(() => {
+    if (!user) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const fetchUnreadMessagesCount = async () => {
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("is_read", false);
+
+      if (!error && count !== null) {
+        setUnreadMessages(count);
+      }
+    };
+
+    fetchUnreadMessagesCount();
+
+    const channel = supabase
+      .channel("home-messages-count-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
+        () => {
+          fetchUnreadMessagesCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const fetchListings = async () => {
     setLoading(true);
@@ -287,6 +327,9 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Note : Si ton menu de navigation du bas (BottomNav) est importé séparément dans ton Layout global, 
+          c'est l'autre fichier (ex: BottomNav.tsx) qu'il faudra modifier pour lier le badge à `unreadMessages` ! */}
     </div>
   );
 }
