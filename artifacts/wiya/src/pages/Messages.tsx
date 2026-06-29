@@ -1,166 +1,126 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { MessageCircle } from "lucide-react";
-import { motion } from "framer-motion";
-import { useI18n } from "@/lib/i18n";
+import { useState, useEffect, useRef } from "react";
+import { useRoute, useLocation } from "wouter";
+import { ArrowLeft, Send } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { supabase } from "@/lib/supabase";
 import AppHeader from "@/components/AppHeader";
 
-export default function MessagesPage() {
+export default function ChatPage() {
+  const [, params] = useRoute("/messages/:id");
   const [, navigate] = useLocation();
-  const { t } = useI18n();
-  const { user } = useStore();
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const conversationId = params?.id;
 
+  const { user, conversations, sendMessage } = useStore();
+  const [inputText, setInputText] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Trouver la conversation actuelle dans le store
+  const conversation = conversations.find((c) => c.id === conversationId);
+
+  // Auto-scroll vers le bas quand un nouveau message arrive
   useEffect(() => {
-    if (user) fetchConversations();
-  }, [user]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversation?.messages]);
 
-  const fetchConversations = async () => {
-    setLoading(true);
-
-    const { data: msgs } = await supabase
-      .from("messages")
-      .select("*")
-      .or(`sender_id.eq.${user!.id},receiver_id.eq.${user!.id}`)
-      .order("created_at", { ascending: false });
-
-    if (!msgs) { setLoading(false); return; }
-
-    // Groupe par listing_id + other_user_id
-    const convMap = new Map<string, any>();
-    for (const msg of msgs) {
-      const otherUserId = msg.sender_id === user!.id ? msg.receiver_id : msg.sender_id;
-      const key = `${msg.listing_id}__${otherUserId}`;
-      if (!convMap.has(key)) {
-        convMap.set(key, { ...msg, otherUserId, unreadCount: 0 });
-      }
-      // Compte les messages non lus reçus (pas envoyés par moi)
-      if (msg.receiver_id === user!.id && !msg.is_read) {
-        const existing = convMap.get(key);
-        if (existing) existing.unreadCount += 1;
-      }
-    }
-
-    const listingIds = [...new Set(Array.from(convMap.values()).map(v => v.listing_id))];
-    if (listingIds.length === 0) { setConversations([]); setLoading(false); return; }
-
-    const { data: listings } = await supabase
-      .from("listings")
-      .select("id, title, images, user_id")
-      .in("id", listingIds);
-
-    const convList = Array.from(convMap.entries()).map(([key, lastMsg]) => {
-      const listing = listings?.find((l) => l.id === lastMsg.listing_id);
-      return {
-        id: key,
-        listingId: lastMsg.listing_id,
-        listingTitle: listing?.title ?? "Annonce",
-        listingImage: listing?.images?.[0] ?? "",
-        otherUserId: lastMsg.otherUserId,
-        lastMessage: lastMsg.content,
-        lastMessageTime: new Date(lastMsg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-        unread: lastMsg.unreadCount ?? 0,
-      };
-    });
-
-    setConversations(convList);
-    setLoading(false);
-  };
-
-  const markAsRead = async (listingId: string) => {
-    // Marque les messages comme lus quand on ouvre la conversation
-    await supabase
-      .from("messages")
-      .update({ is_read: true })
-      .eq("listing_id", listingId)
-      .eq("receiver_id", user!.id);
-  };
-
-  if (!user) {
+  if (!user || !conversation) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen pb-20">
-        <AppHeader title={t("messages")} />
-        <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
-            <MessageCircle className="w-8 h-8 text-[#1B6B3A]" />
-          </div>
-          <h2 className="text-base font-bold text-gray-900">{t("notLoggedIn")}</h2>
-          <p className="text-sm text-gray-500">{t("notLoggedInDesc")}</p>
-          <button onClick={() => navigate("/auth")} className="px-8 py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm">
-            {t("login")}
-          </button>
-        </div>
+      <div className="bg-[#F4F6F5] min-h-screen flex flex-col items-center justify-center p-4">
+        <p className="text-gray-500 text-sm mb-4">Conversation introuvable ou session expirée.</p>
+        <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm font-semibold">
+          Retour aux messages
+        </button>
       </div>
     );
   }
 
-  const totalUnread = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+
+    const textToSend = inputText.trim();
+    setInputText(""); // Vide le champ instantanément
+
+    await sendMessage(conversation.id, textToSend);
+  };
+
+  // Boutons de réponses rapides (les options "Toujours disponible ?" etc.)
+  const quickReplies = [
+    "Bonjour, est-ce toujours disponible ?",
+    "Le prix est-il négociable ?",
+    "Je suis disponible pour le récupérer aujourd'hui."
+  ];
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      <AppHeader
-        title={`${t("messages")}${totalUnread > 0 ? ` (${totalUnread})` : ""}`}
-      />
+    <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
+      {/* Barre du haut */}
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <div className="w-10 h-10 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
+          {conversation.listingImage ? (
+            <img src={conversation.listingImage} alt="" className="w-10 h-10 object-cover" />
+          ) : (
+            "💬"
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-bold text-gray-900 truncate">{conversation.listingTitle}</h2>
+          <p className="text-xs text-gray-400 truncate">Avec {conversation.otherUser?.name || "Utilisateur"}</p>
+        </div>
+      </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : conversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-3">
-          <div className="text-5xl">💬</div>
-          <h2 className="text-base font-bold text-gray-700">{t("noMessages")}</h2>
-          <p className="text-sm text-gray-400">Parcourez les annonces et contactez les vendeurs</p>
-        </div>
-      ) : (
-        <div className="divide-y divide-gray-100 bg-white">
-          {conversations.map((conv, i) => (
-            <motion.div
-              key={conv.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={async () => {
-                await markAsRead(conv.listingId);
-                // Met à jour le badge localement
-                setConversations(prev =>
-                  prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c)
-                );
-                navigate(`/messages/${conv.listingId}`);
-              }}
-              className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors ${conv.unread > 0 ? "bg-green-50/40" : ""}`}
-            >
-              <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center text-xl overflow-hidden">
-                  {conv.listingImage
-                    ? <img src={conv.listingImage} alt="" className="w-12 h-12 rounded-full object-cover" />
-                    : "💬"}
+      {/* Zone des messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+        {conversation.messages.length === 0 ? (
+          <p className="text-center text-xs text-gray-400 my-auto">Aucun message. Envoyez le premier message !</p>
+        ) : (
+          conversation.messages.map((msg) => {
+            const isMe = msg.senderId === "me";
+            return (
+              <div key={msg.id} className={`flex flex-col max-w-[75%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
+                <div className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-[#1B6B3A] text-white rounded-br-none" : "bg-white text-gray-900 rounded-bl-none border border-gray-100"}`}>
+                  {msg.text}
                 </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className={`text-sm truncate ${conv.unread > 0 ? "font-black text-gray-900" : "font-bold text-gray-900"}`}>
-                    {conv.listingTitle}
-                  </span>
-                  <span className="text-[11px] text-gray-400 flex-shrink-0 ml-2">{conv.lastMessageTime}</span>
-                </div>
-                <p className={`text-xs truncate ${conv.unread > 0 ? "text-gray-800 font-semibold" : "text-gray-500"}`}>
-                  {conv.lastMessage}
-                </p>
-              </div>
-              {conv.unread > 0 && (
-                <span className="flex-shrink-0 w-5 h-5 bg-[#1B6B3A] rounded-full text-white text-[10px] font-bold flex items-center justify-center">
-                  {conv.unread}
-                </span>
-              )}
-            </motion.div>
-          ))}
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggestions de réponses rapides (si aucun ou peu de messages) */}
+      {conversation.messages.length <= 1 && (
+        <div className="px-4 py-2 flex flex-col gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <div className="flex gap-2">
+            {quickReplies.map((reply, index) => (
+              <button
+                key={index}
+                onClick={async () => {
+                  await sendMessage(conversation.id, reply);
+                }}
+                className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex-shrink-0 shadow-sm"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Barre d'envoi de message */}
+      <form onSubmit={handleSend} className="px-4 py-2 bg-white border-t border-gray-100 flex items-center gap-2 sticky bottom-0">
+        <input
+          type="text"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="Écrivez votre message..."
+          className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#1B6B3A] transition-colors"
+        />
+        <button type="submit" className="p-2.5 bg-[#1B6B3A] text-white rounded-xl hover:bg-[#15522c] transition-colors flex-shrink-0">
+          <Send className="w-4 h-4" />
+        </button>
+      </form>
     </div>
   );
 }
