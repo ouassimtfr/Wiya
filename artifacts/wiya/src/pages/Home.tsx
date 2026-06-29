@@ -16,7 +16,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { t, lang, setLang, isRTL } = useI18n();
   const { user } = useStore();
-  const { unreadCount } = useNotifications(); // Gardé uniquement pour la cloche des notifications système
+  const { unreadCount } = useNotifications();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [condition, setCondition] = useState<Condition>("all");
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
@@ -25,41 +25,17 @@ export default function Home() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Correction : Nouvel état pour le compteur de messages de la messagerie du bas
-  const [unreadMessages, setUnreadMessages] = useState(0);
-
   useEffect(() => {
     fetchListings();
-  }, []);
 
-  // Correction : Écoute en temps réel des vrais messages non lus pour l'utilisateur connecté
-  useEffect(() => {
-    if (!user) {
-      setUnreadMessages(0);
-      return;
-    }
-
-    const fetchUnreadMessagesCount = async () => {
-      const { count, error } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .eq("receiver_id", user.id)
-        .eq("is_read", false);
-
-      if (!error && count !== null) {
-        setUnreadMessages(count);
-      }
-    };
-
-    fetchUnreadMessagesCount();
-
+    // CORRECTION : Écoute en temps réel des modifications sur les annonces (ex: activation d'un boost)
     const channel = supabase
-      .channel("home-messages-count-realtime")
+      .channel("listings-updates-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
+        { event: "*", schema: "public", table: "listings" },
         () => {
-          fetchUnreadMessagesCount();
+          fetchListings(); // Recharge les annonces dès qu'un boost est activé
         }
       )
       .subscribe();
@@ -67,7 +43,7 @@ export default function Home() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, []);
 
   const fetchListings = async () => {
     setLoading(true);
@@ -182,7 +158,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Quick Filters — État + Wilaya seulement */}
+        {/* Quick Filters */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4">
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -231,14 +207,14 @@ export default function Home() {
         </div>
 
         {/* Loading state */}
-        {loading && (
+        {loading && listings.length === 0 && (
           <div className="flex justify-center py-8">
             <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
-        {/* Featured / Boosted */}
-        {!loading && !activeCategory && featured.length > 0 && (
+        {/* Section Vedette (Featured / Boosted) */}
+        {!activeCategory && featured.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
@@ -257,7 +233,7 @@ export default function Home() {
         )}
 
         {/* Recent listings */}
-        {!loading && (
+        {listings.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-gray-800">
@@ -327,9 +303,6 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Note : Si ton menu de navigation du bas (BottomNav) est importé séparément dans ton Layout global, 
-          c'est l'autre fichier (ex: BottomNav.tsx) qu'il faudra modifier pour lier le badge à `unreadMessages` ! */}
     </div>
   );
 }
