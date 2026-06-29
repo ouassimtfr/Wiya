@@ -34,7 +34,7 @@ function AppShell() {
         <Route path="/search" component={SearchPage} />
         <Route path="/listing/:id" component={ListingDetail} />
         <Route path="/messages" component={MessagesPage} />
-        <Route path="/messages/:id" component={ChatPage} />
+        <Route path="/chat/:id" component={ChatPage} />
         <Route path="/favorites" component={FavoritesPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/auth" component={AuthPage} />
