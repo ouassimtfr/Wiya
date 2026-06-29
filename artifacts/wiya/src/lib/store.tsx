@@ -93,28 +93,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchBoostRequests = async (userId: string) => {
-    const { data } = await supabase
-      .from("boost_requests")
-      .select("*")
-      .eq("user_id", userId)
-      .order("submitted_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("boost_requests")
+        .select("*")
+        .eq("user_id", userId)
+        .order("submitted_at", { ascending: false });
 
-    if (data) {
-      setBoostRequests(data.map((r: any) => ({
-        id: r.id,
-        listingId: r.listing_id,
-        listingTitle: r.listing_title,
-        listingImage: r.listing_image,
-        planId: r.plan_id,
-        planLabel: r.plan_label,
-        price: r.price,
-        days: r.days,
-        type: r.type,
-        receiptImage: r.receipt_image,
-        status: r.status,
-        submittedAt: r.submitted_at,
-        sellerName: r.seller_name,
-      })));
+      if (error) throw error;
+
+      if (data) {
+        setBoostRequests(data.map((r: any) => ({
+          id: r.id,
+          listingId: r.listing_id,
+          listingTitle: r.listing_title,
+          listingImage: r.listing_image,
+          planId: r.plan_id,
+          planLabel: r.plan_label,
+          price: r.price,
+          days: r.days,
+          type: r.type,
+          receiptImage: r.receipt_image,
+          status: r.status,
+          submittedAt: r.submitted_at,
+          sellerName: r.seller_name,
+        })));
+      }
+    } catch (err) {
+      console.error("Erreur récupération des boosts :", err);
     }
   };
 
@@ -188,49 +194,69 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
     if (!user) return;
 
-    const { data, error } = await supabase.from("boost_requests").insert({
-      listing_id: req.listingId,
-      listing_title: req.listingTitle,
-      listing_image: req.listingImage,
-      plan_id: req.planId,
-      plan_label: req.planLabel,
-      price: req.price,
-      days: req.days,
-      type: req.type,
-      receipt_image: req.receiptImage,
-      status: "pending",
-      seller_name: req.sellerName,
-      user_id: user.id,
-    }).select().single();
+    try {
+      const { data, error } = await supabase
+        .from("boost_requests")
+        .insert({
+          listing_id: req.listingId,
+          listing_title: req.listingTitle,
+          listing_image: req.listingImage,
+          plan_id: req.planId,
+          plan_label: req.planLabel, // Correction ici (lu depuis req.planLabel)
+          price: req.price,
+          days: req.days,
+          type: req.type,
+          receipt_image: req.receiptImage, // Correction ici (lu depuis req.receiptImage)
+          status: "pending",
+          seller_name: req.sellerName,
+          user_id: user.id,
+        })
+        .select()
+        .single();
 
-    if (!error && data) {
-      const newReq: BoostRequest = {
-        id: data.id,
-        listingId: data.listing_id,
-        listingTitle: data.listing_title,
-        listingImage: data.listing_image,
-        planId: data.plan_id,
-        planLabel: data.plan_label,
-        price: data.price,
-        days: data.days,
-        type: data.type,
-        receiptImage: data.receipt_image,
-        status: data.status,
-        submittedAt: data.submitted_at,
-        sellerName: data.seller_name,
-      };
-      setBoostRequests((prev) => [newReq, ...prev]);
+      if (error) throw error;
+
+      if (data) {
+        const newReq: BoostRequest = {
+          id: data.id,
+          listingId: data.listing_id,
+          listingTitle: data.listing_title,
+          listingImage: data.listing_image,
+          planId: data.plan_id,
+          planLabel: data.plan_label,
+          price: data.price,
+          days: data.days,
+          type: data.type,
+          receiptImage: data.receipt_image,
+          status: data.status,
+          submittedAt: data.submitted_at,
+          sellerName: data.seller_name,
+        };
+        setBoostRequests((prev) => [newReq, ...prev]);
+      }
+    } catch (err) {
+      console.error("Erreur d'insertion du boost dans le store :", err);
     }
   };
 
   const activateBoost = async (requestId: string) => {
-    await supabase.from("boost_requests").update({ status: "active" }).eq("id", requestId);
-    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "active" as const } : r));
+    try {
+      const { error } = await supabase.from("boost_requests").update({ status: "active" }).eq("id", requestId);
+      if (error) throw error;
+      setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "active" as const } : r));
+    } catch (err) {
+      console.error("Erreur lors de l'activation du boost :", err);
+    }
   };
 
   const refuseBoost = async (requestId: string) => {
-    await supabase.from("boost_requests").update({ status: "refused" }).eq("id", requestId);
-    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "refused" as const } : r));
+    try {
+      const { error } = await supabase.from("boost_requests").update({ status: "refused" }).eq("id", requestId);
+      if (error) throw error;
+      setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "refused" as const } : r));
+    } catch (err) {
+      console.error("Erreur lors du refus du boost :", err);
+    }
   };
 
   return (
