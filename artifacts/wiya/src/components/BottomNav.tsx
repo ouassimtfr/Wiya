@@ -1,23 +1,65 @@
+import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Home, MessageCircle, Plus, Heart, User } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 
 export default function BottomNav() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
-  const { conversations } = useStore();
+  const { user } = useStore(); // On récupère l'utilisateur connecté
   const [onHome] = useRoute("/");
   const [onMessages] = useRoute("/messages");
   const [onMessages2] = useRoute("/messages/:id");
   const [onFavorites] = useRoute("/favorites");
   const [onProfile] = useRoute("/profile");
 
-  const unreadCount = conversations.reduce((sum, c) => sum + c.unread, 0);
+  // Correction : On utilise un état local pour les messages non lus en temps réel
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    // 1. Fonction pour compter les vrais messages non lus directement en BDD
+    const fetchUnreadCount = async () => {
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("is_read", false);
+
+      if (!error && count !== null) {
+        setUnreadMessages(count);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // 2. Écoute les changements en temps réel (Supabase Realtime)
+    const channel = supabase
+      .channel("bottom-nav-realtime-badge")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
+        () => {
+          fetchUnreadCount(); // Recalcule dès qu'un message change d'état (ex: lu)
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const items = [
     { label: t("home"), icon: Home, path: "/", active: !!onHome },
-    { label: t("messages"), icon: MessageCircle, path: "/messages", active: !!(onMessages || onMessages2), badge: unreadCount },
+    // On remplace l'ancien unreadCount défaillant par notre unreadMessages tout neuf
+    { label: t("messages"), icon: MessageCircle, path: "/messages", active: !!(onMessages || onMessages2), badge: unreadMessages },
     { label: t("post"), icon: Plus, path: "/post", active: false, primary: true },
     { label: t("favorites"), icon: Heart, path: "/favorites", active: !!onFavorites },
     { label: t("profile"), icon: User, path: "/profile", active: !!onProfile },
@@ -45,7 +87,7 @@ export default function BottomNav() {
                     strokeWidth={item.active ? 2.5 : 1.8}
                   />
                   {item.badge != null && item.badge > 0 && (
-                    <span className="absolute -top-1.5 -end-1.5 w-4 h-4 bg-[#C8972B] rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -end-1.5 min-w-[16px] h-4 px-1 bg-[#C8972B] rounded-full text-white text-[9px] font-bold flex items-center justify-center border border-white">
                       {item.badge}
                     </span>
                   )}
