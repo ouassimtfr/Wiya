@@ -81,23 +81,52 @@ export default function BoostPage() {
     reader.readAsDataURL(file);
   };
 
+  // CORRECTION : Déclenchement de l'analyse automatique par l'IA juste après soumission
   const handleSubmit = async () => {
     if (!receipt || !plan || !listing) return;
     setSubmitting(true);
-    await submitBoostRequest({
-      listingId: listing.id,
-      listingTitle: listing.title,
-      listingImage: listing.images?.[0] ?? "",
-      planId: plan.id,
-      planLabel: plan.label,
-      price: plan.price,
-      days: plan.days,
-      type: plan.type,
-      receiptImage: receipt,
-      sellerName: user?.name ?? "Vendeur",
-    });
-    setSubmitting(false);
-    setStep(4);
+    
+    try {
+      // 1. On crée d'abord la demande en BDD comme avant
+      const requestData = await submitBoostRequest({
+        listingId: listing.id,
+        listingTitle: listing.title,
+        listingImage: listing.images?.[0] ?? "",
+        planId: plan.id,
+        planLabel: plan.label,
+        price: plan.price,
+        days: plan.days,
+        type: plan.type,
+        receiptImage: receipt,
+        sellerName: user?.name ?? "Vendeur",
+      });
+
+      // On récupère l'ID de la demande créée (on récupère la dernière demande pending de cet utilisateur pour ce listing)
+      const { data: latestReq } = await supabase
+        .from("boost_requests")
+        .select("id, receipt_image")
+        .eq("listing_id", listing.id)
+        .eq("status", "pending")
+        .order("submitted_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestReq) {
+        // 2. On appelle la Edge Function de Supabase pour que l'IA scanne le reçu en tâche de fond
+        await supabase.functions.invoke("verify-receipt", {
+          body: {
+            receiptUrl: latestReq.receipt_image,
+            listingId: listing.id,
+            requestId: latestReq.id
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'analyse automatique de l'IA :", err);
+    } finally {
+      setSubmitting(false);
+      setStep(4);
+    }
   };
 
   if (step === 4) {
@@ -108,7 +137,7 @@ export default function BoostPage() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <h2 className="text-white text-2xl font-black mb-2">Demande envoyée !</h2>
-          <p className="text-green-200 text-sm leading-relaxed">Votre reçu est en cours de vérification.<br />Le boost sera activé sous <strong className="text-white">24h</strong>.</p>
+          <p className="text-green-200 text-sm leading-relaxed">Votre reçu est analysé instantanément par notre IA.<br />Si le reçu est valide, votre boost s'activera dans quelques secondes !</p>
           <div className="mt-4 bg-white/10 rounded-2xl px-5 py-3">
             <p className="text-green-100 text-xs">Plan: <strong className="text-white">{plan?.label}</strong></p>
             <p className="text-green-100 text-xs mt-0.5">Annonce: <strong className="text-white">{listing?.title}</strong></p>
@@ -282,7 +311,6 @@ export default function BoostPage() {
         </AnimatePresence>
       </div>
 
-      {/* Zone fixe du bouton surélevée avec un padding suffisant pour la barre de navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
         {step === 1 && (<>
           {selected && <p className="text-center text-xs text-gray-500 mb-2">Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong></p>}
