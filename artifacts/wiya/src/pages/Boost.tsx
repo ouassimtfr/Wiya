@@ -124,7 +124,7 @@ export default function BoostPage() {
   if (!listing) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 120px)" }}>
+    <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 190px)" }}>
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"><div className="absolute -bottom-4 right-4 w-32 h-32 rounded-full bg-[#C8972B]" /></div>
         <div className="relative">
@@ -282,7 +282,8 @@ export default function BoostPage() {
         </AnimatePresence>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
+      {/* Zone fixe du bouton surélevée avec un padding suffisant pour la barre de navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
         {step === 1 && (<>
           {selected && <p className="text-center text-xs text-gray-500 mb-2">Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong></p>}
           <button onClick={() => setStep(2)} disabled={!selected} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
