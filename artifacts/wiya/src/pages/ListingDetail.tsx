@@ -70,7 +70,7 @@ export default function ListingDetail() {
     setMsgText("");
     setShowMsgBox(false);
     setSending(false);
-    // CORRECTION : Navigation corrigée vers /messages/
+    // CORRECTION : Navigation alignée sur la route "/messages/:id"
     navigate(`/messages/${listing.id}`);
   };
 
@@ -86,7 +86,6 @@ export default function ListingDetail() {
 
   return (
     <div className="bg-white min-h-screen pb-28">
-      {/* Image gallery */}
       <div className="relative bg-gray-100 aspect-[4/3]">
         {images.length > 0 ? (
           <AnimatePresence mode="wait">
@@ -214,7 +213,7 @@ export default function ListingDetail() {
       </AnimatePresence>
 
       {!isMyListing && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3 shadow-lg z-40">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-8 flex gap-3 shadow-lg z-40">
           <a 
             href={displayPhone ? `tel:${displayPhone}` : "#"} 
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm"
@@ -223,7 +222,7 @@ export default function ListingDetail() {
           </a>
           <button
             onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md"
           >
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
