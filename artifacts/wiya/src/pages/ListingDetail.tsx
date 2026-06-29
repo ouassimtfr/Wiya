@@ -70,7 +70,7 @@ export default function ListingDetail() {
     setMsgText("");
     setShowMsgBox(false);
     setSending(false);
-    navigate(`/messages/${listing.id}`);
+    navigate(`/chat/${listing.id}`);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
@@ -81,7 +81,6 @@ export default function ListingDetail() {
   const fav = isFavorite(listing.id);
   const isMyListing = user?.id === listing.user_id;
 
-  // FIX: Utilise contact_phone de l'annonce en priorité, sinon le numéro du profil
   const displayPhone = listing.contact_phone || sellerProfile?.phone || null;
 
   return (
@@ -115,7 +114,6 @@ export default function ListingDetail() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
-        {/* Titre et prix */}
         <div>
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-lg font-bold text-gray-900 flex-1 leading-snug">{listing.title}</h1>
@@ -127,7 +125,6 @@ export default function ListingDetail() {
           </div>
         </div>
 
-        {/* Chips */}
         <div className="flex flex-wrap gap-2">
           {category && <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><span className="text-base">{category.icon}</span><span className="text-xs font-medium text-gray-600">{t(listing.category as any)}</span></div>}
           {listing.wilaya && <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><MapPin className="w-3.5 h-3.5 text-gray-400" /><span className="text-xs font-medium text-gray-600">{listing.wilaya}</span></div>}
@@ -135,7 +132,6 @@ export default function ListingDetail() {
           <div className="flex items-center gap-1.5 bg-gray-50 rounded-xl px-3 py-2"><Clock className="w-3.5 h-3.5 text-gray-400" /><span className="text-xs font-medium text-gray-600">{new Date(listing.created_at).toLocaleDateString("fr-FR")}</span></div>
         </div>
 
-        {/* Description */}
         {listing.description && (
           <div className="bg-gray-50 rounded-2xl p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-2">{t("description")}</h3>
@@ -143,7 +139,6 @@ export default function ListingDetail() {
           </div>
         )}
 
-        {/* Profil vendeur */}
         {sellerProfile && !isMyListing && (
           <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -151,13 +146,11 @@ export default function ListingDetail() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-900">{sellerProfile.username ?? "Vendeur"}</p>
-              {/* Affiche contact_phone de l'annonce, pas le numéro du profil */}
               {displayPhone && <p className="text-xs text-gray-500 mt-0.5">{displayPhone}</p>}
             </div>
           </div>
         )}
 
-        {/* Gestion de mon annonce */}
         {isMyListing && (
           <div className="space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase">Gérer mon annonce</p>
@@ -175,7 +168,6 @@ export default function ListingDetail() {
           </div>
         )}
 
-        {/* Annonces similaires */}
         {similar.length > 0 && (
           <div>
             <h3 className="text-sm font-bold text-gray-800 mb-3">{t("similarListings")}</h3>
@@ -186,7 +178,6 @@ export default function ListingDetail() {
         )}
       </div>
 
-      {/* Message compose */}
       <AnimatePresence>
         {showMsgBox && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowMsgBox(false)}>
@@ -221,21 +212,17 @@ export default function ListingDetail() {
         )}
       </AnimatePresence>
 
-      {/* Bottom action bar */}
       {!isMyListing && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe flex gap-3 shadow-lg z-40">
-          {displayPhone ? (
-            <a href={`tel:${displayPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
-              <Phone className="w-4 h-4" />{t("call")}
-            </a>
-          ) : (
-            <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm opacity-50">
-              <Phone className="w-4 h-4" />{t("call")}
-            </button>
-          )}
+          <a 
+            href={displayPhone ? `tel:${displayPhone}` : "#"} 
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm"
+          >
+            <Phone className="w-4 h-4" />{t("call")}
+          </a>
           <button
             onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 px-8 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md shadow-green-200"
           >
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
