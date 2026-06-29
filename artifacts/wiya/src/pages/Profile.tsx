@@ -92,7 +92,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen pb-20">
+      <div className="bg-[#F4F6F5] min-h-screen pb-24">
         <AppHeader title={t("profile")} />
         <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-4">
           <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-4xl">👤</div>
@@ -116,7 +116,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-20">
+    <div className="bg-[#F4F6F5] min-h-screen pb-28">
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"><div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-[#C8972B]" /></div>
         <div className="relative flex items-center gap-4">
@@ -249,16 +249,19 @@ export default function ProfilePage() {
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-              <div className="flex items-center justify-between">
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4 max-h-[85vh] flex flex-col" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 110px)" }}>
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto flex-shrink-0" />
+              
+              <div className="flex items-center justify-between flex-shrink-0">
                 <h3 className="text-base font-black text-gray-900">Paramètres</h3>
                 <button onClick={() => setEditing(!editing)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1B6B3A]/10 rounded-xl">
                   <Edit2 className="w-3.5 h-3.5 text-[#1B6B3A]" />
                   <span className="text-xs font-bold text-[#1B6B3A]">{editing ? "Annuler" : "Modifier"}</span>
                 </button>
               </div>
-              <div className="space-y-3">
+
+              {/* Zone scrollable interne pour contenir le formulaire de manière sécurisée */}
+              <div className="space-y-3 overflow-y-auto pr-1 pb-4 flex-1">
                 <div className="bg-gray-50 rounded-2xl p-4">
                   <p className="text-xs font-semibold text-gray-500 mb-1">Nom</p>
                   {editing ? (
@@ -288,15 +291,19 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              {editing ? (
-                <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2">
-                  {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Save className="w-4 h-4" />Enregistrer</>}
-                </button>
-              ) : (
-                <button onClick={() => setShowSettings(false)} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm">
-                  {saveSuccess ? "✅ Modifications enregistrées !" : "Fermer"}
-                </button>
-              )}
+
+              {/* Bouton de validation surélevé */}
+              <div className="flex-shrink-0 pt-2">
+                {editing ? (
+                  <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md">
+                    {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Save className="w-4 h-4" />Enregistrer</>}
+                  </button>
+                ) : (
+                  <button onClick={() => setShowSettings(false)} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md">
+                    {saveSuccess ? "✅ Modifications enregistrées !" : "Fermer"}
+                  </button>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -306,7 +313,7 @@ export default function ProfilePage() {
       <AnimatePresence>
         {showSupport && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowSupport(false)}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 110px)" }}>
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
               <h3 className="text-base font-black text-gray-900">Aide & Support</h3>
               <div className="space-y-3">
@@ -326,7 +333,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-              <button onClick={() => setShowSupport(false)} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm">
+              <button onClick={() => setShowSupport(false)} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md">
                 Fermer
               </button>
             </motion.div>
