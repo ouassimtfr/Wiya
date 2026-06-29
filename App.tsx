@@ -34,7 +34,8 @@ function AppShell() {
         <Route path="/search" component={SearchPage} />
         <Route path="/listing/:id" component={ListingDetail} />
         <Route path="/messages" component={MessagesPage} />
-        <Route path="/chat/:id" component={ChatPage} />
+        {/* CORRECTION : Route unifiée pour la messagerie, correspondant au ListingDetail */}
+        <Route path="/messages/:id" component={ChatPage} />
         <Route path="/favorites" component={FavoritesPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/auth" component={AuthPage} />
@@ -47,7 +48,7 @@ function AppShell() {
         <Route component={NotFound} />
       </Switch>
 
-      {/* Hide bottom nav on auth, chat and map pages */}
+      {/* Gestion de la visibilité de la BottomNav */}
       <Switch>
         <Route path="/auth" component={() => null} />
         <Route path="/messages/:id" component={() => null} />
@@ -65,18 +66,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-      <I18nProvider>
-        <StoreProvider>
-          <NotificationsProvider>
-            <TooltipProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <AppShell />
-              </WouterRouter>
-              <Toaster />
-            </TooltipProvider>
-          </NotificationsProvider>
-        </StoreProvider>
-      </I18nProvider>
+        <I18nProvider>
+          <StoreProvider>
+            <NotificationsProvider>
+              <TooltipProvider>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <AppShell />
+                </WouterRouter>
+                <Toaster />
+              </TooltipProvider>
+            </NotificationsProvider>
+          </StoreProvider>
+        </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
