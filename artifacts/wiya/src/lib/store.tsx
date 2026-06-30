@@ -41,7 +41,8 @@ interface AppState {
   logout: () => void;
   toggleFavorite: (listingId: string) => void;
   isFavorite: (listingId: string) => boolean;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string) => Promise<void>;
+  fetchMessages: (conversationId: string) => Promise<void>;
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => void;
@@ -92,35 +93,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const fetchMessages = async (conversationId: string) => {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, sender_id, content, created_at")
+      .eq("listing_id", conversationId)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      const formattedMessages = data.map((m: any) => ({
+        id: m.id,
+        senderId: m.sender_id === user?.id ? "me" : "other",
+        text: m.content,
+        time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      }));
+
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, messages: formattedMessages } : c))
+      );
+    }
+  };
+
   const fetchBoostRequests = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("boost_requests")
-        .select("*")
-        .eq("user_id", userId)
-        .order("submitted_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .eq("user_id", userId)
+      .order("submitted_at", { ascending: false });
 
-      if (error) throw error;
-
-      if (data) {
-        setBoostRequests(data.map((r: any) => ({
-          id: r.id,
-          listingId: r.listing_id,
-          listingTitle: r.listing_title,
-          listingImage: r.listing_image,
-          planId: r.plan_id,
-          planLabel: r.plan_label,
-          price: r.price,
-          days: r.days,
-          type: r.type,
-          receiptImage: r.receipt_image,
-          status: r.status,
-          submittedAt: r.submitted_at,
-          sellerName: r.seller_name,
-        })));
-      }
-    } catch (err) {
-      console.error("Erreur récupération des boosts :", err);
+    if (data) {
+      setBoostRequests(data.map((r: any) => ({
+        id: r.id,
+        listingId: r.listing_id,
+        listingTitle: r.listing_title,
+        listingImage: r.listing_image,
+        planId: r.plan_id,
+        planLabel: r.plan_label,
+        price: r.price,
+        days: r.days,
+        type: r.type,
+        receiptImage: r.receipt_image,
+        status: r.status,
+        submittedAt: r.submitted_at,
+        sellerName: r.seller_name,
+      })));
     }
   };
 
@@ -154,7 +170,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const isFavorite = (listingId: string) => favorites.includes(listingId);
 
-  const sendMessage = (conversationId: string, text: string) => {
+  const sendMessage = async (conversationId: string, text: string) => {
+    if (!user) return;
+
+    await supabase.from("messages").insert({
+      listing_id: conversationId,
+      sender_id: user.id,
+      content: text,
+    });
+
     setConversations((prev) =>
       prev.map((c) => {
         if (c.id !== conversationId) return c;
@@ -164,7 +188,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           text,
           time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
         };
-        return { ...c, messages: [...c.messages, newMsg], lastMessage: text, lastMessageTime: newMsg.time, unread: 0 };
+        return { ...c, messages: [...c.messages, newMsg], lastMessage: text };
       })
     );
   };
@@ -193,77 +217,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
     if (!user) return;
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .insert({
+        listing_id: req.listingId,
+        listing_title: req.listingTitle,
+        listing_image: req.listingImage,
+        plan_id: req.planId,
+        plan_label: req.planLabel,
+        price: req.price,
+        days: req.days,
+        type: req.type,
+        receipt_image: req.receiptImage,
+        status: "pending",
+        seller_name: req.sellerName,
+        user_id: user.id,
+      })
+      .select()
+      .single();
 
-    try {
-      const { data, error } = await supabase
-        .from("boost_requests")
-        .insert({
-          listing_id: req.listingId,
-          listing_title: req.listingTitle,
-          listing_image: req.listingImage,
-          plan_id: req.planId,
-          plan_label: req.planLabel, // Correction ici (lu depuis req.planLabel)
-          price: req.price,
-          days: req.days,
-          type: req.type,
-          receipt_image: req.receiptImage, // Correction ici (lu depuis req.receiptImage)
-          status: "pending",
-          seller_name: req.sellerName,
-          user_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        const newReq: BoostRequest = {
-          id: data.id,
-          listingId: data.listing_id,
-          listingTitle: data.listing_title,
-          listingImage: data.listing_image,
-          planId: data.plan_id,
-          planLabel: data.plan_label,
-          price: data.price,
-          days: data.days,
-          type: data.type,
-          receiptImage: data.receipt_image,
-          status: data.status,
-          submittedAt: data.submitted_at,
-          sellerName: data.seller_name,
-        };
-        setBoostRequests((prev) => [newReq, ...prev]);
-      }
-    } catch (err) {
-      console.error("Erreur d'insertion du boost dans le store :", err);
+    if (data) {
+      setBoostRequests((prev) => [data, ...prev]);
     }
   };
 
   const activateBoost = async (requestId: string) => {
-    try {
-      const { error } = await supabase.from("boost_requests").update({ status: "active" }).eq("id", requestId);
-      if (error) throw error;
-      setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "active" as const } : r));
-    } catch (err) {
-      console.error("Erreur lors de l'activation du boost :", err);
-    }
+    await supabase.from("boost_requests").update({ status: "active" }).eq("id", requestId);
+    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "active" } : r));
   };
 
   const refuseBoost = async (requestId: string) => {
-    try {
-      const { error } = await supabase.from("boost_requests").update({ status: "refused" }).eq("id", requestId);
-      if (error) throw error;
-      setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "refused" as const } : r));
-    } catch (err) {
-      console.error("Erreur lors du refus du boost :", err);
-    }
+    await supabase.from("boost_requests").update({ status: "refused" }).eq("id", requestId);
+    setBoostRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, status: "refused" } : r));
   };
 
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests,
       login, register, logout, toggleFavorite, isFavorite,
-      sendMessage, startConversation,
+      sendMessage, fetchMessages, startConversation,
       submitBoostRequest, activateBoost, refuseBoost,
     }}>
       {children}
