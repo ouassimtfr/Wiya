@@ -1,71 +1,117 @@
-import { useState, useEffect, useRef } from "react";
-import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Send } from "lucide-react";
-import { useStore } from "@/lib/store";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "./supabase";
+import { Conversation, CONVERSATIONS } from "./data";
 
-export default function ChatPage() {
-  const [, params] = useRoute("/messages/:id");
-  const [, navigate] = useLocation();
-  const conversationId = params?.id;
+export interface User {
+  id: string; name: string; email: string; phone: string; avatar: string;
+  wilaya: string; memberSince: string; rating: number; reviews: number; verified: boolean;
+}
 
-  const { user, conversations, sendMessage, fetchMessages } = useStore();
-  const [inputText, setInputText] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+export interface BoostRequest {
+  id: string; listingId: string; listingTitle: string; listingImage: string;
+  planId: string; planLabel: string; price: number; days: number;
+  type: "basic" | "premium"; receiptImage: string; status: "pending" | "active" | "refused";
+  submittedAt: string; sellerName: string;
+}
 
-  // Charger les messages à chaque changement de conversation
+interface AppState {
+  user: User | null; favorites: string[]; conversations: Conversation[]; boostRequests: BoostRequest[];
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone: string) => Promise<void>;
+  logout: () => void; toggleFavorite: (listingId: string) => void; isFavorite: (listingId: string) => boolean;
+  sendMessage: (conversationId: string, text: string) => Promise<void>;
+  fetchMessages: (conversationId: string) => Promise<void>;
+  startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
+  submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
+  activateBoost: (requestId: string) => void; refuseBoost: (requestId: string) => void;
+}
+
+const StoreContext = createContext<AppState | null>(null);
+
+function supabaseUserToUser(sbUser: any): User {
+  return {
+    id: sbUser.id,
+    name: sbUser.user_metadata?.name ?? sbUser.email?.split("@")[0] ?? "Utilisateur",
+    email: sbUser.email ?? "",
+    phone: sbUser.user_metadata?.phone ?? "",
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+    wilaya: sbUser.user_metadata?.wilaya ?? "Algérie",
+    memberSince: new Date(sbUser.created_at).getFullYear().toString(),
+    rating: 0, reviews: 0, verified: sbUser.email_confirmed_at != null,
+  };
+}
+
+export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
+  const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
+
   useEffect(() => {
-    if (conversationId) {
-      fetchMessages(conversationId);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) { setUser(supabaseUserToUser(session.user)); fetchBoostRequests(session.user.id); }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (session?.user) { setUser(supabaseUserToUser(session.user)); fetchBoostRequests(session.user.id); }
+      else { setUser(null); setBoostRequests([]); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // --- CORRECTION : FetchMessages maintenant complet et fonctionnel ---
+  const fetchMessages = async (conversationId: string) => {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, sender_id, content, created_at")
+      .eq("listing_id", conversationId)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      const formattedMessages = data.map((m: any) => ({
+        id: m.id,
+        senderId: m.sender_id === user?.id ? "me" : "other",
+        text: m.content,
+        time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      }));
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, messages: formattedMessages } : c))
+      );
     }
-  }, [conversationId, fetchMessages]);
-
-  const conversation = conversations.find((c) => c.id === conversationId);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages]);
-
-  if (!user || !conversation) {
-    return (
-      <div className="bg-[#F4F6F5] min-h-screen flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500 text-sm mb-4">Conversation introuvable.</p>
-        <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm">
-          Retour
-        </button>
-      </div>
-    );
-  }
-
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    const textToSend = inputText.trim();
-    setInputText("");
-    await sendMessage(conversation.id, textToSend);
   };
 
+  // ... (Garde toutes tes fonctions : fetchBoostRequests, login, register, logout, toggleFavorite, isFavorite)
+  const fetchBoostRequests = async (userId: string) => { /* Ton code original */ };
+  const login = async (e: string, p: string) => { /* Ton code original */ return true; };
+  const register = async (n: string, e: string, p: string, ph: string) => { /* Ton code original */ };
+  const logout = async () => { /* Ton code original */ };
+  const toggleFavorite = (id: string) => { /* Ton code original */ };
+  const isFavorite = (id: string) => favorites.includes(id);
+
+  const sendMessage = async (conversationId: string, text: string) => {
+    if (!user) return;
+    await supabase.from("messages").insert({ listing_id: conversationId, sender_id: user.id, content: text });
+    await fetchMessages(conversationId); // Recharge automatiquement
+  };
+
+  // ... (Garde startConversation, submitBoostRequest, activateBoost, refuseBoost)
+  const startConversation = (...args: any[]) => { /* Ton code original */ return "c1"; };
+  const submitBoostRequest = async (req: any) => { /* Ton code original */ };
+  const activateBoost = async (id: string) => { /* Ton code original */ };
+  const refuseBoost = async (id: string) => { /* Ton code original */ };
+
   return (
-    <div className="bg-[#F4F6F5] min-h-screen flex flex-col">
-      <div className="bg-white border-b px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate("/messages")}><ArrowLeft /></button>
-        <h2 className="font-bold">{conversation.listingTitle}</h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-        {conversation.messages.map((msg) => (
-          <div key={msg.id} className={`max-w-[75%] ${msg.senderId === 'me' ? "self-end" : "self-start"}`}>
-            <div className={`p-3 rounded-xl ${msg.senderId === 'me' ? "bg-[#1B6B3A] text-white" : "bg-white border"}`}>
-              {msg.text || msg.content}
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2">
-        <input value={inputText} onChange={(e) => setInputText(e.target.value)} className="flex-1 border rounded-lg p-2" />
-        <button type="submit" className="bg-[#1B6B3A] text-white p-2 rounded-lg"><Send /></button>
-      </form>
-    </div>
+    <StoreContext.Provider value={{
+      user, favorites, conversations, boostRequests, login, register, logout,
+      toggleFavorite, isFavorite, sendMessage, fetchMessages, startConversation,
+      submitBoostRequest, activateBoost, refuseBoost,
+    }}>
+      {children}
+    </StoreContext.Provider>
   );
+}
+
+export function useStore() {
+  const ctx = useContext(StoreContext);
+  if (!ctx) throw new Error("useStore must be used within StoreProvider");
+  return ctx;
 }
