@@ -76,10 +76,13 @@ export default function ChatPage() {
         ) : (
           conversation.messages.map((msg) => {
             const isMe = msg.senderId === "me";
+            // MODIFICATION ICI : On utilise msg.content ou msg.text
+            const messageContent = msg.content || msg.text; 
+            
             return (
               <div key={msg.id} className={`flex flex-col max-w-[75%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
                 <div className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-[#1B6B3A] text-white rounded-br-none" : "bg-white text-gray-900 rounded-bl-none border border-gray-100"}`}>
-                  {msg.text}
+                  {messageContent}
                 </div>
                 <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
               </div>
