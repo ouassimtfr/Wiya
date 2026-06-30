@@ -9,14 +9,20 @@ export default function ChatPage() {
   const [, navigate] = useLocation();
   const conversationId = params?.id;
 
-  const { user, conversations, sendMessage } = useStore();
+  // MODIFICATION : ajout de fetchMessages ici
+  const { user, conversations, sendMessage, fetchMessages } = useStore();
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Trouver la conversation actuelle dans le store
+  // MODIFICATION : chargement automatique des messages
+  useEffect(() => {
+    if (conversationId) {
+      fetchMessages(conversationId);
+    }
+  }, [conversationId, fetchMessages]);
+
   const conversation = conversations.find((c) => c.id === conversationId);
 
-  // Auto-scroll vers le bas quand un nouveau message arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages]);
@@ -37,12 +43,11 @@ export default function ChatPage() {
     if (!inputText.trim()) return;
 
     const textToSend = inputText.trim();
-    setInputText(""); // Vide le champ instantanément
+    setInputText(""); 
 
     await sendMessage(conversation.id, textToSend);
   };
 
-  // Boutons de réponses rapides (les options "Toujours disponible ?" etc.)
   const quickReplies = [
     "Bonjour, est-ce toujours disponible ?",
     "Le prix est-il négociable ?",
@@ -51,7 +56,6 @@ export default function ChatPage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
-      {/* Barre du haut */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -69,15 +73,13 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Zone des messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {conversation.messages.length === 0 ? (
           <p className="text-center text-xs text-gray-400 my-auto">Aucun message. Envoyez le premier message !</p>
         ) : (
           conversation.messages.map((msg) => {
             const isMe = msg.senderId === "me";
-            // MODIFICATION ICI : On utilise msg.content ou msg.text
-            const messageContent = msg.content || msg.text; 
+            const messageContent = msg.content || msg.text || ""; 
             
             return (
               <div key={msg.id} className={`flex flex-col max-w-[75%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
@@ -92,7 +94,6 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestions de réponses rapides (si aucun ou peu de messages) */}
       {conversation.messages.length <= 1 && (
         <div className="px-4 py-2 flex flex-col gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
           <div className="flex gap-2">
@@ -111,7 +112,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Barre d'envoi de message */}
       <form onSubmit={handleSend} className="px-4 py-2 bg-white border-t border-gray-100 flex items-center gap-2 sticky bottom-0">
         <input
           type="text"
