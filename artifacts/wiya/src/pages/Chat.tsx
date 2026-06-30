@@ -9,12 +9,12 @@ export default function ChatPage() {
   const [, navigate] = useLocation();
   const conversationId = params?.id;
 
-  // Récupération de fetchMessages depuis le store pour charger les données réelles
+  // MODIFICATION : ajout de fetchMessages dans le destructuring du store
   const { user, conversations, sendMessage, fetchMessages } = useStore();
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Charger les messages depuis Supabase dès que l'ID de la conversation change
+  // MODIFICATION : appel automatique pour charger les messages depuis Supabase
   useEffect(() => {
     if (conversationId) {
       fetchMessages(conversationId);
@@ -84,11 +84,13 @@ export default function ChatPage() {
         ) : (
           conversation.messages.map((msg) => {
             const isMe = msg.senderId === "me";
-            // L'affichage utilise maintenant msg.text qui reçoit le 'content' depuis le store corrigé
+            // MODIFICATION ICI : On utilise msg.content ou msg.text
+            const messageContent = msg.content || msg.text; 
+            
             return (
               <div key={msg.id} className={`flex flex-col max-w-[75%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
                 <div className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-[#1B6B3A] text-white rounded-br-none" : "bg-white text-gray-900 rounded-bl-none border border-gray-100"}`}>
-                  {msg.text}
+                  {messageContent}
                 </div>
                 <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
               </div>
