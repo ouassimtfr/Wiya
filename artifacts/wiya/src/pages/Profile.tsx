@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
-  Star, MapPin, Shield, ChevronRight, Package, Heart, Settings,
-  HelpCircle, LogOut, Zap, Bell, Sun, Moon, Clock, Check, X, RefreshCw, Edit2, Save,
+  ChevronRight, Package, Heart, Settings,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -42,26 +42,16 @@ function UserAvatar({ name, avatarUrl, size = 72 }: { name: string; avatarUrl?: 
 export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
-  const { user, logout, favorites, boostRequests } = useStore();
+  const { user, logout, favorites } = useStore();
   const { isDark, toggleTheme } = useTheme();
-  const [tab, setTab] = useState<"profile" | "boosts">("profile");
+  const [tab, setTab] = useState<"profile" | "listings">("profile");
   const [myListings, setMyListings] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editPhone, setEditPhone] = useState(user?.phone ?? "");
   const [editWilaya, setEditWilaya] = useState(user?.wilaya ?? "");
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const STATUS_CONFIG = {
-    pending: { label: t("boost") /* TODO: ajouter clé "pending" si besoin d'un libellé distinct */, icon: Clock, pill: "bg-amber-50 text-amber-600 border border-amber-200", dot: "bg-amber-400", card: "border-amber-100" },
-    active: { label: t("boosted"), icon: Check, pill: "bg-green-50 text-[#1B6B3A] border border-green-200", dot: "bg-[#1B6B3A]", card: "border-green-100" },
-    refused: { label: t("boost") /* TODO: ajouter clé "refused" si besoin d'un libellé distinct */, icon: X, pill: "bg-red-50 text-red-500 border border-red-200", dot: "bg-red-400", card: "border-red-100" },
-  } as const;
-
-  // --- LOGIQUE DÉCONNEXION CORRIGÉE ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
     logout();
@@ -81,11 +71,7 @@ export default function ProfilePage() {
     setSaving(true);
     const { error } = await supabase.auth.updateUser({ data: { name: editName, phone: editPhone, wilaya: editWilaya } });
     setSaving(false);
-    if (!error) {
-      setSaveSuccess(true);
-      setEditing(false);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    }
+    if (!error) setShowSettings(false);
   };
 
   if (!user) {
@@ -102,43 +88,98 @@ export default function ProfilePage() {
   }
 
   const menuItems = [
-    { icon: Package, label: t("myListings"), action: () => {}, badge: myListings.length },
+    { icon: Package, label: t("myListings"), action: () => setTab("listings"), badge: myListings.length },
     { icon: Heart, label: t("favorites"), action: () => navigate("/favorites"), badge: favorites.length },
-    { icon: Zap, label: t("boostTitle"), action: () => setTab("boosts"), badge: boostRequests.filter(r => r.status === "pending").length },
     { icon: Bell, label: t("notifications"), action: () => navigate("/notifications"), badge: 0 },
-    { icon: Settings, label: t("settings"), action: () => { setEditName(user.name); setEditPhone(user.phone); setShowSettings(true); }, badge: 0 },
-    { icon: HelpCircle, label: t("helpSupport"), action: () => setShowSupport(true), badge: 0 },
+    { icon: Settings, label: t("settings"), action: () => { setEditName(user.name); setEditPhone(user.phone); setEditWilaya(user.wilaya ?? ""); setShowSettings(true); }, badge: 0 },
   ];
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-28">
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="relative flex items-center gap-4">
-          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={72} /></div>
-          <div className="flex-1"><h2 className="text-white text-lg font-black">{user.name}</h2></div>
+          {tab !== "profile" && (
+            <button onClick={() => setTab("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <ArrowLeft className="w-4.5 h-4.5 text-white" />
+            </button>
+          )}
+          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} /></div>
+          <div className="flex-1">
+            {tab === "profile" && <h2 className="text-white text-lg font-black">{user.name}</h2>}
+            {tab === "listings" && <h2 className="text-white text-lg font-black">{t("myListings")}</h2>}
+          </div>
         </div>
       </div>
 
-      {/* Reste du JSX... */}
-      <div className="px-4 pt-4 space-y-4">
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          {menuItems.map((item) => (
-             <button key={item.label} onClick={item.action} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 last:border-0">
-               <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center"><item.icon className="w-4 h-4 text-[#1B6B3A]" /></div>
-               <span className="flex-1 text-sm font-medium text-gray-800 text-start">{item.label}</span>
-               <ChevronRight className="w-4 h-4 text-gray-300" />
-             </button>
-          ))}
+      {tab === "profile" && (
+        <div className="px-4 pt-4 space-y-4">
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            {menuItems.map((item) => (
+              <button key={item.label} onClick={item.action} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 last:border-0">
+                <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center"><item.icon className="w-4 h-4 text-[#1B6B3A]" /></div>
+                <span className="flex-1 text-sm font-medium text-gray-800 text-start">{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="text-[10px] font-bold text-white bg-[#1B6B3A] rounded-full w-5 h-5 flex items-center justify-center">{item.badge}</span>
+                )}
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </button>
+            ))}
+          </div>
+          <DarkModeRow isDark={isDark} onToggle={toggleTheme} />
+
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-200 text-red-500 font-semibold text-sm">
+            <LogOut className="w-4 h-4" />{t("logout")}
+          </button>
         </div>
-        <DarkModeRow isDark={isDark} onToggle={toggleTheme} />
+      )}
 
-        {/* BOUTON DÉCONNEXION CORRIGÉ */}
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-200 text-red-500 font-semibold text-sm">
-          <LogOut className="w-4 h-4" />{t("logout")}
-        </button>
-      </div>
+      {tab === "listings" && (
+        <div className="px-4 pt-4">
+          {myListings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="text-4xl">📦</div>
+              <p className="text-sm font-bold text-gray-600">{t("noListingsYet")}</p>
+              <p className="text-xs text-gray-400">{t("postFirst")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {myListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} variant="list" />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* (Modal Settings / Support restants ici...) */}
+      {/* Modal Paramètres */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4">
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
+                <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
+                <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
+                <input type="text" value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+              </div>
+              <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
+                {saving ? "..." : t("apply")}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
