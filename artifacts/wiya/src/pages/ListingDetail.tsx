@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { Heart, Share2, MapPin, ChevronLeft, ChevronRight, Phone, MessageCircle, Zap, Clock, Trash2, CheckCircle } from "lucide-react";
+import { Heart, MapPin, ChevronLeft, ChevronRight, Phone, MessageCircle, Zap, Clock, Trash2, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -48,8 +48,7 @@ export default function ListingDetail() {
   };
 
   const handleMarkSold = async () => {
-    // Ajout de la confirmation de sécurité pour éviter les erreurs
-    const confirmed = confirm("Êtes-vous sûr de vouloir marquer cette annonce comme vendue ? L'annonce ne sera plus visible.");
+    const confirmed = confirm("Êtes-vous sûr de vouloir marquer cette annonce comme vendue ?");
     if (!confirmed) return;
 
     setMarking(true);
@@ -124,7 +123,6 @@ export default function ListingDetail() {
         <div>
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-lg font-bold text-gray-900 flex-1 leading-snug">{listing.title}</h1>
-            <button className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100"><Share2 className="w-4 h-4 text-gray-600" /></button>
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-2xl font-black text-[#1B6B3A]">{listing.price?.toLocaleString()} {t("da")}</span>
