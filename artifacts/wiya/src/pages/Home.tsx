@@ -103,7 +103,7 @@ export default function Home() {
                 onClick={() => setLang(lang === "fr" ? "ar" : "fr")}
                 className="px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold border border-white/30"
               >
-                {lang === "fr" ? "العربية" : "Français"}
+                {lang === "fr" ? t("arabicLang") : t("frenchLang")}
               </button>
               <button
                 onClick={() => navigate("/map")}
@@ -172,7 +172,7 @@ export default function Home() {
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                   ${condition === c ? "bg-[#C8972B] text-white shadow-sm shadow-yellow-200" : "bg-white text-gray-600 border border-gray-200"}`}
               >
-                {c === "all" ? "État: Tous" : c === "new" ? "✨ Neuf" : "🔄 Occasion"}
+                {c === "all" ? `${t("stateLabel")}: ${t("allStates")}` : c === "new" ? `✨ ${t("conditionNew")}` : `🔄 ${t("conditionUsed")}`}
               </button>
             ))}
 
@@ -182,7 +182,7 @@ export default function Home() {
                 ${activeWilaya ? "bg-blue-500 text-white shadow-sm" : "bg-white text-gray-600 border border-gray-200"}`}
             >
               <MapPin className="w-3 h-3" />
-              {activeWilaya ?? "Wilaya"}
+              {activeWilaya ?? t("wilaya")}
               {activeWilaya ? (
                 <span onClick={(e) => { e.stopPropagation(); setActiveWilaya(null); }} className="ml-0.5">
                   <X className="w-3 h-3" />
@@ -194,14 +194,14 @@ export default function Home() {
 
             {hasFilters && (
               <button onClick={clearFilters} className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-500 border border-red-100">
-                <X className="w-3 h-3" /> Effacer
+                <X className="w-3 h-3" /> {t("clear")}
               </button>
             )}
           </div>
 
           {hasFilters && (
             <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-gray-500 px-0.5">
-              <span className="font-bold text-[#1B6B3A]">{recent.length}</span> annonce{recent.length !== 1 ? "s" : ""} trouvée{recent.length !== 1 ? "s" : ""}
+              <span className="font-bold text-[#1B6B3A]">{recent.length}</span> {recent.length !== 1 ? t("resultsFound") : t("resultFound")}
             </motion.p>
           )}
         </div>
@@ -248,14 +248,14 @@ export default function Home() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 gap-3">
                 <div className="text-4xl">🔍</div>
                 <p className="text-sm font-bold text-gray-600">
-                  {hasFilters ? "Aucune annonce trouvée" : "Aucune annonce pour l'instant"}
+                  {hasFilters ? t("noResultsTitle") : t("noListingsYet")}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {hasFilters ? "Essayez d'élargir vos filtres" : "Soyez le premier à publier !"}
+                  {hasFilters ? t("tryWiderFilters") : t("postFirst")}
                 </p>
                 {hasFilters && (
                   <button onClick={clearFilters} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-2xl text-sm font-semibold">
-                    Effacer les filtres
+                    {t("clearFiltersBtn")}
                   </button>
                 )}
               </motion.div>
@@ -280,14 +280,14 @@ export default function Home() {
               <div className="p-4 flex-shrink-0">
                 <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-black text-gray-900">Choisir une wilaya</h3>
+                  <h3 className="text-base font-black text-gray-900">{t("chooseWilaya")}</h3>
                   <button onClick={() => { setShowWilayaPicker(false); setWilayaSearch(""); }}>
                     <X className="w-5 h-5 text-gray-400" />
                   </button>
                 </div>
                 <div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
                   <Search className="w-4 h-4 text-gray-400" />
-                  <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder="Rechercher une wilaya..." className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none" />
+                  <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none" />
                   {wilayaSearch && <button onClick={() => setWilayaSearch("")}><X className="w-3.5 h-3.5 text-gray-400" /></button>}
                 </div>
               </div>
