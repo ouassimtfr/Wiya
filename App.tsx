@@ -44,32 +44,36 @@ function AppShell() {
   }, [logout]);
 
   return (
-    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden pb-20">
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/search" component={SearchPage} />
-        <Route path="/listing/:id" component={ListingDetail} />
-        <Route path="/messages" component={MessagesPage} />
-        <Route path="/messages/:id" component={ChatPage} />
-        <Route path="/favorites" component={FavoritesPage} />
-        <Route path="/profile" component={ProfilePage} />
-        <Route path="/auth" component={AuthPage} />
-        <Route path="/post" component={PostListingPage} />
-        <Route path="/seller/:id" component={SellerProfilePage} />
-        <Route path="/boost/:id" component={BoostPage} />
-        <Route path="/map" component={MapPage} />
-        <Route path="/notifications" component={NotificationsPage} />
-        <Route path="/admin" component={AdminPage} />
-        <Route component={NotFound} />
-      </Switch>
+    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden">
+      {/* Contenu principal avec un padding-bottom généreux pour ne rien cacher */}
+      <div className="pb-24">
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/search" component={SearchPage} />
+          <Route path="/listing/:id" component={ListingDetail} />
+          <Route path="/messages" component={MessagesPage} />
+          <Route path="/messages/:id" component={ChatPage} />
+          <Route path="/favorites" component={FavoritesPage} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/auth" component={AuthPage} />
+          <Route path="/post" component={PostListingPage} />
+          <Route path="/seller/:id" component={SellerProfilePage} />
+          <Route path="/boost/:id" component={BoostPage} />
+          <Route path="/map" component={MapPage} />
+          <Route path="/notifications" component={NotificationsPage} />
+          <Route path="/admin" component={AdminPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
 
-      {/* Remplacement du Switch de navigation pour garantir l'affichage */}
-      <Switch>
-        <Route path="/auth" component={() => null} />
-        <Route path="/admin" component={() => null} />
-        {/* On retire l'exclusion systématique des autres pages pour éviter le bug */}
-        <Route component={BottomNav} />
-      </Switch>
+      {/* Barre de navigation fixée en bas, par-dessus tout */}
+      <div className="fixed bottom-0 w-full max-w-[430px] z-[9999] bg-[#F4F6F5]">
+        <Switch>
+          <Route path="/auth" component={() => null} />
+          <Route path="/admin" component={() => null} />
+          <Route component={BottomNav} />
+        </Switch>
+      </div>
 
       <NotificationToast />
     </div>
