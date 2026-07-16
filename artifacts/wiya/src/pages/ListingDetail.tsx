@@ -48,10 +48,19 @@ export default function ListingDetail() {
   };
 
   const handleMarkSold = async () => {
+    // Ajout de la confirmation de sécurité pour éviter les erreurs
+    const confirmed = confirm("Êtes-vous sûr de vouloir marquer cette annonce comme vendue ? L'annonce ne sera plus visible.");
+    if (!confirmed) return;
+
     setMarking(true);
     const { error } = await supabase.from("listings").update({ is_active: false }).eq("id", params.id);
-    if (!error) { alert("Annonce marquée comme vendue !"); navigate("/"); }
-    else { alert("Erreur, réessaie."); setMarking(false); }
+    if (!error) { 
+      alert("Annonce marquée comme vendue !"); 
+      navigate("/"); 
+    } else { 
+      alert("Erreur, réessaie."); 
+      setMarking(false); 
+    }
   };
 
   const handleSendMessage = async (customText?: string) => {
