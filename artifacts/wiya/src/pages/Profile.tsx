@@ -13,12 +13,13 @@ import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
 function DarkModeRow({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
+  const { t } = useI18n();
   return (
     <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl shadow-sm">
       <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? "bg-indigo-950" : "bg-amber-50"}`}>
         {isDark ? <Moon className="w-4 h-4 text-indigo-300" /> : <Sun className="w-4 h-4 text-amber-500" />}
       </div>
-      <span className="flex-1 text-sm font-medium text-gray-800 text-start">{isDark ? "Mode sombre" : "Mode clair"}</span>
+      <span className="flex-1 text-sm font-medium text-gray-800 text-start">{isDark ? t("darkMode") : t("lightMode")}</span>
       <div className={`relative w-11 h-6 rounded-full transition-colors duration-300 flex-shrink-0 ${isDark ? "bg-indigo-500" : "bg-gray-200"}`}>
         <motion.div layout className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm" animate={{ left: isDark ? "calc(100% - 22px)" : "2px" }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
       </div>
@@ -38,12 +39,6 @@ function UserAvatar({ name, avatarUrl, size = 72 }: { name: string; avatarUrl?: 
   );
 }
 
-const STATUS_CONFIG = {
-  pending: { label: "En attente", icon: Clock, pill: "bg-amber-50 text-amber-600 border border-amber-200", dot: "bg-amber-400", card: "border-amber-100" },
-  active: { label: "Boost actif", icon: Check, pill: "bg-green-50 text-[#1B6B3A] border border-green-200", dot: "bg-[#1B6B3A]", card: "border-green-100" },
-  refused: { label: "Refusé", icon: X, pill: "bg-red-50 text-red-500 border border-red-200", dot: "bg-red-400", card: "border-red-100" },
-} as const;
-
 export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
@@ -59,6 +54,12 @@ export default function ProfilePage() {
   const [editWilaya, setEditWilaya] = useState(user?.wilaya ?? "");
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const STATUS_CONFIG = {
+    pending: { label: t("boost") /* TODO: ajouter clé "pending" si besoin d'un libellé distinct */, icon: Clock, pill: "bg-amber-50 text-amber-600 border border-amber-200", dot: "bg-amber-400", card: "border-amber-100" },
+    active: { label: t("boosted"), icon: Check, pill: "bg-green-50 text-[#1B6B3A] border border-green-200", dot: "bg-[#1B6B3A]", card: "border-green-100" },
+    refused: { label: t("boost") /* TODO: ajouter clé "refused" si besoin d'un libellé distinct */, icon: X, pill: "bg-red-50 text-red-500 border border-red-200", dot: "bg-red-400", card: "border-red-100" },
+  } as const;
 
   // --- LOGIQUE DÉCONNEXION CORRIGÉE ---
   const handleLogout = async () => {
@@ -104,9 +105,9 @@ export default function ProfilePage() {
     { icon: Package, label: t("myListings"), action: () => {}, badge: myListings.length },
     { icon: Heart, label: t("favorites"), action: () => navigate("/favorites"), badge: favorites.length },
     { icon: Zap, label: t("boostTitle"), action: () => setTab("boosts"), badge: boostRequests.filter(r => r.status === "pending").length },
-    { icon: Bell, label: "Notifications", action: () => navigate("/notifications"), badge: 0 },
-    { icon: Settings, label: "Paramètres", action: () => { setEditName(user.name); setEditPhone(user.phone); setShowSettings(true); }, badge: 0 },
-    { icon: HelpCircle, label: "Aide & Support", action: () => setShowSupport(true), badge: 0 },
+    { icon: Bell, label: t("notifications"), action: () => navigate("/notifications"), badge: 0 },
+    { icon: Settings, label: t("settings"), action: () => { setEditName(user.name); setEditPhone(user.phone); setShowSettings(true); }, badge: 0 },
+    { icon: HelpCircle, label: t("helpSupport"), action: () => setShowSupport(true), badge: 0 },
   ];
 
   return (
@@ -130,7 +131,7 @@ export default function ProfilePage() {
           ))}
         </div>
         <DarkModeRow isDark={isDark} onToggle={toggleTheme} />
-        
+
         {/* BOUTON DÉCONNEXION CORRIGÉ */}
         <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-200 text-red-500 font-semibold text-sm">
           <LogOut className="w-4 h-4" />{t("logout")}
