@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +7,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
 import { NotificationsProvider } from "@/lib/notifications";
 import { ThemeProvider } from "@/lib/theme";
+import { supabase } from "@/lib/supabase"; // Import indispensable
 import NotificationToast from "@/components/NotificationToast";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
@@ -27,6 +29,13 @@ import NotFound from "@/pages/not-found";
 const queryClient = new QueryClient();
 
 function AppShell() {
+  // Cet effet surveille la connexion en permanence
+  useEffect(() => {
+    supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Statut de connexion mis à jour :", session ? "Connecté" : "Déconnecté");
+    });
+  }, []);
+
   return (
     <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden">
       <Switch>
@@ -34,7 +43,6 @@ function AppShell() {
         <Route path="/search" component={SearchPage} />
         <Route path="/listing/:id" component={ListingDetail} />
         <Route path="/messages" component={MessagesPage} />
-        {/* CORRECTION : Route unifiée pour la messagerie, correspondant au ListingDetail */}
         <Route path="/messages/:id" component={ChatPage} />
         <Route path="/favorites" component={FavoritesPage} />
         <Route path="/profile" component={ProfilePage} />
@@ -48,7 +56,6 @@ function AppShell() {
         <Route component={NotFound} />
       </Switch>
 
-      {/* Gestion de la visibilité de la BottomNav */}
       <Switch>
         <Route path="/auth" component={() => null} />
         <Route path="/messages/:id" component={() => null} />
