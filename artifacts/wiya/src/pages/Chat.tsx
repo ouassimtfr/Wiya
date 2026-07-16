@@ -2,39 +2,41 @@ import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Send } from "lucide-react";
 import { useStore } from "@/lib/store";
-import AppHeader from "@/components/AppHeader";
 
 export default function ChatPage() {
-  const [, params] = useRoute("/messages/:id");
+  const [match, params] = useRoute("/messages/:id");
   const [, navigate] = useLocation();
   const conversationId = params?.id;
 
-  // MODIFICATION : ajout de fetchMessages dans le destructuring du store
   const { user, conversations, sendMessage, fetchMessages } = useStore();
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // MODIFICATION : appel automatique pour charger les messages depuis Supabase
   useEffect(() => {
     if (conversationId) {
       fetchMessages(conversationId);
     }
-  }, [conversationId]);
+  }, [conversationId, fetchMessages]);
 
-  // Trouver la conversation actuelle dans le store
-  const conversation = conversations.find((c) => c.id === conversationId);
+  // On cherche la conversation. Si elle n'existe pas encore, on crée un objet vide temporaire pour ne pas crash
+  const conversation = conversations.find((c) => c.id === conversationId) || {
+    id: conversationId,
+    listingTitle: "Chargement...",
+    listingImage: null,
+    otherUser: { name: "..." },
+    messages: []
+  };
 
-  // Auto-scroll vers le bas quand un nouveau message arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages]);
+  }, [conversation.messages]);
 
-  if (!user || !conversation) {
+  if (!user) {
     return (
       <div className="bg-[#F4F6F5] min-h-screen flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500 text-sm mb-4">Conversation introuvable ou session expirée.</p>
-        <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm font-semibold">
-          Retour aux messages
+        <p className="text-gray-500 text-sm mb-4">Session expirée.</p>
+        <button onClick={() => navigate("/auth")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm font-semibold">
+          Se connecter
         </button>
       </div>
     );
@@ -45,12 +47,10 @@ export default function ChatPage() {
     if (!inputText.trim()) return;
 
     const textToSend = inputText.trim();
-    setInputText(""); // Vide le champ instantanément
-
-    await sendMessage(conversation.id, textToSend);
+    setInputText("");
+    await sendMessage(conversationId!, textToSend);
   };
 
-  // Boutons de réponses rapides (les options "Toujours disponible ?" etc.)
   const quickReplies = [
     "Bonjour, est-ce toujours disponible ?",
     "Le prix est-il négociable ?",
@@ -59,7 +59,6 @@ export default function ChatPage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
-      {/* Barre du haut */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -73,19 +72,17 @@ export default function ChatPage() {
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-bold text-gray-900 truncate">{conversation.listingTitle}</h2>
-          <p className="text-xs text-gray-400 truncate">Avec {conversation.otherUser?.name || "Utilisateur"}</p>
+          <p className="text-xs text-gray-400 truncate">Avec {conversation.otherUser?.name || "..."}</p>
         </div>
       </div>
 
-      {/* Zone des messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {conversation.messages.length === 0 ? (
           <p className="text-center text-xs text-gray-400 my-auto">Aucun message. Envoyez le premier message !</p>
         ) : (
-          conversation.messages.map((msg) => {
-            const isMe = msg.senderId === "me";
-            // MODIFICATION ICI : On utilise msg.content ou msg.text
-            const messageContent = msg.content || msg.text; 
+          conversation.messages.map((msg: any) => {
+            const isMe = msg.senderId === user.id;
+            const messageContent = msg.content || msg.text;
             
             return (
               <div key={msg.id} className={`flex flex-col max-w-[75%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
@@ -100,7 +97,6 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestions de réponses rapides (si aucun ou peu de messages) */}
       {conversation.messages.length <= 1 && (
         <div className="px-4 py-2 flex flex-col gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
           <div className="flex gap-2">
@@ -108,7 +104,7 @@ export default function ChatPage() {
               <button
                 key={index}
                 onClick={async () => {
-                  await sendMessage(conversation.id, reply);
+                  await sendMessage(conversationId!, reply);
                 }}
                 className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex-shrink-0 shadow-sm"
               >
@@ -119,7 +115,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Barre d'envoi de message */}
       <form onSubmit={handleSend} className="px-4 py-2 bg-white border-t border-gray-100 flex items-center gap-2 sticky bottom-0">
         <input
           type="text"
