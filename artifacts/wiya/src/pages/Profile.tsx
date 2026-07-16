@@ -156,7 +156,7 @@ export default function ProfilePage() {
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4">
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
