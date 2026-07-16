@@ -70,7 +70,6 @@ export default function ListingDetail() {
     setMsgText("");
     setShowMsgBox(false);
     setSending(false);
-    // CORRECTION : Navigation alignée sur la route "/messages/:id"
     navigate(`/messages/${listing.id}`);
   };
 
@@ -81,11 +80,10 @@ export default function ListingDetail() {
   const category = CATEGORIES.find((c) => c.id === listing.category);
   const fav = isFavorite(listing.id);
   const isMyListing = user?.id === listing.user_id;
-
   const displayPhone = listing.contact_phone || sellerProfile?.phone || null;
 
   return (
-    <div className="bg-white min-h-screen pb-28">
+    <div className="bg-white min-h-screen pb-40">
       <div className="relative bg-gray-100 aspect-[4/3]">
         {images.length > 0 ? (
           <AnimatePresence mode="wait">
@@ -180,7 +178,7 @@ export default function ListingDetail() {
 
       <AnimatePresence>
         {showMsgBox && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowMsgBox(false)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[100] flex items-end" onClick={() => setShowMsgBox(false)}>
             <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full rounded-t-3xl p-5 space-y-4">
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
               <h3 className="text-sm font-bold text-gray-900">{t("sendMessage")}</h3>
@@ -213,17 +211,11 @@ export default function ListingDetail() {
       </AnimatePresence>
 
       {!isMyListing && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 pb-8 flex gap-3 shadow-lg z-40">
-          <a 
-            href={displayPhone ? `tel:${displayPhone}` : "#"} 
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm"
-          >
+        <div className="fixed bottom-[60px] left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[30]">
+          <a href={displayPhone ? `tel:${displayPhone}` : "#"} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 font-semibold text-gray-700 text-sm">
             <Phone className="w-4 h-4" />{t("call")}
           </a>
-          <button
-            onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md"
-          >
+          <button onClick={() => { if (!user) { navigate("/auth"); return; } setShowMsgBox(true); }} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#1B6B3A] font-semibold text-white text-sm shadow-md">
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
         </div>
