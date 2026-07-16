@@ -44,60 +44,62 @@ function supabaseUserToUser(sbUser: any): User {
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) { setUser(supabaseUserToUser(session.user)); fetchBoostRequests(session.user.id); }
+      if (session?.user) { setUser(supabaseUserToUser(session.user)); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (session?.user) { setUser(supabaseUserToUser(session.user)); fetchBoostRequests(session.user.id); }
-      else { setUser(null); setBoostRequests([]); }
+      if (session?.user) { setUser(supabaseUserToUser(session.user)); }
+      else { setUser(null); }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- CORRECTION : FetchMessages maintenant complet et fonctionnel ---
   const fetchMessages = async (conversationId: string) => {
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("messages")
       .select("id, sender_id, content, created_at")
       .eq("listing_id", conversationId)
       .order("created_at", { ascending: true });
 
-    if (data) {
-      const formattedMessages = data.map((m: any) => ({
-        id: m.id,
-        senderId: m.sender_id === user?.id ? "me" : "other",
-        text: m.content,
-        time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-      }));
-      setConversations((prev) =>
-        prev.map((c) => (c.id === conversationId ? { ...c, messages: formattedMessages } : c))
-      );
-    }
-  };
+    if (error) { console.error("Erreur fetch:", error); return; }
 
-  // ... (Garde toutes tes fonctions : fetchBoostRequests, login, register, logout, toggleFavorite, isFavorite)
-  const fetchBoostRequests = async (userId: string) => { /* Ton code original */ };
-  const login = async (e: string, p: string) => { /* Ton code original */ return true; };
-  const register = async (n: string, e: string, p: string, ph: string) => { /* Ton code original */ };
-  const logout = async () => { /* Ton code original */ };
-  const toggleFavorite = (id: string) => { /* Ton code original */ };
-  const isFavorite = (id: string) => favorites.includes(id);
+    const formattedMessages = data.map((m: any) => ({
+      id: m.id,
+      senderId: m.sender_id === user.id ? "me" : "other",
+      text: m.content,
+      time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+    }));
+
+    setConversations((prev) => {
+      const exists = prev.find((c) => c.id === conversationId);
+      if (exists) {
+        return prev.map((c) => (c.id === conversationId ? { ...c, messages: formattedMessages } : c));
+      }
+      return [...prev, { id: conversationId, listingTitle: "Conversation", listingImage: "", otherUser: { name: "Vendeur" }, messages: formattedMessages } as Conversation];
+    });
+  };
 
   const sendMessage = async (conversationId: string, text: string) => {
     if (!user) return;
-    await supabase.from("messages").insert({ listing_id: conversationId, sender_id: user.id, content: text });
-    await fetchMessages(conversationId); // Recharge automatiquement
+    const { error } = await supabase.from("messages").insert({ listing_id: conversationId, sender_id: user.id, content: text });
+    if (!error) await fetchMessages(conversationId);
   };
 
-  // ... (Garde startConversation, submitBoostRequest, activateBoost, refuseBoost)
-  const startConversation = (...args: any[]) => { /* Ton code original */ return "c1"; };
-  const submitBoostRequest = async (req: any) => { /* Ton code original */ };
-  const activateBoost = async (id: string) => { /* Ton code original */ };
-  const refuseBoost = async (id: string) => { /* Ton code original */ };
+  const login = async (e: string, p: string) => { const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p }); return !error; };
+  const register = async (n: string, e: string, p: string, ph: string) => { await supabase.auth.signUp({ email: e, password: p, options: { data: { name: n, phone: ph } } }); };
+  const logout = async () => { await supabase.auth.signOut(); setUser(null); };
+  const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  const isFavorite = (id: string) => favorites.includes(id);
+  const startConversation = () => "c1"; 
+  const submitBoostRequest = async () => {};
+  const activateBoost = async () => {};
+  const refuseBoost = async () => {};
 
   return (
     <StoreContext.Provider value={{
