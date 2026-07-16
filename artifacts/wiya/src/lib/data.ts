@@ -45,8 +45,8 @@ export const CATEGORIES = [
   { id: "jobs", icon: "💼", color: "#0891b2" },
   { id: "services", icon: "🔧", color: "#78716c" },
   { id: "animals", icon: "🐾", color: "#65a30d" },
-  { id: "cakes", icon: "🍰", color: "#ec4899" },
-  { id: "spare_parts", icon: "⚙️", color: "#64748b" },
+  { id: "gâteau", icon: "🍰", color: "#ec4899" },
+  { id: "pièces détachées", icon: "⚙️", color: "#64748b" },
 ];
 
 export const WILAYAS = [
