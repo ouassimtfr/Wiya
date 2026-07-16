@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
-import { StoreProvider, useStore } from "@/lib/store"; // Ajout de useStore ici
+import { StoreProvider, useStore } from "@/lib/store";
 import { NotificationsProvider } from "@/lib/notifications";
 import { ThemeProvider } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
@@ -29,32 +29,22 @@ import NotFound from "@/pages/not-found";
 const queryClient = new QueryClient();
 
 function AppShell() {
-  const { logout } = useStore(); // On récupère l'action logout de ton store global
+  const { logout } = useStore();
 
-  // Cet effet surveille la connexion en permanence et synchronise le store
   useEffect(() => {
-    // 1. Vérification de la session au démarrage initial
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        logout(); // Si pas de session active sur Supabase, on s'assure que le store est vide
-      }
+      if (!session) logout();
     });
 
-    // 2. Écoute dynamique des événements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Statut de connexion mis à jour :", session ? "Connecté" : "Déconnecté");
-      if (!session) {
-        logout(); // Si l'utilisateur se déconnecte, on vide le store instantanément
-      }
+      if (!session) logout();
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [logout]);
 
   return (
-    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden">
+    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden pb-20">
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/search" component={SearchPage} />
@@ -73,11 +63,11 @@ function AppShell() {
         <Route component={NotFound} />
       </Switch>
 
+      {/* Remplacement du Switch de navigation pour garantir l'affichage */}
       <Switch>
         <Route path="/auth" component={() => null} />
-        <Route path="/messages/:id" component={() => null} />
-        <Route path="/map" component={() => null} />
         <Route path="/admin" component={() => null} />
+        {/* On retire l'exclusion systématique des autres pages pour éviter le bug */}
         <Route component={BottomNav} />
       </Switch>
 
