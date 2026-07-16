@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
+import { WILAYAS } from "@/lib/data";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
@@ -171,7 +172,12 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
-                <input type="text" value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
+                  <option value="">{t("selectWilaya")}</option>
+                  {WILAYAS.map((w) => (
+                    <option key={w} value={w}>{w}</option>
+                  ))}
+                </select>
               </div>
               <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
                 {saving ? "..." : t("apply")}
