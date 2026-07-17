@@ -24,6 +24,7 @@ interface AppState {
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => void; refuseBoost: (requestId: string) => void;
+  updateAvatar: (file: File) => Promise<{ error: string | null }>;
 }
 
 const StoreContext = createContext<AppState | null>(null);
@@ -34,7 +35,7 @@ function supabaseUserToUser(sbUser: any): User {
     name: sbUser.user_metadata?.name ?? sbUser.email?.split("@")[0] ?? "Utilisateur",
     email: sbUser.email ?? "",
     phone: sbUser.user_metadata?.phone ?? "",
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+    avatar: sbUser.user_metadata?.avatar_url ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
     wilaya: sbUser.user_metadata?.wilaya ?? "Algérie",
     memberSince: new Date(sbUser.created_at).getFullYear().toString(),
     rating: 0, reviews: 0, verified: sbUser.email_confirmed_at != null,
@@ -101,11 +102,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const activateBoost = async () => {};
   const refuseBoost = async () => {};
 
+  const updateAvatar = async (file: File): Promise<{ error: string | null }> => {
+    if (!user) return { error: "Non connecté" };
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${user.id}/avatar.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error("Erreur upload avatar:", uploadError);
+      return { error: uploadError.message };
+    }
+
+    const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+
+    if (updateError) {
+      console.error("Erreur mise à jour profil:", updateError);
+      return { error: updateError.message };
+    }
+
+    setUser((prev) => (prev ? { ...prev, avatar: avatarUrl } : prev));
+    return { error: null };
+  };
+
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests, login, register, logout,
       toggleFavorite, isFavorite, sendMessage, fetchMessages, startConversation,
-      submitBoostRequest, activateBoost, refuseBoost,
+      submitBoostRequest, activateBoost, refuseBoost, updateAvatar,
     }}>
       {children}
     </StoreContext.Provider>
