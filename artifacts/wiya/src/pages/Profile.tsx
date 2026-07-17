@@ -152,18 +152,17 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Modal Paramètres - Version corrigée avec scroll flexible */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 max-h-[90vh] flex flex-col">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowSettings(false)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 flex flex-col relative" style={{ maxHeight: "90vh" }}>
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 flex-shrink-0" />
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
                 <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               
-              <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+              <div className="overflow-y-auto flex-1 space-y-4 pb-24">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
@@ -181,10 +180,9 @@ export default function ProfilePage() {
                     ))}
                   </select>
                 </div>
-                <div className="h-4" />
               </div>
 
-              <div className="pt-4 mt-2 border-t border-gray-100 flex-shrink-0">
+              <div className="absolute bottom-0 left-0 w-full p-5 bg-white border-t border-gray-100">
                 <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
                   {saving ? "..." : t("apply")}
                 </button>
