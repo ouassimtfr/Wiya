@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight, Package, Heart, Settings,
-  LogOut, Bell, Sun, Moon, X, ArrowLeft, Camera,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft, Camera, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -28,11 +28,12 @@ function DarkModeRow({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
   );
 }
 
-function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = false, onPick }: { name: string; avatarUrl?: string; size?: number; editable?: boolean; uploading?: boolean; onPick?: (file: File) => void }) {
+function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = false, onPick, onRemove }: { name: string; avatarUrl?: string; size?: number; editable?: boolean; uploading?: boolean; onPick?: (file: File) => void; onRemove?: () => void }) {
   const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const inputId = "avatar-upload-input";
+  const hasCustomAvatar = !!avatarUrl && !avatarUrl.includes("dicebear");
 
-  const content = avatarUrl && !avatarUrl.includes("dicebear") ? (
+  const content = hasCustomAvatar ? (
     <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full bg-white/20 border-2 border-white/40 shadow-lg object-cover" />
   ) : (
     <div style={{ width: size, height: size }} className="rounded-full bg-white/30 border-2 border-white/40 shadow-lg flex items-center justify-center">
@@ -49,6 +50,11 @@ function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = 
         <div style={{ width: size, height: size }} className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
         </div>
+      )}
+      {hasCustomAvatar && onRemove && !uploading && (
+        <button onClick={onRemove} className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-md">
+          <Trash2 className="w-3 h-3 text-white" />
+        </button>
       )}
       <label htmlFor={inputId} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-md cursor-pointer">
         <Camera className="w-3.5 h-3.5 text-[#1B6B3A]" />
@@ -71,7 +77,7 @@ function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = 
 export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
-  const { user, logout, favorites, updateAvatar } = useStore();
+  const { user, logout, favorites, updateAvatar, removeAvatar } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
   const [myListings, setMyListings] = useState<any[]>([]);
@@ -87,6 +93,14 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     setAvatarError("");
     const { error } = await updateAvatar(file);
+    if (error) setAvatarError(error);
+    setUploadingAvatar(false);
+  };
+
+  const handleAvatarRemove = async () => {
+    setUploadingAvatar(true);
+    setAvatarError("");
+    const { error } = await removeAvatar();
     if (error) setAvatarError(error);
     setUploadingAvatar(false);
   };
@@ -142,7 +156,7 @@ export default function ProfilePage() {
               <ArrowLeft className="w-4.5 h-4.5 text-white" />
             </button>
           )}
-          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} /></div>
+          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} onRemove={handleAvatarRemove} /></div>
           <div className="flex-1">
             {tab === "profile" && <h2 className="text-white text-lg font-black">{user.name}</h2>}
             {tab === "listings" && <h2 className="text-white text-lg font-black">{t("myListings")}</h2>}
