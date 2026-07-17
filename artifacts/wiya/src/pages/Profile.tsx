@@ -152,36 +152,43 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Modal Paramètres */}
+      {/* Modal Paramètres - Version corrigée avec scroll flexible */}
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
-              <div className="flex items-center justify-between">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 max-h-[90vh] flex flex-col">
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 flex-shrink-0" />
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
                 <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+              
+              <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
+                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
+                  <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
+                    <option value="">{t("selectWilaya")}</option>
+                    {WILAYAS.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="h-4" />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
-                <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+
+              <div className="pt-4 mt-2 border-t border-gray-100 flex-shrink-0">
+                <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
+                  {saving ? "..." : t("apply")}
+                </button>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
-                <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
-                  <option value="">{t("selectWilaya")}</option>
-                  {WILAYAS.map((w) => (
-                    <option key={w} value={w}>{w}</option>
-                  ))}
-                </select>
-              </div>
-              <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
-                {saving ? "..." : t("apply")}
-              </button>
             </motion.div>
           </motion.div>
         )}
