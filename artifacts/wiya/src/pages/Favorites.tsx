@@ -35,7 +35,7 @@ export default function FavoritesPage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      <AppHeader title={t("favorites")} />
+      <AppHeader title={t("favorites")} showBack />
 
       {loading ? (
         <div className="flex justify-center py-16">
