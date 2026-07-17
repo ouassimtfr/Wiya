@@ -107,10 +107,22 @@ export default function Home() {
         {showWilayaPicker && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => { setShowWilayaPicker(false); setWilayaSearch(""); }}>
             <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl max-h-[70vh] flex flex-col">
-              <div className="p-4"><div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
-                <Search className="w-4 h-4 text-gray-400" />
-                <input type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="flex-1 bg-transparent text-sm text-gray-800 outline-none" />
-              </div></div>
+              <div className="p-4">
+                <div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
+                  <Search className="w-4 h-4 text-gray-400" />
+                  <input 
+                    type="text" 
+                    value={wilayaSearch} 
+                    onChange={(e) => setWilayaSearch(e.target.value)} 
+                    placeholder={t("searchWilaya")} 
+                    className="flex-1 bg-transparent text-sm text-gray-800 outline-none"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
+                  />
+                </div>
+              </div>
               <div className="overflow-y-auto flex-1 px-4 pb-6 grid grid-cols-2 gap-1.5 content-start">
                 {filteredWilayas.map((w) => (
                   <button key={w} onClick={() => { setActiveWilaya(w); setShowWilayaPicker(false); }} className={`p-3 rounded-xl text-sm ${activeWilaya === w ? "bg-blue-500 text-white" : "bg-gray-50"}`}>{w}</button>
