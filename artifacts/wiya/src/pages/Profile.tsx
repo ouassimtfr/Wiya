@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight, Package, Heart, Settings,
-  LogOut, Bell, Sun, Moon, X, ArrowLeft,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft, Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -28,14 +28,42 @@ function DarkModeRow({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
   );
 }
 
-function UserAvatar({ name, avatarUrl, size = 72 }: { name: string; avatarUrl?: string; size?: number }) {
+function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = false, onPick }: { name: string; avatarUrl?: string; size?: number; editable?: boolean; uploading?: boolean; onPick?: (file: File) => void }) {
   const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-  if (avatarUrl && !avatarUrl.includes("dicebear")) {
-    return <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full bg-white/20 border-2 border-white/40 shadow-lg object-cover" />;
-  }
-  return (
+  const inputId = "avatar-upload-input";
+
+  const content = avatarUrl && !avatarUrl.includes("dicebear") ? (
+    <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full bg-white/20 border-2 border-white/40 shadow-lg object-cover" />
+  ) : (
     <div style={{ width: size, height: size }} className="rounded-full bg-white/30 border-2 border-white/40 shadow-lg flex items-center justify-center">
       <span className="text-white font-black text-2xl">{initials}</span>
+    </div>
+  );
+
+  if (!editable) return content;
+
+  return (
+    <div className="relative">
+      {content}
+      {uploading && (
+        <div style={{ width: size, height: size }} className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      <label htmlFor={inputId} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-md cursor-pointer">
+        <Camera className="w-3.5 h-3.5 text-[#1B6B3A]" />
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && onPick) onPick(file);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }
@@ -43,7 +71,7 @@ function UserAvatar({ name, avatarUrl, size = 72 }: { name: string; avatarUrl?: 
 export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t } = useI18n();
-  const { user, logout, favorites } = useStore();
+  const { user, logout, favorites, updateAvatar } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
   const [myListings, setMyListings] = useState<any[]>([]);
@@ -52,6 +80,13 @@ export default function ProfilePage() {
   const [editPhone, setEditPhone] = useState(user?.phone ?? "");
   const [editWilaya, setEditWilaya] = useState(user?.wilaya ?? "");
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarPick = async (file: File) => {
+    setUploadingAvatar(true);
+    await updateAvatar(file);
+    setUploadingAvatar(false);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -104,7 +139,7 @@ export default function ProfilePage() {
               <ArrowLeft className="w-4.5 h-4.5 text-white" />
             </button>
           )}
-          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} /></div>
+          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} /></div>
           <div className="flex-1">
             {tab === "profile" && <h2 className="text-white text-lg font-black">{user.name}</h2>}
             {tab === "listings" && <h2 className="text-white text-lg font-black">{t("myListings")}</h2>}
@@ -152,41 +187,36 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Modal Paramètres */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 flex flex-col relative" style={{ maxHeight: "90vh" }}>
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 flex-shrink-0" />
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
+            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
+              <div className="flex items-center justify-between">
                 <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
                 <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
               </div>
-              
-              <div className="overflow-y-auto flex-1 space-y-4 pb-24">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
-                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
-                  <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
-                    <option value="">{t("selectWilaya")}</option>
-                    {WILAYAS.map((w) => (
-                      <option key={w} value={w}>{w}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
               </div>
-
-              <div className="absolute bottom-0 left-0 w-full p-5 bg-white border-t border-gray-100">
-                <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
-                  {saving ? "..." : t("apply")}
-                </button>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
+                <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
               </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
+                <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
+                  <option value="">{t("selectWilaya")}</option>
+                  {WILAYAS.map((w) => (
+                    <option key={w} value={w}>{w}</option>
+                  ))}
+                </select>
+              </div>
+              <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
+                {saving ? "..." : t("apply")}
+              </button>
             </motion.div>
           </motion.div>
         )}
