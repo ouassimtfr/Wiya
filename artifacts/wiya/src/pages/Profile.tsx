@@ -81,10 +81,13 @@ export default function ProfilePage() {
   const [editWilaya, setEditWilaya] = useState(user?.wilaya ?? "");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   const handleAvatarPick = async (file: File) => {
     setUploadingAvatar(true);
-    await updateAvatar(file);
+    setAvatarError("");
+    const { error } = await updateAvatar(file);
+    if (error) setAvatarError(error);
     setUploadingAvatar(false);
   };
 
@@ -143,6 +146,7 @@ export default function ProfilePage() {
           <div className="flex-1">
             {tab === "profile" && <h2 className="text-white text-lg font-black">{user.name}</h2>}
             {tab === "listings" && <h2 className="text-white text-lg font-black">{t("myListings")}</h2>}
+            {avatarError && <p className="text-red-200 text-xs mt-1">{avatarError}</p>}
           </div>
         </div>
       </div>
