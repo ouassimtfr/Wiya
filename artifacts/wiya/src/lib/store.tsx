@@ -25,6 +25,7 @@ interface AppState {
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => void; refuseBoost: (requestId: string) => void;
   updateAvatar: (file: File) => Promise<{ error: string | null }>;
+  removeAvatar: () => Promise<{ error: string | null }>;
 }
 
 const StoreContext = createContext<AppState | null>(null);
@@ -131,11 +132,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
+  const removeAvatar = async (): Promise<{ error: string | null }> => {
+    if (!user) return { error: "Non connecté" };
+
+    const { data: files } = await supabase.storage.from("avatars").list(user.id);
+    if (files && files.length > 0) {
+      const paths = files.map((f) => `${user.id}/${f.name}`);
+      await supabase.storage.from("avatars").remove(paths);
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: null } });
+
+    if (updateError) {
+      console.error("Erreur suppression avatar:", updateError);
+      return { error: updateError.message };
+    }
+
+    setUser((prev) => (prev ? { ...prev, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${prev.id}` } : prev));
+    return { error: null };
+  };
+
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests, login, register, logout,
       toggleFavorite, isFavorite, sendMessage, fetchMessages, startConversation,
-      submitBoostRequest, activateBoost, refuseBoost, updateAvatar,
+      submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar,
     }}>
       {children}
     </StoreContext.Provider>
