@@ -33,13 +33,15 @@ export default function Home() {
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
   return (
-    // Utilisation de min-h-screen simple sans 'fixed' pour éviter le bug de rendu iOS
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
       <div className="relative bg-[#1B6B3A] pb-12 pt-12 px-6 overflow-hidden shadow-2xl rounded-b-[3rem]">
         <div className="absolute inset-0 opacity-[0.10] pointer-events-none" style={{ backgroundImage: `url("${HEADER_PATTERN}")` }} />
         <div className="relative z-10 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <button onClick={() => setShowWilayaPicker(true)} className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 active:scale-95 transition-transform">
+            <button 
+              onClick={() => setShowWilayaPicker(true)}
+              className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 active:scale-95 transition-transform"
+            >
               <MapPin className="w-3 h-3 text-white" />
               <span className="text-white text-[11px] font-semibold uppercase">{activeWilaya ?? user?.wilaya ?? "ALGER"}</span>
             </button>
@@ -55,11 +57,12 @@ export default function Home() {
         <div className="bg-white p-5 rounded-3xl shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-gray-800">{t("categories")}</h2>
+            <button onClick={() => setShowCategoryPicker(true)} className="text-xs text-[#1B6B3A] font-semibold">{t("seeAll")}</button>
           </div>
           <div className="grid grid-cols-5 gap-2">
             {CATEGORIES.slice(0, 5).map((cat) => (
               <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1.5">
-                <div className={`w-10 h-10 flex items-center justify-center rounded-2xl text-lg ${activeCategory === cat.id ? "bg-[#1B6B3A]/15 ring-2 ring-[#1B6B3A]" : "bg-gray-50"}`}>{cat.icon}</div>
+                <div className={`w-10 h-10 flex items-center justify-center rounded-2xl text-lg transition-colors ${activeCategory === cat.id ? "bg-[#1B6B3A]/15 ring-2 ring-[#1B6B3A]" : "bg-gray-50"}`}>{cat.icon}</div>
                 <span className="text-[9px] font-semibold text-gray-600 text-center leading-tight">{t(cat.id as any)}</span>
               </button>
             ))}
@@ -73,16 +76,15 @@ export default function Home() {
 
       <AnimatePresence>
         {showWilayaPicker && (
-          // Utilisation de 'fixed' uniquement pour la modale, avec un fond semi-transparent
           <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[70vh]">
-              <div className="p-4">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
+              <div className="p-4 flex-shrink-0">
                 <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
               </div>
-              <div className="overflow-y-auto px-4 pb-6 grid grid-cols-2 gap-2">
-                {filteredWilayas.sort((a: any, b: any) => a.id - b.id).map((w: any) => (
+              <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
+                {filteredWilayas.map((w: any) => (
                   <button key={w.id} onClick={() => { setActiveWilaya(w.name); setShowWilayaPicker(false); setWilayaSearch(""); }} className={`p-3 rounded-xl text-sm ${activeWilaya === w.name ? "bg-[#1B6B3A] text-white" : "bg-gray-50"}`}>
-                    <span className="opacity-50 mr-2">{w.id}</span>{w.name}
+                    {w.name}
                   </button>
                 ))}
               </div>
