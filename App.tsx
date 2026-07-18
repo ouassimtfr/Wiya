@@ -44,9 +44,9 @@ function AppShell() {
   }, [logout]);
 
   return (
-    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-screen shadow-2xl overflow-x-hidden">
-      {/* Contenu principal avec un padding-bottom généreux pour ne rien cacher */}
-      <div className="pb-24">
+    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] min-h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))] shadow-2xl overflow-x-hidden">
+      {/* Contenu principal */}
+      <div className="pb-4">
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/search" component={SearchPage} />
@@ -66,8 +66,8 @@ function AppShell() {
         </Switch>
       </div>
 
-      {/* Barre de navigation fixée en bas, par-dessus tout */}
-      <div className="fixed bottom-0 w-full max-w-[430px] z-[9999] bg-[#F4F6F5]">
+      {/* Barre de navigation fixée avec support pour le safe area */}
+      <div className="fixed bottom-0 w-full max-w-[430px] z-[9999] bg-[#F4F6F5] pb-[env(safe-area-inset-bottom)] border-t border-gray-100">
         <Switch>
           <Route path="/auth" component={() => null} />
           <Route path="/admin" component={() => null} />
