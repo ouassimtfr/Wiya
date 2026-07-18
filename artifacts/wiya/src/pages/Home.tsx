@@ -11,6 +11,30 @@ import ListingCard from "@/components/ListingCard";
 const HEADER_PATTERN =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='1.2'%3E%3Cpath d='M30 4 L52 30 L30 56 L8 30 Z'/%3E%3Ccircle cx='30' cy='30' r='2.5' fill='%23FFFFFF'/%3E%3C/g%3E%3C/svg%3E";
 
+// FIX iOS Safari : mesure la vraie hauteur visible de l'écran (visualViewport),
+// qui se met à jour en temps réel quand le clavier s'ouvre/se ferme.
+// Contrairement à vh/dvh en CSS, ça ne "rate" jamais le recalcul pendant la saisie.
+function useVisualViewportHeight() {
+  const [height, setHeight] = useState<number>(() =>
+    typeof window !== "undefined" ? (window.visualViewport?.height ?? window.innerHeight) : 800
+  );
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  return height;
+}
+
 export default function Home() {
   const [, navigate] = useLocation();
   const { t, lang, setLang } = useI18n();
@@ -21,6 +45,7 @@ export default function Home() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
+  const vvh = useVisualViewportHeight();
 
   useEffect(() => {
     fetchListings();
@@ -28,7 +53,6 @@ export default function Home() {
 
   // FIX iOS Safari : quand une modale est ouverte et qu'on tape dans un champ,
   // le body se met à scroller "derrière" la modale et pousse tout hors de l'écran.
-  // On bloque le scroll du body pendant que la modale est ouverte.
   useEffect(() => {
     const modalOpen = showWilayaPicker || showCategoryPicker;
     if (modalOpen) {
@@ -59,6 +83,15 @@ export default function Home() {
   };
 
   const filteredWilayas = WILAYAS.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+
+  // FIX : le filtrage par catégorie / wilaya n'était jamais appliqué aux annonces affichées.
+  const filteredListings = listings.filter((l) => {
+    const matchCategory = !activeCategory || l.category === activeCategory;
+    const matchWilaya = !activeWilaya || l.wilaya === activeWilaya;
+    return matchCategory && matchWilaya;
+  });
+
+  const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
@@ -101,35 +134,80 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-5 gap-2">
             {CATEGORIES.slice(0, 5).map((cat) => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="flex flex-col items-center gap-1.5">
-                <div className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-2xl text-lg">{cat.icon}</div>
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                className="flex flex-col items-center gap-1.5"
+              >
+                <div className={`w-10 h-10 flex items-center justify-center rounded-2xl text-lg transition-colors ${activeCategory === cat.id ? "bg-[#1B6B3A]/15 ring-2 ring-[#1B6B3A]" : "bg-gray-50"}`}>{cat.icon}</div>
                 <span className="text-[9px] font-semibold text-gray-600 text-center leading-tight">{t(cat.id as any)}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* BOUTON FILTRE WILAYA */}
-        <button onClick={() => setShowWilayaPicker(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-600 shadow-sm">
-          <MapPin className="w-3.5 h-3.5" /> {activeWilaya ?? t("wilaya")}
-        </button>
+        {/* FILTRES ACTIFS */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setShowWilayaPicker(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-600 shadow-sm">
+            <MapPin className="w-3.5 h-3.5" /> {activeWilaya ?? t("wilaya")}
+          </button>
+          {activeWilaya && (
+            <button onClick={() => setActiveWilaya(null)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-full shadow-sm">
+              <X className="w-3.5 h-3.5 text-gray-500" />
+            </button>
+          )}
+          {activeCategoryData && (
+            <button onClick={() => setActiveCategory(null)} className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-[#1B6B3A]/10 rounded-full text-xs font-semibold text-[#1B6B3A]">
+              <span>{activeCategoryData.icon}</span>
+              <span>{t(activeCategoryData.id as any)}</span>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
         {/* LISTE DES ANNONCES */}
         <div className="space-y-3">
-          {listings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
+          {filteredListings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+              <div className="text-3xl">🔍</div>
+              <p className="text-sm font-bold text-gray-600">{t("noResults")}</p>
+            </div>
+          ) : (
+            filteredListings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)
+          )}
         </div>
       </div>
 
       {/* MODALES */}
       <AnimatePresence>
         {showCategoryPicker && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowCategoryPicker(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-6 max-h-[85dvh] flex flex-col">
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-              <h3 className="text-lg font-black text-gray-900 mb-4">{t("categories")}</h3>
-              <div className="grid grid-cols-4 gap-3 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed left-0 top-0 w-full bg-black/40 z-50 flex items-end"
+            style={{ height: vvh }}
+            onClick={() => setShowCategoryPicker(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
+              style={{ maxHeight: vvh * 0.85 }}
+            >
+              <div className="px-6 pt-6 flex-shrink-0">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
+                <h3 className="text-lg font-black text-gray-900 mb-4">{t("categories")}</h3>
+              </div>
+              <div className="px-6 pb-6 grid grid-cols-4 gap-3 overflow-y-auto flex-1 min-h-0">
                 {CATEGORIES.map((cat) => (
-                  <button key={cat.id} onClick={() => { setActiveCategory(cat.id); setShowCategoryPicker(false); }} className="p-3 rounded-2xl flex flex-col items-center gap-1.5 border border-gray-100 bg-gray-50">
+                  <button
+                    key={cat.id}
+                    onClick={() => { setActiveCategory(cat.id); setShowCategoryPicker(false); }}
+                    className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 border ${activeCategory === cat.id ? "border-[#1B6B3A] bg-[#1B6B3A]/10" : "border-gray-100 bg-gray-50"}`}
+                  >
                     <span className="text-xl">{cat.icon}</span>
                     <span className="text-[10px] font-bold text-gray-700 text-center leading-tight">{t(cat.id as any)}</span>
                   </button>
@@ -140,9 +218,23 @@ export default function Home() {
         )}
 
         {showWilayaPicker && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => { setShowWilayaPicker(false); setWilayaSearch(""); }}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl max-h-[75dvh] flex flex-col">
-              <div className="p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed left-0 top-0 w-full bg-black/40 z-50 flex items-end"
+            style={{ height: vvh }}
+            onClick={() => { setShowWilayaPicker(false); setWilayaSearch(""); }}
+          >
+            <motion.div
+              initial={{ y: 300 }}
+              animate={{ y: 0 }}
+              exit={{ y: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
+              style={{ maxHeight: vvh * 0.9 }}
+            >
+              <div className="p-4 flex-shrink-0">
                 <div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
                   <Search className="w-4 h-4 text-gray-400" />
                   <input 
@@ -158,7 +250,7 @@ export default function Home() {
                   />
                 </div>
               </div>
-              <div className="overflow-y-auto flex-1 px-4 pb-6 grid grid-cols-2 gap-1.5 content-start">
+              <div className="overflow-y-auto flex-1 min-h-0 px-4 pb-6 grid grid-cols-2 gap-1.5 content-start">
                 {filteredWilayas.map((w) => (
                   <button key={w} onClick={() => { setActiveWilaya(w); setShowWilayaPicker(false); }} className={`p-3 rounded-xl text-sm ${activeWilaya === w ? "bg-blue-500 text-white" : "bg-gray-50"}`}>{w}</button>
                 ))}
