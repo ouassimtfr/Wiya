@@ -19,11 +19,6 @@ export default function Home() {
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
 
-  // Blocage du scroll du body quand une modale est ouverte
-  useEffect(() => {
-    document.body.style.overflow = (showWilayaPicker || showCategoryPicker) ? "hidden" : "unset";
-  }, [showWilayaPicker, showCategoryPicker]);
-
   useEffect(() => {
     fetchListings();
   }, []);
@@ -81,13 +76,6 @@ export default function Home() {
             </button>
             {activeWilaya && <button onClick={() => setActiveWilaya(null)} className="pr-3 py-2"><X className="w-3.5 h-3.5 text-gray-500" /></button>}
           </div>
-          {activeCategoryData && (
-            <button onClick={() => setActiveCategory(null)} className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-[#1B6B3A]/10 rounded-full text-xs font-semibold text-[#1B6B3A]">
-              <span>{activeCategoryData.icon}</span>
-              <span>{t(activeCategoryData.id as any)}</span>
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
         <div className="space-y-3">
@@ -96,9 +84,9 @@ export default function Home() {
       </div>
 
       <AnimatePresence>
-        {/* MODALE WILAYA TRIÉE PAR ID */}
+        {/* MODALE WILAYA (overscroll-contain empêche le défilement de fond) */}
         {showWilayaPicker && (
-          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
+          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end overscroll-contain" onClick={() => setShowWilayaPicker(false)}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
               <div className="p-4 flex-shrink-0">
                 <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
