@@ -19,6 +19,11 @@ export default function Home() {
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
 
+  // Blocage du scroll du body quand une modale est ouverte
+  useEffect(() => {
+    document.body.style.overflow = (showWilayaPicker || showCategoryPicker) ? "hidden" : "unset";
+  }, [showWilayaPicker, showCategoryPicker]);
+
   useEffect(() => {
     fetchListings();
   }, []);
@@ -28,7 +33,7 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  const filteredWilayas = WILAYAS.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+  const filteredWilayas = WILAYAS.filter((w: any) => w.name.toLowerCase().includes(wilayaSearch.toLowerCase()));
   const filteredListings = listings.filter((l) => (!activeCategory || l.category === activeCategory) && (!activeWilaya || l.wilaya === activeWilaya));
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
@@ -91,24 +96,7 @@ export default function Home() {
       </div>
 
       <AnimatePresence>
-        {/* MODALE CATEGORIES */}
-        {showCategoryPicker && (
-          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowCategoryPicker(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
-              <div className="px-6 pt-6"><div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" /></div>
-              <div className="overflow-y-auto px-6 pb-20 grid grid-cols-4 gap-3">
-                {CATEGORIES.map((cat) => (
-                  <button key={cat.id} onClick={() => { setActiveCategory(cat.id); setShowCategoryPicker(false); }} className="p-3 rounded-2xl flex flex-col items-center gap-1.5 bg-gray-50">
-                    <span className="text-xl">{cat.icon}</span>
-                    <span className="text-[10px] font-bold text-gray-700 text-center">{t(cat.id as any)}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* MODALE WILAYA */}
+        {/* MODALE WILAYA TRIÉE PAR ID */}
         {showWilayaPicker && (
           <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
@@ -116,8 +104,12 @@ export default function Home() {
                 <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
               </div>
               <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
-                {filteredWilayas.map((w) => (
-                  <button key={w} onClick={() => { setActiveWilaya(w); setShowWilayaPicker(false); setWilayaSearch(""); }} className={`p-3 rounded-xl text-sm ${activeWilaya === w ? "bg-[#1B6B3A] text-white" : "bg-gray-50"}`}>{w}</button>
+                {filteredWilayas
+                  .sort((a: any, b: any) => a.id - b.id)
+                  .map((w: any) => (
+                    <button key={w.id} onClick={() => { setActiveWilaya(w.name); setShowWilayaPicker(false); setWilayaSearch(""); }} className={`p-3 rounded-xl text-sm flex items-center gap-2 ${activeWilaya === w.name ? "bg-[#1B6B3A] text-white" : "bg-gray-50"}`}>
+                      <span className="font-bold opacity-40 text-xs">{w.id}</span> {w.name}
+                    </button>
                 ))}
               </div>
             </motion.div>
