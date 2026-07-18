@@ -129,7 +129,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen pb-24">
+      <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]">
         <AppHeader title={t("profile")} />
         <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-4">
           <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-4xl">👤</div>
@@ -148,7 +148,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-28">
+    <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
         <div className="relative flex items-center gap-4">
           {tab !== "profile" && (
@@ -205,10 +205,9 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Modal Paramètres */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowSettings(false)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end pb-[env(safe-area-inset-bottom)]" onClick={() => setShowSettings(false)}>
             <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
               <div className="flex items-center justify-between">
