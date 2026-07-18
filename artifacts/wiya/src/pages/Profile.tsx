@@ -89,6 +89,31 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState("");
 
+  // FIX iOS Safari : empêche le body de scroller derrière la modale quand on
+  // tape dans un champ (Nom / Téléphone), ce qui poussait tout hors écran.
+  useEffect(() => {
+    if (showSettings) {
+      const scrollY = window.scrollY;
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const originalWidth = document.body.style.width;
+
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.top = originalTop;
+        document.body.style.width = originalWidth;
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showSettings]);
+
   const handleAvatarPick = async (file: File) => {
     setUploadingAvatar(true);
     setAvatarError("");
@@ -207,33 +232,53 @@ export default function ProfilePage() {
 
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-end pb-[env(safe-area-inset-bottom)]" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
-                <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-[200] flex items-end"
+            onClick={() => setShowSettings(false)}
+          >
+            <motion.div
+              initial={{ y: 300 }}
+              animate={{ y: 0 }}
+              exit={{ y: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl max-h-[88dvh] flex flex-col"
+            >
+              <div className="px-5 pt-5 flex-shrink-0">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
+                <div className="flex items-center justify-between py-3">
+                  <h3 className="text-base font-black text-gray-900">{t("settings")}</h3>
+                  <button onClick={() => setShowSettings(false)}><X className="w-5 h-5 text-gray-400" /></button>
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+
+              <div className="px-5 pb-5 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
+                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
+                  <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
+                    <option value="">{t("selectWilaya")}</option>
+                    {WILAYAS.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
-                <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+
+              <div className="px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 flex-shrink-0 border-t border-gray-100">
+                <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
+                  {saving ? "..." : t("apply")}
+                </button>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
-                <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
-                  <option value="">{t("selectWilaya")}</option>
-                  {WILAYAS.map((w) => (
-                    <option key={w} value={w}>{w}</option>
-                  ))}
-                </select>
-              </div>
-              <button onClick={handleSaveProfile} disabled={saving} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-md disabled:opacity-50">
-                {saving ? "..." : t("apply")}
-              </button>
             </motion.div>
           </motion.div>
         )}
