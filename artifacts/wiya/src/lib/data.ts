@@ -47,6 +47,20 @@ export const CATEGORIES = [
   { id: "animals", icon: "🐾", color: "#65a30d" },
   { id: "cake", icon: "🍰", color: "#ec4899" },
   { id: "spare_parts", icon: "⚙️", color: "#64748b" },
+  { id: "computers", icon: "💻", color: "#4f46e5" },
+  { id: "phones", icon: "📞", color: "#0ea5e9" },
+  { id: "baby_kids", icon: "🧸", color: "#f472b6" },
+  { id: "beauty_health", icon: "💄", color: "#db2777" },
+  { id: "sports_leisure", icon: "⚽", color: "#f59e0b" },
+  { id: "multimedia_games", icon: "🎮", color: "#7c3aed" },
+  { id: "books_supplies", icon: "📚", color: "#a16207" },
+  { id: "agriculture", icon: "🚜", color: "#4d7c0f" },
+  { id: "livestock", icon: "🐐", color: "#854d0e" },
+  { id: "wedding_events", icon: "🎉", color: "#e11d48" },
+  { id: "music_instruments", icon: "🎸", color: "#b45309" },
+  { id: "travel", icon: "✈️", color: "#0284c7" },
+  { id: "professional_equipment", icon: "🏢", color: "#475569" },
+  { id: "antiques_art", icon: "🖼️", color: "#a855f7" },
 ];
 
 export const WILAYAS = [
