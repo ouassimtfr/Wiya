@@ -81,14 +81,14 @@ export default function BoostPage() {
     reader.readAsDataURL(file);
   };
 
-  // CORRECTION : Déclenchement de l'analyse automatique par l'IA juste après soumission
+  // La demande est simplement créée en statut "pending" ici.
+  // C'est le Panel Admin qui décide ensuite manuellement de l'activer ou de la refuser.
   const handleSubmit = async () => {
     if (!receipt || !plan || !listing) return;
     setSubmitting(true);
-    
+
     try {
-      // 1. On crée d'abord la demande en BDD comme avant
-      const requestData = await submitBoostRequest({
+      await submitBoostRequest({
         listingId: listing.id,
         listingTitle: listing.title,
         listingImage: listing.images?.[0] ?? "",
@@ -100,29 +100,8 @@ export default function BoostPage() {
         receiptImage: receipt,
         sellerName: user?.name ?? "Vendeur",
       });
-
-      // On récupère l'ID de la demande créée (on récupère la dernière demande pending de cet utilisateur pour ce listing)
-      const { data: latestReq } = await supabase
-        .from("boost_requests")
-        .select("id, receipt_image")
-        .eq("listing_id", listing.id)
-        .eq("status", "pending")
-        .order("submitted_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (latestReq) {
-        // 2. On appelle la Edge Function de Supabase pour que l'IA scanne le reçu en tâche de fond
-        await supabase.functions.invoke("verify-receipt", {
-          body: {
-            receiptUrl: latestReq.receipt_image,
-            listingId: listing.id,
-            requestId: latestReq.id
-          }
-        });
-      }
     } catch (err) {
-      console.error("Erreur lors de l'analyse automatique de l'IA :", err);
+      console.error("Erreur lors de la soumission de la demande de boost :", err);
     } finally {
       setSubmitting(false);
       setStep(4);
@@ -137,7 +116,7 @@ export default function BoostPage() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <h2 className="text-white text-2xl font-black mb-2">Demande envoyée !</h2>
-          <p className="text-green-200 text-sm leading-relaxed">Votre reçu est analysé instantanément par notre IA.<br />Si le reçu est valide, votre boost s'activera dans quelques secondes !</p>
+          <p className="text-green-200 text-sm leading-relaxed">Votre reçu a bien été reçu.<br />Notre équipe va le vérifier et activera votre boost sous peu.</p>
           <div className="mt-4 bg-white/10 rounded-2xl px-5 py-3">
             <p className="text-green-100 text-xs">Plan: <strong className="text-white">{plan?.label}</strong></p>
             <p className="text-green-100 text-xs mt-0.5">Annonce: <strong className="text-white">{listing?.title}</strong></p>
