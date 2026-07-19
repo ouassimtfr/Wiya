@@ -3,11 +3,39 @@ import { MapPin, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { CATEGORIES, WILAYAS } from "@/lib/data";
+import { CATEGORIES } from "@/lib/data";
+import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
 const HEADER_PATTERN = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='1.2'%3E%3Cpath d='M30 4 L52 30 L30 56 L8 30 Z'/%3E%3Ccircle cx='30' cy='30' r='2.5' fill='%23FFFFFF'/%3E%3C/g%3E%3C/svg%3E";
+
+// Noms des wilayas triés par leur code officiel (1 à 69)
+const WILAYA_NAMES = WILAYAS_DATA.slice()
+  .sort((a, b) => a.code - b.code)
+  .map((w) => w.name);
+
+// Suit la hauteur réelle visible de l'écran (moins le clavier) sur mobile
+function useVisualViewportHeight() {
+  const [height, setHeight] = useState(
+    () => window.visualViewport?.height ?? window.innerHeight
+  );
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setHeight(vv.height);
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  return height;
+}
 
 export default function Home() {
   const { t, lang, setLang } = useI18n();
@@ -18,6 +46,7 @@ export default function Home() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
+  const viewportHeight = useVisualViewportHeight();
 
   useEffect(() => {
     fetchListings();
@@ -28,7 +57,7 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  const filteredWilayas = WILAYAS.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+  const filteredWilayas = WILAYA_NAMES.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
   const filteredListings = listings.filter((l) => (!activeCategory || l.category === activeCategory) && (!activeWilaya || l.wilaya === activeWilaya));
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
@@ -111,7 +140,14 @@ export default function Home() {
         {/* MODALE WILAYA */}
         {showWilayaPicker && (
           <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
+              style={{ maxHeight: viewportHeight * 0.85 }}
+            >
               <div className="p-4 flex-shrink-0">
                 <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
               </div>
