@@ -8,8 +8,6 @@ import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
-const HEADER_PATTERN = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='1.2'%3E%3Cpath d='M30 4 L52 30 L30 56 L8 30 Z'/%3E%3Ccircle cx='30' cy='30' r='2.5' fill='%23FFFFFF'/%3E%3C/g%3E%3C/svg%3E";
-
 // Noms des wilayas triés par leur code officiel (1 à 69)
 const WILAYA_NAMES = WILAYAS_DATA.slice()
   .sort((a, b) => a.code - b.code)
@@ -63,27 +61,42 @@ export default function Home() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      <div className="relative bg-[#1B6B3A] pb-12 pt-12 px-6 overflow-hidden shadow-2xl rounded-b-[3rem]">
-        <div className="absolute inset-0 opacity-[0.10] pointer-events-none" style={{ backgroundImage: `url("${HEADER_PATTERN}")` }} />
-        <div className="relative z-10 flex flex-col gap-4">
+      <div className="relative bg-gradient-to-b from-[#0B1F16] to-[#132C20] pb-10 pt-12 px-6 overflow-hidden border-b border-[#C7A44A]/25">
+        {/* Signature : motif étoilé à 8 branches, en filigrane dans le coin */}
+        <svg
+          className="absolute -top-12 -right-12 w-64 h-64 text-[#C7A44A]/[0.14] pointer-events-none"
+          viewBox="0 0 100 100"
+          fill="none"
+        >
+          <rect x="20" y="20" width="60" height="60" stroke="currentColor" strokeWidth="0.5" />
+          <rect x="20" y="20" width="60" height="60" stroke="currentColor" strokeWidth="0.5" transform="rotate(45 50 50)" />
+        </svg>
+
+        <div className="relative z-10 flex flex-col gap-5">
           <div className="flex items-center justify-between">
-            <button 
+            <button
               onClick={() => setShowWilayaPicker(true)}
-              className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 active:scale-95 transition-transform"
+              className="flex items-center gap-2 bg-[#C7A44A]/10 backdrop-blur-md px-3 py-1 rounded-full border border-[#C7A44A]/25 active:scale-95 transition-transform"
             >
-              <MapPin className="w-3 h-3 text-white" />
-              <span className="text-white text-[11px] font-semibold uppercase">{activeWilaya ?? user?.wilaya ?? "ALGER"}</span>
+              <MapPin className="w-3 h-3 text-[#C7A44A]" />
+              <span className="text-[#F3EEE2] text-[11px] font-semibold uppercase tracking-wide">{activeWilaya ?? user?.wilaya ?? "ALGER"}</span>
             </button>
-            <button onClick={() => setLang(lang === "fr" ? "ar" : "fr")} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-4 py-1.5 rounded-full border border-white/10">
+            <button onClick={() => setLang(lang === "fr" ? "ar" : "fr")} className="bg-[#C7A44A]/10 backdrop-blur-md text-[#F3EEE2] text-[10px] font-bold px-4 py-1.5 rounded-full border border-[#C7A44A]/25">
               {lang === "fr" ? "العربية" : "FR"}
             </button>
           </div>
-          <h1 className="text-white text-4xl font-black tracking-tighter"><span className="text-[#E8C84A]">W</span>iya</h1>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-[#F3EEE2] text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <span className="text-[#C7A44A]">W</span>iya
+            </h1>
+            <span className="h-[3px] w-[3px] rounded-full bg-[#C7A44A]/70 self-center" />
+            <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
+          </div>
         </div>
       </div>
 
-      <div className="px-4 -mt-6 relative z-20 space-y-5">
-        <div className="bg-white p-5 rounded-3xl shadow-sm">
+      <div className="px-4 -mt-8 relative z-20 space-y-5">
+        <div className="bg-white p-5 rounded-3xl shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-gray-800">{t("categories")}</h2>
             <button onClick={() => setShowCategoryPicker(true)} className="text-xs text-[#1B6B3A] font-semibold">{t("seeAll")}</button>
