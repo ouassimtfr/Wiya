@@ -23,7 +23,7 @@ interface AppState {
   fetchMessages: (conversationId: string) => Promise<void>;
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
-  activateBoost: (requestId: string) => void; refuseBoost: (requestId: string) => void;
+  activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
   updateAvatar: (file: File) => Promise<{ error: string | null }>;
   removeAvatar: () => Promise<{ error: string | null }>;
 }
@@ -43,6 +43,24 @@ function supabaseUserToUser(sbUser: any): User {
   };
 }
 
+function rowToBoostRequest(r: any): BoostRequest {
+  return {
+    id: r.id,
+    listingId: r.listing_id,
+    listingTitle: r.listing_title,
+    listingImage: r.listing_image,
+    planId: r.plan_id,
+    planLabel: r.plan_label,
+    price: r.price,
+    days: r.days,
+    type: r.type,
+    receiptImage: r.receipt_image,
+    status: r.status,
+    submittedAt: r.submitted_at,
+    sellerName: r.seller_name,
+  };
+}
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -59,6 +77,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    fetchBoostRequests();
+  }, []);
+
+  const fetchBoostRequests = async () => {
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .order("submitted_at", { ascending: false });
+
+    if (error) { console.error("Erreur fetch boost_requests:", error); return; }
+    if (data) setBoostRequests(data.map(rowToBoostRequest));
+  };
 
   const fetchMessages = async (conversationId: string) => {
     if (!user) return;
@@ -98,10 +130,74 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => { await supabase.auth.signOut(); setUser(null); };
   const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   const isFavorite = (id: string) => favorites.includes(id);
-  const startConversation = () => "c1"; 
-  const submitBoostRequest = async () => {};
-  const activateBoost = async () => {};
-  const refuseBoost = async () => {};
+  const startConversation = () => "c1";
+
+  const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .insert({
+        listing_id: req.listingId,
+        listing_title: req.listingTitle,
+        listing_image: req.listingImage,
+        plan_id: req.planId,
+        plan_label: req.planLabel,
+        price: req.price,
+        days: req.days,
+        type: req.type,
+        receipt_image: req.receiptImage,
+        status: "pending",
+        submitted_at: new Date().toISOString(),
+        seller_name: req.sellerName,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erreur soumission boost:", error);
+      throw error;
+    }
+
+    if (data) {
+      setBoostRequests((prev) => [rowToBoostRequest(data), ...prev]);
+    }
+  };
+
+  const activateBoost = async (requestId: string) => {
+    const { data: reqRow, error: fetchErr } = await supabase
+      .from("boost_requests")
+      .select("listing_id")
+      .eq("id", requestId)
+      .single();
+
+    if (fetchErr || !reqRow) { console.error("Erreur récupération demande de boost:", fetchErr); return; }
+
+    const { error: updateReqErr } = await supabase
+      .from("boost_requests")
+      .update({ status: "active" })
+      .eq("id", requestId);
+
+    if (updateReqErr) { console.error("Erreur activation boost:", updateReqErr); return; }
+
+    const { error: updateListingErr } = await supabase
+      .from("listings")
+      .update({ is_boosted: true })
+      .eq("id", reqRow.listing_id);
+
+    if (updateListingErr) { console.error("Erreur mise à jour is_boosted:", updateListingErr); return; }
+
+    setBoostRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "active" } : r)));
+  };
+
+  const refuseBoost = async (requestId: string) => {
+    const { error } = await supabase
+      .from("boost_requests")
+      .update({ status: "refused" })
+      .eq("id", requestId);
+
+    if (error) { console.error("Erreur refus boost:", error); return; }
+
+    setBoostRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "refused" } : r)));
+  };
 
   const updateAvatar = async (file: File): Promise<{ error: string | null }> => {
     if (!user) return { error: "Non connecté" };
