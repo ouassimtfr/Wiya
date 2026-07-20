@@ -12,7 +12,7 @@ export default function ListingDetail() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { t, isRTL } = useI18n();
-  const { toggleFavorite, isFavorite, user } = useStore();
+  const { toggleFavorite, isFavorite, user, startConversation } = useStore();
   const [imgIndex, setImgIndex] = useState(0);
   const [showMsgBox, setShowMsgBox] = useState(false);
   const [msgText, setMsgText] = useState("");
@@ -68,17 +68,20 @@ export default function ListingDetail() {
     if (!msg || !listing) return;
     setSending(true);
 
-    await supabase.from("messages").insert({
-      listing_id: listing.id,
-      sender_id: user.id,
-      receiver_id: listing.user_id,
-      content: msg,
-    });
+    const conversationId = startConversation(
+      listing.id,
+      listing.title,
+      listing.images?.[0] ?? "",
+      listing.user_id,
+      sellerProfile?.username ?? "Vendeur",
+      sellerProfile?.avatar_url ?? "",
+      msg
+    );
 
     setMsgText("");
     setShowMsgBox(false);
     setSending(false);
-    navigate(`/messages/${listing.id}`);
+    navigate(`/messages/${conversationId}`);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
