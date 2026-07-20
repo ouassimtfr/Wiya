@@ -56,6 +56,13 @@ export default function BottomNav() {
     };
   }, [user]);
 
+  // CORRECTION : on cache complètement la nav globale quand on est dans une
+  // conversation ouverte, pour laisser la barre de saisie du chat prendre
+  // toute la place en bas, sans chevauchement.
+  if (onMessages2) {
+    return null;
+  }
+
   const items = [
     { label: t("home"), icon: Home, path: "/", active: !!onHome },
     // On remplace l'ancien unreadCount défaillant par notre unreadMessages tout neuf
