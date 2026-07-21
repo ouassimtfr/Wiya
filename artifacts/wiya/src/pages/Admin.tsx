@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Shield, Eye, EyeOff, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw } from "lucide-react";
+import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
-
-const ADMIN_PASSWORD = "Yanisimo2006";
 
 type Tab = "pending" | "active" | "refused";
 
@@ -13,14 +11,37 @@ export default function AdminPage() {
   const [, navigate] = useLocation();
   const { user } = useStore();
 
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [authed, setAuthed] = useState(false);
-  const [pw, setPw] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [pwError, setPwError] = useState(false);
   const [tab, setTab] = useState<Tab>("pending");
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    checkAdminAccess();
+  }, [user]);
+
+  const checkAdminAccess = async () => {
+    setCheckingAccess(true);
+    if (!user) {
+      setAuthed(false);
+      setCheckingAccess(false);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !data?.is_admin) {
+      setAuthed(false);
+    } else {
+      setAuthed(true);
+    }
+    setCheckingAccess(false);
+  };
 
   useEffect(() => {
     if (authed) fetchRequests();
@@ -36,24 +57,61 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const handleLogin = () => {
-    if (pw === ADMIN_PASSWORD) {
-      setAuthed(true);
-      setPwError(false);
-    } else {
-      setPwError(true);
-      setTimeout(() => setPwError(false), 2000);
-    }
-  };
-
   const handleActivate = async (req: any) => {
-    await supabase.from("boost_requests").update({ status: "active" }).eq("id", req.id);
-    await supabase.from("listings").update({ is_boosted: true }).eq("id", req.listing_id);
+    const listingId = String(req.listing_id).trim();
+
+    const { error: reqError } = await supabase
+      .from("boost_requests")
+      .update({ status: "active" })
+      .eq("id", req.id);
+
+    if (reqError) {
+      console.error("Erreur update boost_requests:", reqError);
+      alert("Erreur boost_requests: " + reqError.message);
+      return;
+    }
+
+    const { error: listingError } = await supabase
+      .from("listings")
+      .update({ is_boosted: true })
+      .eq("id", listingId);
+
+    if (listingError) {
+      console.error("Erreur update listings.is_boosted:", listingError);
+      alert("Erreur listings.is_boosted: " + listingError.message);
+      return;
+    }
+
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("listings")
+      .select("is_boosted")
+      .eq("id", listingId)
+      .single();
+
+    if (verifyError) {
+      alert("Impossible de vérifier la mise à jour : " + verifyError.message);
+    } else if (!verifyData?.is_boosted) {
+      alert(
+        "La mise à jour n'a pas été appliquée (is_boosted toujours false). " +
+        "Vérifie que l'id \"" + listingId + "\" correspond bien à une annonce existante dans listings."
+      );
+    }
+
     fetchRequests();
   };
 
   const handleRefuse = async (req: any) => {
-    await supabase.from("boost_requests").update({ status: "refused" }).eq("id", req.id);
+    const { error } = await supabase
+      .from("boost_requests")
+      .update({ status: "refused" })
+      .eq("id", req.id);
+
+    if (error) {
+      console.error("Erreur update refus boost:", error);
+      alert("Erreur: " + error.message);
+      return;
+    }
+
     fetchRequests();
   };
 
@@ -62,31 +120,28 @@ export default function AdminPage() {
   const refused = requests.filter((r) => r.status === "refused");
   const current = tab === "pending" ? pending : tab === "active" ? active : refused;
 
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen bg-[#0a150f] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!authed) {
     return (
       <div className="min-h-screen bg-[#0a150f] flex flex-col items-center justify-center px-6">
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-[#1B6B3A] rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-green-900">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-white text-2xl font-black">Panel Admin</h1>
-            <p className="text-green-400 text-sm mt-1">Accès réservé</p>
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-6 text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-red-400" />
           </div>
-          <div className="space-y-3">
-            <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-colors ${pwError ? "border-red-500/50 bg-red-500/5" : "border-white/10"}`}>
-              <Shield className="w-4 h-4 text-green-400 flex-shrink-0" />
-              <input type={showPw ? "text" : "password"} value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} placeholder="Mot de passe" className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/30" autoFocus />
-              <button onClick={() => setShowPw((v) => !v)} className="text-white/40">
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <AnimatePresence>
-              {pwError && <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-red-400 text-xs text-center font-semibold">Mot de passe incorrect</motion.p>}
-            </AnimatePresence>
-            <button onClick={handleLogin} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-900">Accéder au panel</button>
-            <button onClick={() => navigate("/")} className="w-full py-2 text-white/30 text-sm">Retour à l'accueil</button>
-          </div>
+          <h1 className="text-white text-2xl font-black">Accès refusé</h1>
+          <p className="text-white/40 text-sm">
+            {user ? "Ton compte n'a pas les droits admin." : "Connecte-toi avec un compte admin pour accéder à cette page."}
+          </p>
+          <button onClick={() => navigate("/")} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-900">
+            Retour à l'accueil
+          </button>
         </motion.div>
       </div>
     );
@@ -106,7 +161,6 @@ export default function AdminPage() {
           <button onClick={fetchRequests} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
             <RefreshCw className={`w-4 h-4 text-white ${loading ? "animate-spin" : ""}`} />
           </button>
-          <button onClick={() => setAuthed(false)} className="text-green-200 text-xs font-semibold px-3 py-1.5 bg-white/10 rounded-xl">Déco</button>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
