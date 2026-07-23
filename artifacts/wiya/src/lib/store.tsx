@@ -61,6 +61,17 @@ function rowToBoostRequest(r: any): BoostRequest {
   };
 }
 
+// Un conversationId a la forme "<listingId>__<autreUtilisateurId>".
+// "autreUtilisateurId" est toujours l'autre participant vu depuis l'utilisateur courant :
+// pour un acheteur c'est le vendeur, pour un vendeur qui répond c'est cet acheteur précis.
+// Ça garantit qu'une conversation est bien scopée par annonce + paire de participants,
+// et pas juste par annonce (donc plus de mélange entre différents acheteurs).
+function parseConversationId(conversationId: string): { listingId: string; otherUserId: string } | null {
+  const parts = conversationId.split("__");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  return { listingId: parts[0], otherUserId: parts[1] };
+}
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -95,10 +106,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const fetchMessages = async (conversationId: string) => {
     if (!user) return;
 
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
+
     const { data, error } = await supabase
       .from("messages")
       .select("id, sender_id, receiver_id, content, created_at")
-      .eq("listing_id", conversationId)
+      .eq("listing_id", listingId)
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
       .order("created_at", { ascending: true });
 
     if (error) { console.error("Erreur fetch:", error); return; }
@@ -119,42 +135,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Déduit l'ID du destinataire à partir du premier message existant de la conversation :
-  // si l'utilisateur actuel est l'expéditeur de ce message, le destinataire est l'autre personne, et inversement.
-  const resolveReceiverId = async (conversationId: string): Promise<string | null> => {
-    if (!user) return null;
-
-    const { data, error } = await supabase
-      .from("messages")
-      .select("sender_id, receiver_id")
-      .eq("listing_id", conversationId)
-      .not("receiver_id", "is", null)
-      .limit(1);
-
-    if (error) {
-      console.error("Erreur résolution destinataire:", error);
-      return null;
-    }
-
-    if (!data || data.length === 0) return null;
-
-    const ref = data[0];
-    return ref.sender_id === user.id ? ref.receiver_id : ref.sender_id;
-  };
-
   const sendMessage = async (conversationId: string, text: string) => {
     if (!user) return;
 
-    const receiverId = await resolveReceiverId(conversationId);
-
-    if (!receiverId) {
-      console.error("Impossible de déterminer le destinataire pour la conversation", conversationId);
-      return;
-    }
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
 
     const { error } = await supabase
       .from("messages")
-      .insert({ listing_id: conversationId, sender_id: user.id, receiver_id: receiverId, content: text });
+      .insert({ listing_id: listingId, sender_id: user.id, receiver_id: otherUserId, content: text });
 
     if (error) {
       console.error("Erreur envoi message:", error);
@@ -170,8 +160,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   const isFavorite = (id: string) => favorites.includes(id);
 
-  // Crée la conversation en insérant le premier message avec un receiver_id correctement rempli (l'ID du vendeur).
-  // Retourne l'ID de conversation à utiliser pour la navigation (ici, l'ID de l'annonce).
+  // Crée la conversation en insérant le premier message avec receiver_id = sellerId,
+  // et retourne l'ID composite "<listingId>__<sellerId>" à utiliser pour la navigation.
   const startConversation = async (
     listingId: string,
     _listingTitle: string,
@@ -181,7 +171,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     _sellerAvatar: string,
     firstMessage: string
   ): Promise<string> => {
-    if (!user) return listingId;
+    const conversationId = `${listingId}__${sellerId}`;
+    if (!user) return conversationId;
 
     const { error } = await supabase
       .from("messages")
@@ -196,7 +187,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error("Erreur création conversation:", error);
     }
 
-    return listingId;
+    return conversationId;
   };
 
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
