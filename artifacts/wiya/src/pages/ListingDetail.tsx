@@ -68,7 +68,7 @@ export default function ListingDetail() {
     if (!msg || !listing) return;
     setSending(true);
 
-    const conversationId = startConversation(
+    const conversationId = await startConversation(
       listing.id,
       listing.title,
       listing.images?.[0] ?? "",
