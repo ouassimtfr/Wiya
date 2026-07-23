@@ -67,7 +67,6 @@ export default function AdminPage() {
 
     if (reqError) {
       console.error("Erreur update boost_requests:", reqError);
-      alert("Erreur boost_requests: " + reqError.message);
       return;
     }
 
@@ -78,23 +77,7 @@ export default function AdminPage() {
 
     if (listingError) {
       console.error("Erreur update listings.is_boosted:", listingError);
-      alert("Erreur listings.is_boosted: " + listingError.message);
       return;
-    }
-
-    const { data: verifyData, error: verifyError } = await supabase
-      .from("listings")
-      .select("is_boosted")
-      .eq("id", listingId)
-      .single();
-
-    if (verifyError) {
-      alert("Impossible de vérifier la mise à jour : " + verifyError.message);
-    } else if (!verifyData?.is_boosted) {
-      alert(
-        "La mise à jour n'a pas été appliquée (is_boosted toujours false). " +
-        "Vérifie que l'id \"" + listingId + "\" correspond bien à une annonce existante dans listings."
-      );
     }
 
     fetchRequests();
@@ -108,7 +91,6 @@ export default function AdminPage() {
 
     if (error) {
       console.error("Erreur update refus boost:", error);
-      alert("Erreur: " + error.message);
       return;
     }
 
