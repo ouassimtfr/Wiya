@@ -21,7 +21,7 @@ interface AppState {
   logout: () => void; toggleFavorite: (listingId: string) => void; isFavorite: (listingId: string) => boolean;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   fetchMessages: (conversationId: string) => Promise<void>;
-  startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => string;
+  startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => Promise<string>;
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
   updateAvatar: (file: File) => Promise<{ error: string | null }>;
@@ -97,7 +97,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from("messages")
-      .select("id, sender_id, content, created_at")
+      .select("id, sender_id, receiver_id, content, created_at")
       .eq("listing_id", conversationId)
       .order("created_at", { ascending: true });
 
@@ -119,10 +119,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Déduit l'ID du destinataire à partir du premier message existant de la conversation :
+  // si l'utilisateur actuel est l'expéditeur de ce message, le destinataire est l'autre personne, et inversement.
+  const resolveReceiverId = async (conversationId: string): Promise<string | null> => {
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("sender_id, receiver_id")
+      .eq("listing_id", conversationId)
+      .not("receiver_id", "is", null)
+      .limit(1);
+
+    if (error) {
+      console.error("Erreur résolution destinataire:", error);
+      return null;
+    }
+
+    if (!data || data.length === 0) return null;
+
+    const ref = data[0];
+    return ref.sender_id === user.id ? ref.receiver_id : ref.sender_id;
+  };
+
   const sendMessage = async (conversationId: string, text: string) => {
     if (!user) return;
-    const { error } = await supabase.from("messages").insert({ listing_id: conversationId, sender_id: user.id, content: text });
-    if (!error) await fetchMessages(conversationId);
+
+    const receiverId = await resolveReceiverId(conversationId);
+
+    if (!receiverId) {
+      console.error("Impossible de déterminer le destinataire pour la conversation", conversationId);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({ listing_id: conversationId, sender_id: user.id, receiver_id: receiverId, content: text });
+
+    if (error) {
+      console.error("Erreur envoi message:", error);
+      return;
+    }
+
+    await fetchMessages(conversationId);
   };
 
   const login = async (e: string, p: string) => { const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p }); return !error; };
@@ -130,7 +169,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => { await supabase.auth.signOut(); setUser(null); };
   const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   const isFavorite = (id: string) => favorites.includes(id);
-  const startConversation = () => "c1";
+
+  // Crée la conversation en insérant le premier message avec un receiver_id correctement rempli (l'ID du vendeur).
+  // Retourne l'ID de conversation à utiliser pour la navigation (ici, l'ID de l'annonce).
+  const startConversation = async (
+    listingId: string,
+    _listingTitle: string,
+    _listingImage: string,
+    sellerId: string,
+    _sellerName: string,
+    _sellerAvatar: string,
+    firstMessage: string
+  ): Promise<string> => {
+    if (!user) return listingId;
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        listing_id: listingId,
+        sender_id: user.id,
+        receiver_id: sellerId,
+        content: firstMessage,
+      });
+
+    if (error) {
+      console.error("Erreur création conversation:", error);
+    }
+
+    return listingId;
+  };
 
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
     const { data, error } = await supabase
