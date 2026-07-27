@@ -1,10 +1,17 @@
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { MessageCircle, ChevronRight } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 export default function MessagesPage() {
   const [, navigate] = useLocation();
-  const { user, conversations } = useStore();
+  const { user, conversations, fetchConversations } = useStore();
+
+  useEffect(() => {
+    if (user) {
+      fetchConversations();
+    }
+  }, [user, fetchConversations]);
 
   if (!user) {
     return (
@@ -28,12 +35,10 @@ export default function MessagesPage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
-      {/* Barre du haut */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-gray-900">Messagerie</h1>
       </div>
 
-      {/* Liste des conversations */}
       {sortedConversations.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center mb-4">
