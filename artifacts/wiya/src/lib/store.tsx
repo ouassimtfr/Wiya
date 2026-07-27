@@ -21,6 +21,7 @@ interface AppState {
   logout: () => void; toggleFavorite: (listingId: string) => void; isFavorite: (listingId: string) => boolean;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   fetchMessages: (conversationId: string) => Promise<void>;
+  fetchConversations: () => Promise<void>;
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => Promise<string>;
   submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
   activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
@@ -62,10 +63,6 @@ function rowToBoostRequest(r: any): BoostRequest {
 }
 
 // Un conversationId a la forme "<listingId>__<autreUtilisateurId>".
-// "autreUtilisateurId" est toujours l'autre participant vu depuis l'utilisateur courant :
-// pour un acheteur c'est le vendeur, pour un vendeur qui répond c'est cet acheteur précis.
-// Ça garantit qu'une conversation est bien scopée par annonce + paire de participants,
-// et pas juste par annonce (donc plus de mélange entre différents acheteurs).
 function parseConversationId(conversationId: string): { listingId: string; otherUserId: string } | null {
   const parts = conversationId.split("__");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
@@ -135,6 +132,51 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Charge TOUTES les conversations de l'utilisateur connecté (contrairement à
+  // fetchMessages qui ne charge qu'une conversation précise). Regroupe tous les
+  // messages où l'utilisateur est sender OU receiver, par paire (annonce, autre participant).
+  const fetchConversations = async () => {
+    if (!user) { setConversations([]); return; }
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, listing_id, sender_id, receiver_id, content, created_at")
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order("created_at", { ascending: true });
+
+    if (error) { console.error("Erreur fetch conversations:", error); return; }
+
+    const grouped = new Map<string, Conversation>();
+
+    (data || []).forEach((m: any) => {
+      const otherUserId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
+      if (!otherUserId) return; // ignore les messages malformés (receiver_id manquant)
+
+      const conversationId = `${m.listing_id}__${otherUserId}`;
+      const formattedMessage = {
+        id: m.id,
+        senderId: m.sender_id === user.id ? "me" : "other",
+        text: m.content,
+        time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const existing = grouped.get(conversationId);
+      if (existing) {
+        existing.messages.push(formattedMessage);
+      } else {
+        grouped.set(conversationId, {
+          id: conversationId,
+          listingTitle: "Conversation",
+          listingImage: "",
+          otherUser: { name: "Utilisateur" },
+          messages: [formattedMessage],
+        } as Conversation);
+      }
+    });
+
+    setConversations(Array.from(grouped.values()));
+  };
+
   const sendMessage = async (conversationId: string, text: string) => {
     if (!user) return;
 
@@ -160,8 +202,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   const isFavorite = (id: string) => favorites.includes(id);
 
-  // Crée la conversation en insérant le premier message avec receiver_id = sellerId,
-  // et retourne l'ID composite "<listingId>__<sellerId>" à utiliser pour la navigation.
   const startConversation = async (
     listingId: string,
     _listingTitle: string,
@@ -309,7 +349,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests, login, register, logout,
-      toggleFavorite, isFavorite, sendMessage, fetchMessages, startConversation,
+      toggleFavorite, isFavorite, sendMessage, fetchMessages, fetchConversations, startConversation,
       submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar,
     }}>
       {children}
