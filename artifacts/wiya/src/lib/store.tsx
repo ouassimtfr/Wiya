@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import { Conversation, CONVERSATIONS } from "./data";
 
@@ -62,7 +62,6 @@ function rowToBoostRequest(r: any): BoostRequest {
   };
 }
 
-// Un conversationId a la forme "<listingId>__<autreUtilisateurId>".
 function parseConversationId(conversationId: string): { listingId: string; otherUserId: string } | null {
   const parts = conversationId.split("__");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
@@ -100,7 +99,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (data) setBoostRequests(data.map(rowToBoostRequest));
   };
 
-  const fetchMessages = async (conversationId: string) => {
+  const fetchMessages = useCallback(async (conversationId: string) => {
     if (!user) return;
 
     const parsed = parseConversationId(conversationId);
@@ -116,6 +115,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (error) { console.error("Erreur fetch:", error); return; }
 
+    // Marque comme lus tous les messages reçus dans cette conversation, puisqu'on
+    // est justement en train de les afficher à l'écran. Sans ça le badge de
+    // notification ne redescend jamais.
+    await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("listing_id", listingId)
+      .eq("sender_id", otherUserId)
+      .eq("receiver_id", user.id)
+      .eq("is_read", false);
+
     const formattedMessages = data.map((m: any) => ({
       id: m.id,
       senderId: m.sender_id === user.id ? "me" : "other",
@@ -130,12 +140,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { id: conversationId, listingTitle: "Conversation", listingImage: "", otherUser: { name: "Vendeur" }, messages: formattedMessages } as Conversation];
     });
-  };
+  }, [user]);
 
-  // Charge TOUTES les conversations de l'utilisateur connecté (contrairement à
-  // fetchMessages qui ne charge qu'une conversation précise). Regroupe tous les
-  // messages où l'utilisateur est sender OU receiver, par paire (annonce, autre participant).
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user) { setConversations([]); return; }
 
     const { data, error } = await supabase
@@ -150,7 +157,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     (data || []).forEach((m: any) => {
       const otherUserId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
-      if (!otherUserId) return; // ignore les messages malformés (receiver_id manquant)
+      if (!otherUserId) return;
 
       const conversationId = `${m.listing_id}__${otherUserId}`;
       const formattedMessage = {
@@ -175,9 +182,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     setConversations(Array.from(grouped.values()));
-  };
+  }, [user]);
 
-  const sendMessage = async (conversationId: string, text: string) => {
+  const sendMessage = useCallback(async (conversationId: string, text: string) => {
     if (!user) return;
 
     const parsed = parseConversationId(conversationId);
@@ -194,7 +201,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     await fetchMessages(conversationId);
-  };
+  }, [user, fetchMessages]);
 
   const login = async (e: string, p: string) => { const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p }); return !error; };
   const register = async (n: string, e: string, p: string, ph: string) => { await supabase.auth.signUp({ email: e, password: p, options: { data: { name: n, phone: ph } } }); };
@@ -202,7 +209,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   const isFavorite = (id: string) => favorites.includes(id);
 
-  const startConversation = async (
+  const startConversation = useCallback(async (
     listingId: string,
     _listingTitle: string,
     _listingImage: string,
@@ -228,7 +235,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     return conversationId;
-  };
+  }, [user]);
 
   const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
     const { data, error } = await supabase
