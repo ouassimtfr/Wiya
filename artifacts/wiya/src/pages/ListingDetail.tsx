@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
+import ImageLightbox from "@/components/ImageLightbox";
 
 export default function ListingDetail() {
   const params = useParams<{ id: string }>();
@@ -14,6 +15,7 @@ export default function ListingDetail() {
   const { t, isRTL } = useI18n();
   const { toggleFavorite, isFavorite, user, startConversation } = useStore();
   const [imgIndex, setImgIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showMsgBox, setShowMsgBox] = useState(false);
   const [msgText, setMsgText] = useState("");
   const [listing, setListing] = useState<any>(null);
@@ -97,9 +99,16 @@ export default function ListingDetail() {
     <div className="bg-white min-h-screen pb-40">
       <div className="relative bg-gray-100 aspect-[4/3]">
         {images.length > 0 ? (
-          <AnimatePresence mode="wait">
-            <motion.img key={imgIndex} src={images[imgIndex]} alt={listing.title} className="w-full h-full object-cover" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
-          </AnimatePresence>
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className="w-full h-full block"
+            aria-label="Agrandir la photo"
+          >
+            <AnimatePresence mode="wait">
+              <motion.img key={imgIndex} src={images[imgIndex]} alt={listing.title} className="w-full h-full object-cover" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+            </AnimatePresence>
+          </button>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">📦</div>
         )}
@@ -112,8 +121,14 @@ export default function ListingDetail() {
           </button>
         </div>
         {images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {images.map((_: any, i: number) => <button key={i} onClick={() => setImgIndex(i)} className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`} />)}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+            {images.map((_: any, i: number) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setImgIndex(i); }}
+                className={`pointer-events-auto h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+              />
+            ))}
           </div>
         )}
         <div className="absolute top-3 start-3 flex gap-1.5">
@@ -229,6 +244,10 @@ export default function ListingDetail() {
             <MessageCircle className="w-4 h-4" />{t("sendMessage")}
           </button>
         </div>
+      )}
+
+      {lightboxOpen && images.length > 0 && (
+        <ImageLightbox images={images} initialIndex={imgIndex} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
