@@ -99,6 +99,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (data) setBoostRequests(data.map(rowToBoostRequest));
   };
 
+  // Charge une conversation précise, ET va chercher le vrai titre/photo de l'annonce
+  // (table listings) et le vrai nom de l'autre participant (table profiles) —
+  // au lieu des valeurs vides mises en dur avant.
   const fetchMessages = useCallback(async (conversationId: string) => {
     if (!user) return;
 
@@ -106,18 +109,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
     const { listingId, otherUserId } = parsed;
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select("id, sender_id, receiver_id, content, created_at")
-      .eq("listing_id", listingId)
-      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
-      .order("created_at", { ascending: true });
+    const [{ data, error }, { data: listingData }, { data: otherProfile }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select("id, sender_id, receiver_id, content, created_at")
+        .eq("listing_id", listingId)
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+        .order("created_at", { ascending: true }),
+      supabase.from("listings").select("title, images").eq("id", listingId).maybeSingle(),
+      supabase.from("profiles").select("username, avatar_url").eq("id", otherUserId).maybeSingle(),
+    ]);
 
     if (error) { console.error("Erreur fetch:", error); return; }
 
-    // Marque comme lus tous les messages reçus dans cette conversation, puisqu'on
-    // est justement en train de les afficher à l'écran. Sans ça le badge de
-    // notification ne redescend jamais.
+    // Marque comme lus les messages reçus dans cette conversation, puisqu'on
+    // est en train de les afficher. Sans ça le badge de notification ne redescend jamais.
     await supabase
       .from("messages")
       .update({ is_read: true })
@@ -133,15 +139,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
     }));
 
+    const updatedConversation: Conversation = {
+      id: conversationId,
+      listingTitle: listingData?.title ?? "Conversation",
+      listingImage: listingData?.images?.[0] ?? "",
+      otherUser: { name: otherProfile?.username ?? "Utilisateur" },
+      messages: formattedMessages,
+    } as Conversation;
+
     setConversations((prev) => {
       const exists = prev.find((c) => c.id === conversationId);
       if (exists) {
-        return prev.map((c) => (c.id === conversationId ? { ...c, messages: formattedMessages } : c));
+        return prev.map((c) => (c.id === conversationId ? updatedConversation : c));
       }
-      return [...prev, { id: conversationId, listingTitle: "Conversation", listingImage: "", otherUser: { name: "Vendeur" }, messages: formattedMessages } as Conversation];
+      return [...prev, updatedConversation];
     });
   }, [user]);
 
+  // Charge TOUTES les conversations, avec le vrai titre/photo/nom pour chacune
+  // (requêtes groupées sur listings + profiles pour rester efficace).
   const fetchConversations = useCallback(async () => {
     if (!user) { setConversations([]); return; }
 
@@ -153,7 +169,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (error) { console.error("Erreur fetch conversations:", error); return; }
 
-    const grouped = new Map<string, Conversation>();
+    type Group = { listingId: string; otherUserId: string; messages: any[] };
+    const groups = new Map<string, Group>();
 
     (data || []).forEach((m: any) => {
       const otherUserId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
@@ -167,21 +184,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
       };
 
-      const existing = grouped.get(conversationId);
+      const existing = groups.get(conversationId);
       if (existing) {
         existing.messages.push(formattedMessage);
       } else {
-        grouped.set(conversationId, {
-          id: conversationId,
-          listingTitle: "Conversation",
-          listingImage: "",
-          otherUser: { name: "Utilisateur" },
-          messages: [formattedMessage],
-        } as Conversation);
+        groups.set(conversationId, { listingId: m.listing_id, otherUserId, messages: [formattedMessage] });
       }
     });
 
-    setConversations(Array.from(grouped.values()));
+    const listingIds = Array.from(new Set(Array.from(groups.values()).map((g) => g.listingId)));
+    const otherUserIds = Array.from(new Set(Array.from(groups.values()).map((g) => g.otherUserId)));
+
+    const [{ data: listingsData }, { data: profilesData }] = await Promise.all([
+      listingIds.length > 0
+        ? supabase.from("listings").select("id, title, images").in("id", listingIds)
+        : Promise.resolve({ data: [] as any[] }),
+      otherUserIds.length > 0
+        ? supabase.from("profiles").select("id, username, avatar_url").in("id", otherUserIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const listingsById = new Map((listingsData || []).map((l: any) => [l.id, l]));
+    const profilesById = new Map((profilesData || []).map((p: any) => [p.id, p]));
+
+    const result: Conversation[] = Array.from(groups.entries()).map(([conversationId, g]) => {
+      const listingInfo = listingsById.get(g.listingId);
+      const profileInfo = profilesById.get(g.otherUserId);
+      return {
+        id: conversationId,
+        listingTitle: listingInfo?.title ?? "Conversation",
+        listingImage: listingInfo?.images?.[0] ?? "",
+        otherUser: { name: profileInfo?.username ?? "Utilisateur" },
+        messages: g.messages,
+      } as Conversation;
+    });
+
+    setConversations(result);
   }, [user]);
 
   const sendMessage = useCallback(async (conversationId: string, text: string) => {
