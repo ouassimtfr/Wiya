@@ -44,9 +44,31 @@ export default function ListingDetail() {
   const handleDelete = async () => {
     if (!confirm("Supprimer cette annonce ?")) return;
     setDeleting(true);
-    const { error } = await supabase.from("listings").delete().eq("id", params.id);
-    if (!error) navigate("/");
-    else { alert("Erreur suppression, réessaie."); setDeleting(false); }
+
+    // On demande le count exact des lignes réellement supprimées : si une
+    // policy RLS bloque la suppression, Supabase ne renvoie PAS d'erreur,
+    // juste 0 ligne affectée. Sans ce check, ça avait l'air de marcher
+    // alors que l'annonce restait en base.
+    const { error, count } = await supabase
+      .from("listings")
+      .delete({ count: "exact" })
+      .eq("id", params.id);
+
+    if (error) {
+      console.error("Erreur suppression:", error);
+      alert("Erreur suppression, réessaie.");
+      setDeleting(false);
+      return;
+    }
+
+    if (!count) {
+      console.error("Suppression bloquée silencieusement (0 ligne affectée, probablement RLS).");
+      alert("Suppression refusée par le serveur (droits insuffisants). Vérifie les permissions.");
+      setDeleting(false);
+      return;
+    }
+
+    navigate("/");
   };
 
   const handleMarkSold = async () => {
