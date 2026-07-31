@@ -35,6 +35,35 @@ function useVisualViewportHeight() {
   return height;
 }
 
+// Enlève les accents et met en minuscule, pour que "megane" matche "Mégane"
+function normalize(str: string) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// Chiffres écrits en toutes lettres -> chiffre, pour que "Clio cinq" retrouve
+// une annonce écrite "Clio 5" (les vendeurs écrivent presque toujours en chiffre)
+const FRENCH_NUMBER_WORDS: Record<string, string> = {
+  zero: "0", un: "1", une: "1", deux: "2", trois: "3", quatre: "4",
+  cinq: "5", six: "6", sept: "7", huit: "8", neuf: "9", dix: "10",
+};
+
+// Vérifie que CHAQUE mot tapé se retrouve dans le texte de l'annonce
+// (titre + description + nom de catégorie traduit) — peu importe l'ordre.
+// Le nom de catégorie est inclus pour que taper "voiture" ou "moto" seul
+// remonte toute la catégorie, même si ce mot n'est pas écrit dans le titre.
+function matchesSearch(haystackText: string, query: string) {
+  if (!query.trim()) return true;
+  const words = normalize(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => FRENCH_NUMBER_WORDS[w] ?? w);
+  return words.every((word) => haystackText.includes(word));
+}
+
 export default function Home() {
   const { t, lang, setLang } = useI18n();
   const { user } = useStore();
@@ -43,6 +72,7 @@ export default function Home() {
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [listings, setListings] = useState<any[]>([]);
   const viewportHeight = useVisualViewportHeight();
 
@@ -55,8 +85,19 @@ export default function Home() {
     if (data) setListings(data);
   };
 
+  // Texte de recherche complet d'une annonce : titre + description + nom de catégorie traduit
+  const getSearchHaystack = (listing: any) => {
+    const categoryLabel = CATEGORIES.some((c) => c.id === listing.category) ? t(listing.category as any) : "";
+    return normalize(`${listing.title ?? ""} ${listing.description ?? ""} ${categoryLabel}`);
+  };
+
   const filteredWilayas = WILAYA_NAMES.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
-  const filteredListings = listings.filter((l) => (!activeCategory || l.category === activeCategory) && (!activeWilaya || l.wilaya === activeWilaya));
+  const filteredListings = listings.filter(
+    (l) =>
+      (!activeCategory || l.category === activeCategory) &&
+      (!activeWilaya || l.wilaya === activeWilaya) &&
+      matchesSearch(getSearchHaystack(l), searchQuery)
+  );
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
   return (
@@ -92,6 +133,23 @@ export default function Home() {
             <span className="h-[3px] w-[3px] rounded-full bg-[#C7A44A]/70 self-center" />
             <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
           </div>
+
+          {/* Barre de recherche : marche pour tout (voitures, motos, immo...) par mot-clé + catégorie + année */}
+          <div className="flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md">
+            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 Alpine)"}
+              className="flex-1 outline-none text-sm text-gray-800 bg-transparent placeholder:text-gray-400"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")}>
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -126,6 +184,12 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {searchQuery && filteredListings.length === 0 && (
+          <div className="text-center py-10">
+            <p className="text-sm text-gray-500">{t("noResults") ?? "Aucune annonce trouvée"}</p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {filteredListings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
