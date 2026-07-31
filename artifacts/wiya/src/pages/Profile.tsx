@@ -89,8 +89,6 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState("");
 
-  // FIX iOS Safari : empêche le body de scroller derrière la modale quand on
-  // tape dans un champ (Nom / Téléphone), ce qui poussait tout hors écran.
   useEffect(() => {
     if (showSettings) {
       const scrollY = window.scrollY;
@@ -147,9 +145,15 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.auth.updateUser({ data: { name: editName, phone: editPhone, wilaya: editWilaya } });
+    // Le nom va dans `profiles` (pas user_metadata, sinon Google l'écrase
+    // à la prochaine connexion). Téléphone/wilaya restent dans
+    // user_metadata, Google n'y touche pas.
+    const [{ error: profileError }, { error: authError }] = await Promise.all([
+      supabase.from("profiles").update({ username: editName }).eq("id", user.id),
+      supabase.auth.updateUser({ data: { phone: editPhone, wilaya: editWilaya } }),
+    ]);
     setSaving(false);
-    if (!error) setShowSettings(false);
+    if (!profileError && !authError) setShowSettings(false);
   };
 
   if (!user) {
