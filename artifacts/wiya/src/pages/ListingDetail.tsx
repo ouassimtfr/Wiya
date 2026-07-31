@@ -117,6 +117,16 @@ export default function ListingDetail() {
   const isMyListing = user?.id === listing.user_id;
   const displayPhone = listing.contact_phone || sellerProfile?.phone || null;
 
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
   return (
     <div className="bg-white min-h-screen pb-40">
       <div className="relative bg-gray-100 aspect-[4/3]">
@@ -134,7 +144,9 @@ export default function ListingDetail() {
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">📦</div>
         )}
-        <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
+
+        {/* Retour + favoris : épinglés en haut uniquement, pour laisser la place aux flèches photo au milieu */}
+        <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
           <button onClick={() => navigate("/")} className="pointer-events-auto w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
             <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
           </button>
@@ -142,6 +154,31 @@ export default function ListingDetail() {
             <Heart className={`w-4 h-4 ${fav ? "fill-red-500 text-red-500" : "text-white"}`} strokeWidth={fav ? 0 : 1.8} />
           </button>
         </div>
+
+        {/* Flèches de navigation entre photos */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prevImage}
+              aria-label="Photo précédente"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            >
+              <ChevronLeft className="w-5 h-5 text-white" />
+            </button>
+            <button
+              onClick={nextImage}
+              aria-label="Photo suivante"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            >
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
+            {/* Compteur "1/2" */}
+            <div className="absolute bottom-3 end-3 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5 text-white text-[11px] font-semibold pointer-events-none">
+              {imgIndex + 1}/{images.length}
+            </div>
+          </>
+        )}
+
         {images.length > 1 && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
             {images.map((_: any, i: number) => (
