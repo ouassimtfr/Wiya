@@ -52,9 +52,7 @@ const FRENCH_NUMBER_WORDS: Record<string, string> = {
 };
 
 // Vérifie que CHAQUE mot tapé se retrouve dans le texte de l'annonce
-// (titre + description + nom de catégorie traduit) — peu importe l'ordre.
-// Le nom de catégorie est inclus pour que taper "voiture" ou "moto" seul
-// remonte toute la catégorie, même si ce mot n'est pas écrit dans le titre.
+// (titre + description + catégorie + marque/modèle/année véhicule) — peu importe l'ordre.
 function matchesSearch(haystackText: string, query: string) {
   if (!query.trim()) return true;
   const words = normalize(query)
@@ -85,10 +83,12 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  // Texte de recherche complet d'une annonce : titre + description + nom de catégorie traduit
+  // Texte de recherche complet d'une annonce : titre + description + catégorie traduite
+  // + marque/modèle/année du véhicule (si l'annonce en a)
   const getSearchHaystack = (listing: any) => {
     const categoryLabel = CATEGORIES.some((c) => c.id === listing.category) ? t(listing.category as any) : "";
-    return normalize(`${listing.title ?? ""} ${listing.description ?? ""} ${categoryLabel}`);
+    const vehicleInfo = `${listing.vehicle_brand ?? ""} ${listing.vehicle_model ?? ""} ${listing.vehicle_year ?? ""}`;
+    return normalize(`${listing.title ?? ""} ${listing.description ?? ""} ${categoryLabel} ${vehicleInfo}`);
   };
 
   const filteredWilayas = WILAYA_NAMES.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
@@ -134,14 +134,14 @@ export default function Home() {
             <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
           </div>
 
-          {/* Barre de recherche : marche pour tout (voitures, motos, immo...) par mot-clé + catégorie + année */}
+          {/* Barre de recherche : marche pour tout (voitures, motos, immo...) par mot-clé + catégorie + marque/modèle/année */}
           <div className="flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 Alpine)"}
+              placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
               className="flex-1 outline-none text-sm text-gray-800 bg-transparent placeholder:text-gray-400"
             />
             {searchQuery && (
