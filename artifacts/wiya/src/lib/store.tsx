@@ -31,13 +31,47 @@ interface AppState {
 
 const StoreContext = createContext<AppState | null>(null);
 
-function supabaseUserToUser(sbUser: any): User {
+// Crée la ligne `profiles` UNE SEULE FOIS à partir des données Google
+// (ignoreDuplicates: true => si la ligne existe déjà, on n'y touche pas).
+// C'est ce qui empêche Google d'écraser le nom/la photo personnalisés
+// à chaque reconnexion.
+async function ensureProfile(sbUser: any): Promise<{ name: string; avatar: string }> {
+  const fallbackName =
+    sbUser.user_metadata?.name ??
+    sbUser.user_metadata?.full_name ??
+    sbUser.email?.split("@")[0] ??
+    "Utilisateur";
+  const fallbackAvatar = sbUser.user_metadata?.avatar_url ?? sbUser.user_metadata?.picture ?? null;
+
+  await supabase
+    .from("profiles")
+    .upsert(
+      { id: sbUser.id, username: fallbackName, avatar_url: fallbackAvatar },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("username, avatar_url")
+    .eq("id", sbUser.id)
+    .maybeSingle();
+
+  if (error) console.error("Erreur lecture profile:", error);
+
+  return {
+    name: profile?.username ?? fallbackName,
+    avatar: profile?.avatar_url ?? fallbackAvatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+  };
+}
+
+async function buildUser(sbUser: any): Promise<User> {
+  const { name, avatar } = await ensureProfile(sbUser);
   return {
     id: sbUser.id,
-    name: sbUser.user_metadata?.name ?? sbUser.email?.split("@")[0] ?? "Utilisateur",
+    name,
     email: sbUser.email ?? "",
     phone: sbUser.user_metadata?.phone ?? "",
-    avatar: sbUser.user_metadata?.avatar_url ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+    avatar,
     wilaya: sbUser.user_metadata?.wilaya ?? "Algérie",
     memberSince: new Date(sbUser.created_at).getFullYear().toString(),
     rating: 0, reviews: 0, verified: sbUser.email_confirmed_at != null,
@@ -75,11 +109,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) { setUser(supabaseUserToUser(session.user)); }
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) { setUser(await buildUser(session.user)); }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (session?.user) { setUser(supabaseUserToUser(session.user)); }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      if (session?.user) { setUser(await buildUser(session.user)); }
       else { setUser(null); }
     });
     return () => subscription.unsubscribe();
@@ -99,9 +133,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (data) setBoostRequests(data.map(rowToBoostRequest));
   };
 
-  // Charge une conversation précise, ET va chercher le vrai titre/photo de l'annonce
-  // (table listings) et le vrai nom de l'autre participant (table profiles) —
-  // au lieu des valeurs vides mises en dur avant.
   const fetchMessages = useCallback(async (conversationId: string) => {
     if (!user) return;
 
@@ -122,8 +153,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (error) { console.error("Erreur fetch:", error); return; }
 
-    // Marque comme lus les messages reçus dans cette conversation, puisqu'on
-    // est en train de les afficher. Sans ça le badge de notification ne redescend jamais.
     await supabase
       .from("messages")
       .update({ is_read: true })
@@ -156,8 +185,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  // Charge TOUTES les conversations, avec le vrai titre/photo/nom pour chacune
-  // (requêtes groupées sur listings + profiles pour rester efficace).
   const fetchConversations = useCallback(async () => {
     if (!user) { setConversations([]); return; }
 
@@ -360,7 +387,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
     const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
 
-    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", user.id);
 
     if (updateError) {
       console.error("Erreur mise à jour profil:", updateError);
@@ -380,7 +410,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await supabase.storage.from("avatars").remove(paths);
     }
 
-    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: null } });
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", user.id);
 
     if (updateError) {
       console.error("Erreur suppression avatar:", updateError);
