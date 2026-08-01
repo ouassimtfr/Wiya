@@ -93,6 +93,21 @@ export default function Home() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
+      {/* Style injecté directement ici : un sélecteur par ID gagne TOUJOURS
+          face à n'importe quelle combinaison de classes ailleurs dans le CSS,
+          donc plus de conflit possible avec les règles de mode sombre */}
+      <style>{`
+        #wiya-search-input {
+          color: #1f2937 !important;
+          -webkit-text-fill-color: #1f2937 !important;
+          caret-color: #1f2937 !important;
+        }
+        #wiya-search-input::placeholder {
+          color: #9ca3af !important;
+          -webkit-text-fill-color: #9ca3af !important;
+        }
+      `}</style>
+
       <div className="relative bg-gradient-to-b from-[#0B1F16] to-[#132C20] pb-10 pt-12 px-6 overflow-hidden border-b border-[#C7A44A]/25">
         <svg
           className="absolute -top-12 -right-12 w-64 h-64 text-[#C7A44A]/[0.14] pointer-events-none"
@@ -127,11 +142,12 @@ export default function Home() {
           <div className="flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
+              id="wiya-search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
-              className="wiya-search-input flex-1 outline-none text-sm bg-transparent placeholder:text-gray-400"
+              className="flex-1 outline-none text-sm bg-transparent"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery("")}>
