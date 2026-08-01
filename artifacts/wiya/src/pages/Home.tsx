@@ -8,12 +8,10 @@ import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
-// Noms des wilayas triés par leur code officiel (1 à 69)
 const WILAYA_NAMES = WILAYAS_DATA.slice()
   .sort((a, b) => a.code - b.code)
   .map((w) => w.name);
 
-// Suit la hauteur réelle visible de l'écran (moins le clavier) sur mobile
 function useVisualViewportHeight() {
   const [height, setHeight] = useState(
     () => window.visualViewport?.height ?? window.innerHeight
@@ -35,7 +33,6 @@ function useVisualViewportHeight() {
   return height;
 }
 
-// Enlève les accents et met en minuscule, pour que "megane" matche "Mégane"
 function normalize(str: string) {
   return str
     .normalize("NFD")
@@ -44,15 +41,11 @@ function normalize(str: string) {
     .trim();
 }
 
-// Chiffres écrits en toutes lettres -> chiffre, pour que "Clio cinq" retrouve
-// une annonce écrite "Clio 5" (les vendeurs écrivent presque toujours en chiffre)
 const FRENCH_NUMBER_WORDS: Record<string, string> = {
   zero: "0", un: "1", une: "1", deux: "2", trois: "3", quatre: "4",
   cinq: "5", six: "6", sept: "7", huit: "8", neuf: "9", dix: "10",
 };
 
-// Vérifie que CHAQUE mot tapé se retrouve dans le texte de l'annonce
-// (titre + description + catégorie + marque/modèle/année véhicule) — peu importe l'ordre.
 function matchesSearch(haystackText: string, query: string) {
   if (!query.trim()) return true;
   const words = normalize(query)
@@ -83,8 +76,6 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  // Texte de recherche complet d'une annonce : titre + description + catégorie traduite
-  // + marque/modèle/année du véhicule (si l'annonce en a)
   const getSearchHaystack = (listing: any) => {
     const categoryLabel = CATEGORIES.some((c) => c.id === listing.category) ? t(listing.category as any) : "";
     const vehicleInfo = `${listing.vehicle_brand ?? ""} ${listing.vehicle_model ?? ""} ${listing.vehicle_year ?? ""}`;
@@ -103,7 +94,6 @@ export default function Home() {
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
       <div className="relative bg-gradient-to-b from-[#0B1F16] to-[#132C20] pb-10 pt-12 px-6 overflow-hidden border-b border-[#C7A44A]/25">
-        {/* Signature : motif étoilé à 8 branches, en filigrane dans le coin */}
         <svg
           className="absolute -top-12 -right-12 w-64 h-64 text-[#C7A44A]/[0.14] pointer-events-none"
           viewBox="0 0 100 100"
@@ -134,7 +124,6 @@ export default function Home() {
             <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
           </div>
 
-          {/* Barre de recherche : marche pour tout (voitures, motos, immo...) par mot-clé + catégorie + marque/modèle/année */}
           <div className="flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
@@ -142,8 +131,7 @@ export default function Home() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
-              className="flex-1 outline-none text-sm text-gray-800 bg-transparent placeholder:text-gray-400"
-              style={{ colorScheme: "light" }}
+              className="wiya-search-input flex-1 outline-none text-sm bg-transparent placeholder:text-gray-400"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery("")}>
@@ -198,7 +186,6 @@ export default function Home() {
       </div>
 
       <AnimatePresence>
-        {/* MODALE CATEGORIES */}
         {showCategoryPicker && (
           <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowCategoryPicker(false)}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
@@ -215,7 +202,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* MODALE WILAYA */}
         {showWilayaPicker && (
           <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
             <motion.div
@@ -227,15 +213,7 @@ export default function Home() {
               style={{ maxHeight: viewportHeight * 0.85 }}
             >
               <div className="p-4 flex-shrink-0">
-                <input
-                  autoFocus
-                  type="text"
-                  value={wilayaSearch}
-                  onChange={(e) => setWilayaSearch(e.target.value)}
-                  placeholder={t("searchWilaya")}
-                  className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm"
-                  style={{ colorScheme: "light" }}
-                />
+                <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
               </div>
               <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
                 {filteredWilayas.map((w) => (
