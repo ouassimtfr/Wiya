@@ -143,6 +143,7 @@ export default function Home() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
               className="flex-1 outline-none text-sm text-gray-800 bg-transparent placeholder:text-gray-400"
+              style={{ colorScheme: "light" }}
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery("")}>
@@ -226,7 +227,15 @@ export default function Home() {
               style={{ maxHeight: viewportHeight * 0.85 }}
             >
               <div className="p-4 flex-shrink-0">
-                <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={wilayaSearch}
+                  onChange={(e) => setWilayaSearch(e.target.value)}
+                  placeholder={t("searchWilaya")}
+                  className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm"
+                  style={{ colorScheme: "light" }}
+                />
               </div>
               <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
                 {filteredWilayas.map((w) => (
