@@ -7,6 +7,10 @@ import { useStore } from "@/lib/store";
 import { CATEGORIES, WILAYAS } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
+// Années disponibles pour les véhicules : de l'année en cours à 1980, en ordre décroissant
+const CURRENT_YEAR = new Date().getFullYear();
+const VEHICLE_YEARS = Array.from({ length: CURRENT_YEAR - 1980 + 1 }, (_, i) => CURRENT_YEAR - i);
+
 // Compresse l'image avant upload pour accélérer
 async function compressImage(file: File): Promise<Blob> {
   return new Promise((resolve) => {
@@ -47,6 +51,13 @@ export default function PostListingPage() {
   const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Champs spécifiques véhicules (affichés seulement si category === "vehicles")
+  const [vehicleBrand, setVehicleBrand] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
+
+  const isVehicle = category === "vehicles";
 
   if (!user) {
     return (
@@ -106,6 +117,10 @@ export default function PostListingPage() {
         is_urgent: urgent,
         condition,
         contact_phone: contactPhone.trim() || user.phone || null,
+        // Champs véhicules : null si la catégorie n'est pas "vehicles"
+        vehicle_brand: isVehicle ? vehicleBrand.trim() || null : null,
+        vehicle_model: isVehicle ? vehicleModel.trim() || null : null,
+        vehicle_year: isVehicle && vehicleYear ? parseInt(vehicleYear) : null,
       });
       if (insertError) throw insertError;
       setPublished(true);
@@ -215,6 +230,46 @@ export default function PostListingPage() {
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
+
+              {/* Champs véhicules : uniquement si la catégorie choisie est "vehicles" (voitures + motos) */}
+              {isVehicle && (
+                <div className="bg-green-50/60 border border-green-100 rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-[#1B6B3A]">🚗 Infos véhicule</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Marque *</label>
+                      <input
+                        type="text"
+                        value={vehicleBrand}
+                        onChange={(e) => setVehicleBrand(e.target.value)}
+                        placeholder="Ex: Renault"
+                        className="w-full bg-white border border-gray-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#1B6B3A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Modèle</label>
+                      <input
+                        type="text"
+                        value={vehicleModel}
+                        onChange={(e) => setVehicleModel(e.target.value)}
+                        placeholder="Ex: Clio 5"
+                        className="w-full bg-white border border-gray-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#1B6B3A]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Année *</label>
+                    <div className="relative">
+                      <select value={vehicleYear} onChange={(e) => setVehicleYear(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none">
+                        <option value="">Sélectionner l'année</option>
+                        {VEHICLE_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("description")}</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("addDescription")} rows={4} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-[#1B6B3A] resize-none" />
@@ -301,7 +356,11 @@ export default function PostListingPage() {
         )}
         <button
           onClick={() => step < 3 ? setStep(step + 1) : handlePublish()}
-          disabled={(step === 2 && !title) || (step === 3 && !contactPhone.trim()) || loading}
+          disabled={
+            (step === 2 && (!title || (isVehicle && (!vehicleBrand.trim() || !vehicleYear)))) ||
+            (step === 3 && !contactPhone.trim()) ||
+            loading
+          }
           className="flex-1 py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-50"
         >
           {loading ? "Publication..." : step < 3 ? "Continuer" : t("publish")}
