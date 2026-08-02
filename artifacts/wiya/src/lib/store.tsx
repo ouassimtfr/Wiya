@@ -14,6 +14,20 @@ export interface BoostRequest {
   submittedAt: string; sellerName: string;
 }
 
+export interface NewListingInput {
+  title: string;
+  price: number;
+  category: string;
+  wilaya: string;
+  city: string;
+  condition: "new" | "used";
+  description: string;
+  contactPhone: string;
+  isNegotiable: boolean;
+  isUrgent: boolean;
+  images: File[];
+}
+
 interface AppState {
   user: User | null; favorites: string[]; conversations: Conversation[]; boostRequests: BoostRequest[];
   login: (email: string, password: string) => Promise<boolean>;
@@ -27,14 +41,11 @@ interface AppState {
   activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
   updateAvatar: (file: File) => Promise<{ error: string | null }>;
   removeAvatar: () => Promise<{ error: string | null }>;
+  createListing: (input: NewListingInput) => Promise<{ id: string | null; error: string | null }>;
 }
 
 const StoreContext = createContext<AppState | null>(null);
 
-// Crée la ligne `profiles` UNE SEULE FOIS à partir des données Google
-// (ignoreDuplicates: true => si la ligne existe déjà, on n'y touche pas).
-// C'est ce qui empêche Google d'écraser le nom/la photo personnalisés
-// à chaque reconnexion.
 async function ensureProfile(sbUser: any): Promise<{ name: string; avatar: string }> {
   const fallbackName =
     sbUser.user_metadata?.name ??
@@ -424,11 +435,61 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
+  const createListing = async (input: NewListingInput): Promise<{ id: string | null; error: string | null }> => {
+    if (!user) return { id: null, error: "Non connecté" };
+
+    const imageUrls: string[] = [];
+    for (const file of input.images) {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("listings")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error("Erreur upload photo annonce:", uploadError);
+        return { id: null, error: uploadError.message };
+      }
+
+      const { data } = supabase.storage.from("listings").getPublicUrl(filePath);
+      imageUrls.push(data.publicUrl);
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("listings")
+      .insert({
+        title: input.title,
+        price: input.price,
+        category: input.category,
+        wilaya: input.wilaya,
+        city: input.city,
+        condition: input.condition,
+        description: input.description,
+        contact_phone: input.contactPhone,
+        is_negotiable: input.isNegotiable,
+        is_urgent: input.isUrgent,
+        is_active: true,
+        is_boosted: false,
+        images: imageUrls,
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Erreur création annonce:", insertError);
+      return { id: null, error: insertError.message };
+    }
+
+    return { id: inserted.id, error: null };
+  };
+
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests, login, register, logout,
       toggleFavorite, isFavorite, sendMessage, fetchMessages, fetchConversations, startConversation,
-      submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar,
+      submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar, createListing,
     }}>
       {children}
     </StoreContext.Provider>
