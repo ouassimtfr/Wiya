@@ -23,6 +23,7 @@ export default function PostListingPage() {
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
   if (!user) {
@@ -55,20 +56,24 @@ export default function PostListingPage() {
     if (images.length === 0) return setErrorMsg("Ajoute au moins une photo.");
 
     setSubmitting(true);
+    setProgress(0);
 
-    const { id, error } = await createListing({
-      title: title.trim(),
-      price: Number(price),
-      category,
-      wilaya,
-      city: city.trim(),
-      condition,
-      description: description.trim(),
-      contactPhone: phone.trim(),
-      isNegotiable,
-      isUrgent,
-      images,
-    });
+    const { id, error } = await createListing(
+      {
+        title: title.trim(),
+        price: Number(price),
+        category,
+        wilaya,
+        city: city.trim(),
+        condition,
+        description: description.trim(),
+        contactPhone: phone.trim(),
+        isNegotiable,
+        isUrgent,
+        images,
+      },
+      setProgress
+    );
 
     setSubmitting(false);
 
@@ -90,7 +95,6 @@ export default function PostListingPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
-        {/* Photos */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-2">Photos ({images.length}/6)</p>
           <div className="flex gap-2 flex-wrap">
@@ -115,7 +119,6 @@ export default function PostListingPage() {
           </div>
         </div>
 
-        {/* Titre */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Titre</p>
           <input
@@ -126,7 +129,6 @@ export default function PostListingPage() {
           />
         </div>
 
-        {/* Prix */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Prix ({t("da")})</p>
           <input
@@ -139,7 +141,6 @@ export default function PostListingPage() {
           />
         </div>
 
-        {/* Catégorie */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Catégorie</p>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
@@ -158,7 +159,6 @@ export default function PostListingPage() {
           </div>
         </div>
 
-        {/* Wilaya + ville */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Wilaya</p>
@@ -182,7 +182,6 @@ export default function PostListingPage() {
           </div>
         </div>
 
-        {/* État */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">État</p>
           <div className="flex gap-2">
@@ -201,7 +200,6 @@ export default function PostListingPage() {
           </div>
         </div>
 
-        {/* Description */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Description</p>
           <textarea
@@ -213,7 +211,6 @@ export default function PostListingPage() {
           />
         </div>
 
-        {/* Téléphone */}
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Téléphone de contact (optionnel)</p>
           <input
@@ -224,7 +221,6 @@ export default function PostListingPage() {
           />
         </div>
 
-        {/* Options */}
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isNegotiable} onChange={(e) => setIsNegotiable(e.target.checked)} />
@@ -240,6 +236,19 @@ export default function PostListingPage() {
       </div>
 
       <div className="fixed bottom-[60px] left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 py-3 z-[30]">
+        {submitting && (
+          <div className="mb-2">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#1B6B3A] transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1 text-center">
+              {progress < 90 ? "Envoi des photos..." : "Publication de l'annonce..."}
+            </p>
+          </div>
+        )}
         <button
           onClick={handleSubmit}
           disabled={submitting}
