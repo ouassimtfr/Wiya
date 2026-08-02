@@ -19,7 +19,7 @@ export default function AuthPage() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<"google" | "facebook" | null>(null);
+  const [socialLoading, setSocialLoading] = useState<"google" | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,18 +66,6 @@ export default function AuthPage() {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    setSocialLoading("facebook");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-      options: { redirectTo: `${window.location.origin}/` },
-    });
-    if (error) {
-      setError("Erreur connexion Facebook.");
-      setSocialLoading(null);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="bg-[#1B6B3A] pt-12 pb-10 px-6 relative overflow-hidden">
@@ -112,12 +100,9 @@ export default function AuthPage() {
           ))}
         </div>
 
-        <div className="flex gap-3 mb-5">
-          <button type="button" onClick={handleGoogleLogin} disabled={socialLoading !== null} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm disabled:opacity-50">
+        <div className="mb-5">
+          <button type="button" onClick={handleGoogleLogin} disabled={socialLoading !== null} className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm disabled:opacity-50">
             Google
-          </button>
-          <button type="button" onClick={handleFacebookLogin} disabled={socialLoading !== null} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#1877F2] rounded-2xl text-sm font-bold text-white shadow-sm disabled:opacity-50">
-            Facebook
           </button>
         </div>
 
