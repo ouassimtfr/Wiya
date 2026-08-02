@@ -185,6 +185,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       listingImage: listingData?.images?.[0] ?? "",
       otherUser: { name: otherProfile?.username ?? "Utilisateur" },
       messages: formattedMessages,
+      unread: 0,
     } as Conversation;
 
     setConversations((prev) => {
@@ -201,7 +202,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from("messages")
-      .select("id, listing_id, sender_id, receiver_id, content, created_at")
+      .select("id, listing_id, sender_id, receiver_id, content, created_at, is_read")
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
@@ -220,6 +221,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         senderId: m.sender_id === user.id ? "me" : "other",
         text: m.content,
         time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        isRead: !!m.is_read,
       };
 
       const existing = groups.get(conversationId);
@@ -248,12 +250,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const result: Conversation[] = Array.from(groups.entries()).map(([conversationId, g]) => {
       const listingInfo = listingsById.get(g.listingId);
       const profileInfo = profilesById.get(g.otherUserId);
+      const unreadCount = g.messages.filter((m: any) => m.senderId === "other" && !m.isRead).length;
       return {
         id: conversationId,
         listingTitle: listingInfo?.title ?? "Conversation",
         listingImage: listingInfo?.images?.[0] ?? "",
         otherUser: { name: profileInfo?.username ?? "Utilisateur" },
         messages: g.messages,
+        unread: unreadCount,
       } as Conversation;
     });
 
