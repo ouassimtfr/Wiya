@@ -53,6 +53,7 @@ export default function MessagesPage() {
         <div className="flex flex-col divide-y divide-gray-100">
           {sortedConversations.map((conversation) => {
             const lastMessage = conversation.messages?.[conversation.messages.length - 1];
+            const hasUnread = (conversation.unread ?? 0) > 0;
             return (
               <button
                 key={conversation.id}
@@ -68,19 +69,25 @@ export default function MessagesPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-bold text-gray-900 truncate">
+                    <h2 className={`text-sm truncate ${hasUnread ? "font-extrabold text-gray-900" : "font-bold text-gray-900"}`}>
                       {conversation.listingTitle || "Discussion"}
                     </h2>
                     {lastMessage?.time && (
                       <span className="text-[10px] text-gray-400 flex-shrink-0">{lastMessage.time}</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 truncate">
+                  <p className={`text-xs truncate ${hasUnread ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                     {conversation.otherUser?.name ? `${conversation.otherUser.name} · ` : ""}
                     {lastMessage?.content || lastMessage?.text || "Nouvelle conversation"}
                   </p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                {hasUnread ? (
+                  <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#C8972B] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                    {conversation.unread}
+                  </span>
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                )}
               </button>
             );
           })}
