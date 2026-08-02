@@ -41,7 +41,7 @@ interface AppState {
   activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
   updateAvatar: (file: File) => Promise<{ error: string | null }>;
   removeAvatar: () => Promise<{ error: string | null }>;
-  createListing: (input: NewListingInput) => Promise<{ id: string | null; error: string | null }>;
+  createListing: (input: NewListingInput, onProgress?: (percent: number) => void) => Promise<{ id: string | null; error: string | null }>;
 }
 
 const StoreContext = createContext<AppState | null>(null);
@@ -435,11 +435,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
-  const createListing = async (input: NewListingInput): Promise<{ id: string | null; error: string | null }> => {
+  const createListing = async (
+    input: NewListingInput,
+    onProgress?: (percent: number) => void
+  ): Promise<{ id: string | null; error: string | null }> => {
     if (!user) return { id: null, error: "Non connecté" };
 
-    const imageUrls: string[] = [];
-    for (const file of input.images) {
+    const total = input.images.length;
+    let completed = 0;
+    onProgress?.(0);
+
+    const uploadOne = async (file: File): Promise<string | null> => {
       const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
@@ -447,14 +453,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .from("listings")
         .upload(filePath, file);
 
+      completed += 1;
+      onProgress?.(Math.round((completed / total) * 90));
+
       if (uploadError) {
         console.error("Erreur upload photo annonce:", uploadError);
-        return { id: null, error: uploadError.message };
+        return null;
       }
 
       const { data } = supabase.storage.from("listings").getPublicUrl(filePath);
-      imageUrls.push(data.publicUrl);
+      return data.publicUrl;
+    };
+
+    const results = await Promise.all(input.images.map(uploadOne));
+
+    if (results.some((url) => url === null)) {
+      return { id: null, error: "Échec de l'upload d'une ou plusieurs photos." };
     }
+
+    const imageUrls = results as string[];
 
     const { data: inserted, error: insertError } = await supabase
       .from("listings")
@@ -476,6 +493,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
       .select()
       .single();
+
+    onProgress?.(100);
 
     if (insertError) {
       console.error("Erreur création annonce:", insertError);
