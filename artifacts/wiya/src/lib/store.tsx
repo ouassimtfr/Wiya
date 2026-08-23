@@ -34,6 +34,7 @@ interface AppState {
   register: (name: string, email: string, password: string, phone: string) => Promise<void>;
   logout: () => void; toggleFavorite: (listingId: string) => void; isFavorite: (listingId: string) => boolean;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
+  sendVoiceMessage: (conversationId: string, audioBlob: Blob) => Promise<void>;
   fetchMessages: (conversationId: string) => Promise<void>;
   fetchConversations: () => Promise<void>;
   startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => Promise<string>;
@@ -154,7 +155,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [{ data, error }, { data: listingData }, { data: otherProfile }] = await Promise.all([
       supabase
         .from("messages")
-        .select("id, sender_id, receiver_id, content, created_at")
+        .select("id, sender_id, receiver_id, content, created_at, type, audio_url")
         .eq("listing_id", listingId)
         .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
         .order("created_at", { ascending: true }),
@@ -177,6 +178,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       senderId: m.sender_id === user.id ? "me" : "other",
       text: m.content,
       time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      type: m.type ?? "text",
+      audioUrl: m.audio_url ?? null,
     }));
 
     const updatedConversation: Conversation = {
@@ -202,7 +205,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from("messages")
-      .select("id, listing_id, sender_id, receiver_id, content, created_at, is_read")
+      .select("id, listing_id, sender_id, receiver_id, content, created_at, is_read, type, audio_url")
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
@@ -222,6 +225,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         text: m.content,
         time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
         isRead: !!m.is_read,
+        type: m.type ?? "text",
+        audioUrl: m.audio_url ?? null,
       };
 
       const existing = groups.get(conversationId);
@@ -273,10 +278,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const { error } = await supabase
       .from("messages")
-      .insert({ listing_id: listingId, sender_id: user.id, receiver_id: otherUserId, content: text });
+      .insert({ listing_id: listingId, sender_id: user.id, receiver_id: otherUserId, content: text, type: "text" });
 
     if (error) {
       console.error("Erreur envoi message:", error);
+      return;
+    }
+
+    await fetchMessages(conversationId);
+  }, [user, fetchMessages]);
+
+  const sendVoiceMessage = useCallback(async (conversationId: string, audioBlob: Blob) => {
+    if (!user) return;
+
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
+
+    const fileExt = audioBlob.type.includes("mp4") ? "mp4" : "webm";
+    const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("voice-messages")
+      .upload(filePath, audioBlob, { contentType: audioBlob.type || "audio/webm" });
+
+    if (uploadError) {
+      console.error("Erreur upload vocal:", uploadError);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage.from("voice-messages").getPublicUrl(filePath);
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        listing_id: listingId,
+        sender_id: user.id,
+        receiver_id: otherUserId,
+        content: "",
+        type: "audio",
+        audio_url: publicData.publicUrl,
+      });
+
+    if (error) {
+      console.error("Erreur envoi vocal:", error);
       return;
     }
 
@@ -308,6 +353,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         sender_id: user.id,
         receiver_id: sellerId,
         content: firstMessage,
+        type: "text",
       });
 
     if (error) {
@@ -511,7 +557,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <StoreContext.Provider value={{
       user, favorites, conversations, boostRequests, login, register, logout,
-      toggleFavorite, isFavorite, sendMessage, fetchMessages, fetchConversations, startConversation,
+      toggleFavorite, isFavorite, sendMessage, sendVoiceMessage, fetchMessages, fetchConversations, startConversation,
       submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar, createListing,
     }}>
       {children}
