@@ -11,12 +11,22 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isPlaying) audio.pause();
-    else audio.play();
-    setIsPlaying(!isPlaying);
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error("Erreur lecture audio:", err);
+    }
   };
 
   useEffect(() => {
@@ -49,7 +59,7 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
 
   return (
     <div className={`flex items-center gap-2 min-w-[170px] ${isMe ? "text-white" : "text-gray-900"}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={src} preload="auto" />
       <button
         type="button"
         onClick={togglePlay}
@@ -180,17 +190,14 @@ export default function ChatPage() {
 
   return (
     <div className="fixed inset-0 z-40 h-[100dvh] flex flex-col bg-[#EAEFEA]">
-      {/* Fond avec motif discret */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.35]"
         style={{
-          backgroundImage:
-            "radial-gradient(circle, #1B6B3A22 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, #1B6B3A22 1px, transparent 1px)",
           backgroundSize: "18px 18px",
         }}
       />
 
-      {/* Barre du haut */}
       <div className="relative bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 flex-shrink-0 pt-[env(safe-area-inset-top)]">
         <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -213,7 +220,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Liste des messages */}
       <div className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2.5">
         {conversation?.messages && conversation.messages.length > 0 ? (
           <AnimatePresence initial={false}>
@@ -260,7 +266,6 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Zone de saisie flottante */}
       <div className="relative px-3 pb-[env(safe-area-inset-bottom)] pt-2 flex-shrink-0">
         {isRecording ? (
           <div className="flex items-center gap-3 bg-white rounded-2xl shadow-lg px-4 py-2.5 mx-1 mb-1">
