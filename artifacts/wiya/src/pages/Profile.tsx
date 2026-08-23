@@ -178,17 +178,17 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
-      <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
-        <div className="relative flex items-center gap-4">
+      <div className="bg-[#1B6B3A] pt-[calc(0.75rem+env(safe-area-inset-top))] pb-4 px-4 relative overflow-hidden">
+        <div className="relative flex items-center gap-3">
           {tab !== "profile" && (
             <button onClick={() => setTab("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               <ArrowLeft className="w-4.5 h-4.5 text-white" />
             </button>
           )}
-          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 72 : 44} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} onRemove={handleAvatarRemove} /></div>
+          <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 56 : 40} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} onRemove={handleAvatarRemove} /></div>
           <div className="flex-1">
-            {tab === "profile" && <h2 className="text-white text-lg font-black">{user.name}</h2>}
-            {tab === "listings" && <h2 className="text-white text-lg font-black">{t("myListings")}</h2>}
+            {tab === "profile" && <h2 className="text-white text-base font-black">{user.name}</h2>}
+            {tab === "listings" && <h2 className="text-white text-base font-black">{t("myListings")}</h2>}
             {avatarError && <p className="text-red-200 text-xs mt-1">{avatarError}</p>}
           </div>
         </div>
