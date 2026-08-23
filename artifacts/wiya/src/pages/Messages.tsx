@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { MessageCircle, ChevronRight } from "lucide-react";
+import { MessageCircle, ChevronRight, Mic } from "lucide-react";
+import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 
 export default function MessagesPage() {
@@ -41,30 +42,45 @@ export default function MessagesPage() {
 
       {sortedConversations.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center mb-4">
-            <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
-          </div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="w-20 h-20 rounded-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#1B6B3A]/5 flex items-center justify-center mb-4"
+          >
+            <MessageCircle className="w-8 h-8 text-[#1B6B3A]" />
+          </motion.div>
           <p className="text-sm font-semibold text-gray-700 mb-1">Aucun message pour le moment</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 max-w-[220px]">
             Contactez un vendeur depuis une annonce pour démarrer une discussion.
           </p>
         </div>
       ) : (
         <div className="flex flex-col divide-y divide-gray-100">
-          {sortedConversations.map((conversation) => {
+          {sortedConversations.map((conversation, i) => {
             const lastMessage = conversation.messages?.[conversation.messages.length - 1];
             const hasUnread = (conversation.unread ?? 0) > 0;
+            const isAudioPreview = lastMessage?.type === "audio";
             return (
-              <button
+              <motion.button
                 key={conversation.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.3) }}
+                whileTap={{ scale: 0.98, backgroundColor: "#F9FAFB" }}
                 onClick={() => navigate(`/messages/${conversation.id}`)}
-                className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors text-left"
+                className="flex items-center gap-3 px-4 py-3 bg-white transition-colors text-left"
               >
-                <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
-                  {conversation.listingImage ? (
-                    <img src={conversation.listingImage} alt="" className="w-12 h-12 object-cover" />
-                  ) : (
-                    "💬"
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/10 ring-2 ring-white shadow-sm flex items-center justify-center text-xl overflow-hidden">
+                    {conversation.listingImage ? (
+                      <img src={conversation.listingImage} alt="" className="w-12 h-12 object-cover" />
+                    ) : (
+                      "💬"
+                    )}
+                  </div>
+                  {hasUnread && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#C8972B] ring-2 ring-white" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -73,12 +89,20 @@ export default function MessagesPage() {
                       {conversation.listingTitle || "Discussion"}
                     </h2>
                     {lastMessage?.time && (
-                      <span className="text-[10px] text-gray-400 flex-shrink-0">{lastMessage.time}</span>
+                      <span className={`text-[10px] flex-shrink-0 ${hasUnread ? "text-[#1B6B3A] font-semibold" : "text-gray-400"}`}>
+                        {lastMessage.time}
+                      </span>
                     )}
                   </div>
-                  <p className={`text-xs truncate ${hasUnread ? "text-gray-700 font-medium" : "text-gray-400"}`}>
+                  <p className={`text-xs truncate flex items-center gap-1 ${hasUnread ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                     {conversation.otherUser?.name ? `${conversation.otherUser.name} · ` : ""}
-                    {lastMessage?.content || lastMessage?.text || "Nouvelle conversation"}
+                    {isAudioPreview ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Mic className="w-3 h-3" /> Message vocal
+                      </span>
+                    ) : (
+                      lastMessage?.content || lastMessage?.text || "Nouvelle conversation"
+                    )}
                   </p>
                 </div>
                 {hasUnread ? (
@@ -88,7 +112,7 @@ export default function MessagesPage() {
                 ) : (
                   <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                 )}
-              </button>
+              </motion.button>
             );
           })}
         </div>
