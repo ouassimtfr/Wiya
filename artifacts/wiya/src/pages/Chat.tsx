@@ -48,18 +48,22 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   };
 
   return (
-    <div className={`flex items-center gap-2 min-w-[160px] ${isMe ? "text-white" : "text-gray-900"}`}>
+    <div className={`flex items-center gap-2 min-w-[170px] ${isMe ? "text-white" : "text-gray-900"}`}>
       <audio ref={audioRef} src={src} preload="metadata" />
       <button
         type="button"
         onClick={togglePlay}
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isMe ? "bg-white/20" : "bg-[#1B6B3A]/10"
+        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
+          isMe ? "bg-white/25" : "bg-[#1B6B3A]"
         }`}
       >
-        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+        {isPlaying ? (
+          <Pause className={`w-4 h-4 ${isMe ? "text-white" : "text-white"}`} />
+        ) : (
+          <Play className={`w-4 h-4 ml-0.5 ${isMe ? "text-white" : "text-white"}`} />
+        )}
       </button>
-      <div className="flex-1 h-1 rounded-full bg-black/10 overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-black/10 overflow-hidden">
         <div
           className={`h-full rounded-full ${isMe ? "bg-white" : "bg-[#1B6B3A]"}`}
           style={{ width: `${progress}%` }}
@@ -175,18 +179,28 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col">
+    <div className="fixed inset-0 z-40 h-[100dvh] flex flex-col bg-[#EAEFEA]">
+      {/* Fond avec motif discret */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.35]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, #1B6B3A22 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+        }}
+      />
+
       {/* Barre du haut */}
-      <div className="bg-white border-b border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 flex-shrink-0 pt-[env(safe-area-inset-top)]">
+      <div className="relative bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 flex-shrink-0 pt-[env(safe-area-inset-top)]">
         <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
         <button
           onClick={() => conversation?.listingImage && setLightboxOpen(true)}
-          className="w-10 h-10 rounded-full bg-[#1B6B3A]/10 ring-2 ring-[#1B6B3A]/20 flex items-center justify-center overflow-hidden flex-shrink-0"
+          className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1B6B3A]/20 to-[#C8972B]/20 ring-2 ring-white shadow flex items-center justify-center overflow-hidden flex-shrink-0"
         >
           {conversation?.listingImage ? (
-            <img src={conversation.listingImage} alt="" className="w-10 h-10 object-cover" />
+            <img src={conversation.listingImage} alt="" className="w-11 h-11 object-cover" />
           ) : (
             "💬"
           )}
@@ -200,7 +214,7 @@ export default function ChatPage() {
       </div>
 
       {/* Liste des messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+      <div className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2.5">
         {conversation?.messages && conversation.messages.length > 0 ? (
           <AnimatePresence initial={false}>
             {conversation.messages.map((msg: any) => {
@@ -209,16 +223,16 @@ export default function ChatPage() {
               return (
                 <motion.div
                   key={msg.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.2 }}
-                  className={`max-w-[75%] ${isMe ? "self-end" : "self-start"}`}
+                  className={`max-w-[78%] ${isMe ? "self-end" : "self-start"}`}
                 >
                   <div
-                    className={`px-3 py-2.5 rounded-2xl text-sm shadow-sm ${
+                    className={`px-3.5 py-2.5 text-sm shadow-md ${
                       isMe
-                        ? "bg-[#1B6B3A] text-white rounded-br-md"
-                        : "bg-white border border-gray-100 text-gray-900 rounded-bl-md"
+                        ? "bg-gradient-to-br from-[#1F7A42] to-[#155A30] text-white rounded-2xl rounded-br-sm"
+                        : "bg-white text-gray-900 rounded-2xl rounded-bl-sm"
                     }`}
                   >
                     {isAudio ? (
@@ -227,7 +241,7 @@ export default function ChatPage() {
                       msg.text || msg.content
                     )}
                   </div>
-                  <span className={`text-[10px] text-gray-400 px-1 ${isMe ? "text-right block" : ""}`}>
+                  <span className={`text-[10px] text-gray-400 px-1.5 mt-0.5 block ${isMe ? "text-right" : ""}`}>
                     {msg.time}
                   </span>
                 </motion.div>
@@ -236,18 +250,20 @@ export default function ChatPage() {
           </AnimatePresence>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-400">
-            <MessageCircle className="w-10 h-10 text-[#1B6B3A]/30" />
-            <p className="text-sm">Aucun message pour l'instant.</p>
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#C8972B]/15 flex items-center justify-center mb-1">
+              <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">Aucun message pour l'instant</p>
             <p className="text-xs">Dites bonjour 👋</p>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Zone de saisie */}
-      <div className="px-4 py-2 pb-[env(safe-area-inset-bottom)] bg-white border-t border-gray-100 flex-shrink-0">
+      {/* Zone de saisie flottante */}
+      <div className="relative px-3 pb-[env(safe-area-inset-bottom)] pt-2 flex-shrink-0">
         {isRecording ? (
-          <div className="flex items-center gap-3 py-1.5">
+          <div className="flex items-center gap-3 bg-white rounded-2xl shadow-lg px-4 py-2.5 mx-1 mb-1">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
             <span className="text-sm text-gray-700 flex-1">
               Enregistrement... {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
@@ -262,13 +278,13 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => stopRecording(true)}
-              className="p-2.5 bg-[#1B6B3A] text-white rounded-xl"
+              className="p-2.5 bg-[#1B6B3A] text-white rounded-full shadow"
             >
               <Send className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSend} className="flex items-center gap-2">
+          <form onSubmit={handleSend} className="flex items-center gap-2 bg-white rounded-2xl shadow-lg px-2 py-2 mx-1 mb-1">
             <input
               type="text"
               value={inputText}
@@ -277,7 +293,7 @@ export default function ChatPage() {
               className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/20"
             />
             {inputText.trim() ? (
-              <motion.button whileTap={{ scale: 0.9 }} type="submit" className="p-2.5 bg-[#1B6B3A] text-white rounded-xl">
+              <motion.button whileTap={{ scale: 0.9 }} type="submit" className="p-2.5 bg-[#1B6B3A] text-white rounded-full shadow flex-shrink-0">
                 <Send className="w-4 h-4" />
               </motion.button>
             ) : (
@@ -294,7 +310,7 @@ export default function ChatPage() {
                   e.preventDefault();
                   stopRecording(true);
                 }}
-                className="p-2.5 bg-gray-100 text-gray-600 rounded-xl active:bg-red-500 active:text-white transition-colors"
+                className="p-2.5 bg-gray-100 text-gray-600 rounded-full active:bg-red-500 active:text-white transition-colors flex-shrink-0"
               >
                 <Mic className="w-4 h-4" />
               </button>
