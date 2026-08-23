@@ -304,6 +304,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (uploadError) {
       console.error("Erreur upload vocal:", uploadError);
+      alert("Erreur upload vocal : " + uploadError.message);
       return;
     }
 
@@ -322,6 +323,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       console.error("Erreur envoi vocal:", error);
+      alert("Erreur envoi vocal : " + error.message);
       return;
     }
 
