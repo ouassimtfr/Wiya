@@ -45,10 +45,6 @@ export default function ListingDetail() {
     if (!confirm("Supprimer cette annonce ?")) return;
     setDeleting(true);
 
-    // On demande le count exact des lignes réellement supprimées : si une
-    // policy RLS bloque la suppression, Supabase ne renvoie PAS d'erreur,
-    // juste 0 ligne affectée. Sans ce check, ça avait l'air de marcher
-    // alors que l'annonce restait en base.
     const { error, count } = await supabase
       .from("listings")
       .delete({ count: "exact" })
@@ -145,7 +141,6 @@ export default function ListingDetail() {
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">📦</div>
         )}
 
-        {/* Retour + favoris : épinglés en haut uniquement, pour laisser la place aux flèches photo au milieu */}
         <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
           <button onClick={() => navigate("/")} className="pointer-events-auto w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
             <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
@@ -155,7 +150,6 @@ export default function ListingDetail() {
           </button>
         </div>
 
-        {/* Flèches de navigation entre photos */}
         {images.length > 1 && (
           <>
             <button
@@ -172,7 +166,6 @@ export default function ListingDetail() {
             >
               <ChevronRight className="w-5 h-5 text-white" />
             </button>
-            {/* Compteur "1/2" */}
             <div className="absolute bottom-3 end-3 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5 text-white text-[11px] font-semibold pointer-events-none">
               {imgIndex + 1}/{images.length}
             </div>
@@ -222,15 +215,20 @@ export default function ListingDetail() {
         )}
 
         {sellerProfile && !isMyListing && (
-          <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/seller/${listing.user_id}`)}
+            className="w-full bg-gray-50 rounded-2xl p-4 flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
+          >
             <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {sellerProfile.avatar_url ? <img src={sellerProfile.avatar_url} className="w-12 h-12 rounded-full object-cover" alt="" /> : <span className="text-xl">👤</span>}
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-900">{sellerProfile.username ?? "Vendeur"}</p>
               {displayPhone && <p className="text-xs text-gray-500 mt-0.5">{displayPhone}</p>}
+              <p className="text-xs text-[#1B6B3A] font-semibold mt-1">Voir la boutique</p>
             </div>
-          </div>
+            <ChevronRight className={`w-4 h-4 text-gray-400 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
+          </button>
         )}
 
         {isMyListing && (
