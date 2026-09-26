@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { MapPin, Shield, MessageCircle, ChevronLeft, Package } from "lucide-react";
+import { MessageCircle, ChevronLeft, Package, Store } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
@@ -59,7 +59,7 @@ export default function SellerProfilePage() {
   if (loading) {
     return (
       <div className="bg-[#F4F6F5] min-h-screen flex items-center justify-center">
-        <p className="text-sm text-gray-400">Chargement...</p>
+        <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -73,7 +73,6 @@ export default function SellerProfilePage() {
   }
 
   const displayName = profile.username || "Utilisateur";
-  const avatar = profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`;
   const contactPhone = listings.find((l) => l.contact_phone)?.contact_phone as string | undefined;
 
   const oldestListing = listings.length > 0 ? listings[listings.length - 1] : null;
@@ -83,86 +82,66 @@ export default function SellerProfilePage() {
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      {/* Header bg */}
-      <div className="bg-[#1B6B3A] pt-12 pb-16 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-[#C8972B]" />
-        </div>
-        <button onClick={() => window.history.back()} className="relative w-8 h-8 flex items-center justify-center rounded-full bg-white/20 mb-4">
+      {/* Header pro */}
+      <div className="bg-gradient-to-br from-[#1B6B3A] to-[#0F4526] pt-12 pb-8 px-4 relative overflow-hidden">
+        {/* Motif géométrique discret */}
+        <div className="absolute inset-0 opacity-[0.07]" style={{
+          backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+          backgroundSize: "16px 16px",
+        }} />
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full border border-white/10" />
+        <div className="absolute -bottom-16 -left-10 w-48 h-48 rounded-full border border-white/10" />
+
+        <button onClick={() => window.history.back()} className="relative w-8 h-8 flex items-center justify-center rounded-full bg-white/15 mb-6">
           <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
         </button>
+
+        <div className="relative flex items-center gap-2.5 mb-1.5">
+          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+            <Store className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">Boutique</span>
+        </div>
+        <h1 className="relative text-2xl font-black text-white leading-tight">{displayName}</h1>
+        <p className="relative text-xs text-white/60 mt-1.5 flex items-center gap-1.5">
+          <Package className="w-3.5 h-3.5" />
+          {listings.length} annonce{listings.length > 1 ? "s" : ""}
+          {memberSince && <span> · membre depuis {memberSince}</span>}
+        </p>
       </div>
 
-      {/* Profile card */}
-      <div className="px-4 -mt-12 relative z-10">
+      {/* Contact */}
+      <div className="px-4 -mt-4 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-5 shadow-xl shadow-black/5"
+          className="bg-white rounded-2xl p-3 shadow-lg shadow-black/5 flex gap-2"
         >
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <img
-                src={avatar}
-                alt={displayName}
-                className="w-16 h-16 rounded-full border-3 border-green-50 shadow-sm"
-              />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#C8972B] rounded-full flex items-center justify-center border-2 border-white">
-                <Shield className="w-3 h-3 text-white" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <h2 className="text-base font-black text-gray-900">{displayName}</h2>
-              {memberSince && (
-                <p className="text-xs text-gray-400 mt-0.5">{t("memberSince")} {memberSince}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="flex gap-3 mt-4 pt-4 border-t border-gray-50">
-            <div className="flex-1 text-center">
-              <p className="text-lg font-black text-gray-900">{listings.length}</p>
-              <p className="text-[10px] text-gray-400 font-medium">{t("myListings")}</p>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div className="flex gap-2 mt-4">
-            {contactPhone && (
-              <a
-                href={`tel:${contactPhone}`}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 rounded-2xl text-sm font-semibold text-gray-700"
-              >
-                📞 {t("call")}
-              </a>
-            )}
-            <button
-              onClick={() => navigate("/messages")}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#1B6B3A] rounded-2xl text-sm font-semibold text-white"
+          {contactPhone && (
+            <a
+              href={`tel:${contactPhone}`}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl text-sm font-semibold text-gray-700"
             >
-              <MessageCircle className="w-4 h-4" />
-              {t("messages")}
-            </button>
-          </div>
+              📞 {t("call")}
+            </a>
+          )}
+          <button
+            onClick={() => navigate("/messages")}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#1B6B3A] rounded-xl text-sm font-semibold text-white"
+          >
+            <MessageCircle className="w-4 h-4" />
+            {t("messages")}
+          </button>
         </motion.div>
       </div>
 
       {/* Seller listings */}
-      <div className="px-4 mt-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-            <Package className="w-4 h-4 text-gray-400" />
-            Annonces de {displayName}
-          </h3>
-          <span className="text-xs text-gray-400">
-            {listings.length} annonce{listings.length > 1 ? "s" : ""}
-          </span>
-        </div>
+      <div className="px-4 mt-6">
+        <h3 className="text-sm font-bold text-gray-800 mb-3">Toutes les annonces</h3>
         {listings.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-8">Aucune annonce active</p>
         ) : (
-          <div className="space-y-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
             {listings.map((listing, i) => (
               <motion.div
                 key={listing.id}
@@ -170,7 +149,7 @@ export default function SellerProfilePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <ListingCard listing={listing} variant="list" />
+                <ListingCard listing={listing} />
               </motion.div>
             ))}
           </div>
