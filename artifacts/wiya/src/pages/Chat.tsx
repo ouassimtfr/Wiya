@@ -1,9 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle } from "lucide-react";
+import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle, Check, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import ImageLightbox from "@/components/ImageLightbox";
+
+function isSameDay(a: string, b: string) {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+function formatDateSeparator(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return "Aujourd'hui";
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Hier";
+
+  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+}
 
 function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -68,9 +84,9 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
         }`}
       >
         {isPlaying ? (
-          <Pause className={`w-4 h-4 ${isMe ? "text-white" : "text-white"}`} />
+          <Pause className="w-4 h-4 text-white" />
         ) : (
-          <Play className={`w-4 h-4 ml-0.5 ${isMe ? "text-white" : "text-white"}`} />
+          <Play className="w-4 h-4 ml-0.5 text-white" />
         )}
       </button>
       <div className="flex-1 h-1.5 rounded-full bg-black/10 overflow-hidden">
@@ -108,6 +124,7 @@ export default function ChatPage() {
   }, [conversationId, fetchMessages]);
 
   const conversation = conversations.find((c) => c.id === conversationId);
+  const messages = (conversation?.messages ?? []) as any[];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -220,37 +237,73 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2.5">
-        {conversation?.messages && conversation.messages.length > 0 ? (
+      <div className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0.5">
+        {messages.length > 0 ? (
           <AnimatePresence initial={false}>
-            {conversation.messages.map((msg: any) => {
+            {messages.map((msg, index) => {
               const isMe = msg.senderId === "me";
               const isAudio = msg.type === "audio" && (msg.audioUrl || msg.audio_url);
+              const prev = messages[index - 1];
+              const next = messages[index + 1];
+
+              const showDateSeparator = !prev || !isSameDay(prev.createdAt, msg.createdAt);
+
+              const sameGroupAsPrev =
+                prev &&
+                prev.senderId === msg.senderId &&
+                isSameDay(prev.createdAt, msg.createdAt) &&
+                Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60 * 1000;
+
+              const sameGroupAsNext =
+                next &&
+                next.senderId === msg.senderId &&
+                isSameDay(next.createdAt, msg.createdAt) &&
+                Math.abs(new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5 * 60 * 1000;
+
+              const isLastInGroup = !sameGroupAsNext;
+
               return (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                  className={`max-w-[78%] ${isMe ? "self-end" : "self-start"}`}
-                >
-                  <div
-                    className={`px-3.5 py-2.5 text-sm shadow-md ${
-                      isMe
-                        ? "bg-gradient-to-br from-[#1F7A42] to-[#155A30] text-white rounded-2xl rounded-br-sm"
-                        : "bg-white text-gray-900 rounded-2xl rounded-bl-sm"
-                    }`}
+                <div key={msg.id}>
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-3">
+                      <span className="bg-white/80 backdrop-blur-sm text-[11px] font-semibold text-gray-500 px-3 py-1 rounded-full shadow-sm">
+                        {formatDateSeparator(msg.createdAt)}
+                      </span>
+                    </div>
+                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className={`max-w-[78%] ${isMe ? "self-end ml-auto" : "self-start"} ${sameGroupAsPrev ? "mt-0.5" : "mt-2"}`}
                   >
-                    {isAudio ? (
-                      <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
-                    ) : (
-                      msg.text || msg.content
+                    <div
+                      className={`px-3.5 py-2.5 text-sm shadow-md ${
+                        isMe
+                          ? "bg-gradient-to-br from-[#1F7A42] to-[#155A30] text-white rounded-2xl rounded-br-sm"
+                          : "bg-white text-gray-900 rounded-2xl rounded-bl-sm"
+                      }`}
+                    >
+                      {isAudio ? (
+                        <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
+                      ) : (
+                        msg.text || msg.content
+                      )}
+                    </div>
+                    {isLastInGroup && (
+                      <div className={`flex items-center gap-1 px-1.5 mt-0.5 ${isMe ? "justify-end" : ""}`}>
+                        <span className="text-[10px] text-gray-400">{msg.time}</span>
+                        {isMe && (
+                          msg.isRead ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-[#1B6B3A]" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5 text-gray-400" />
+                          )
+                        )}
+                      </div>
                     )}
-                  </div>
-                  <span className={`text-[10px] text-gray-400 px-1.5 mt-0.5 block ${isMe ? "text-right" : ""}`}>
-                    {msg.time}
-                  </span>
-                </motion.div>
+                  </motion.div>
+                </div>
               );
             })}
           </AnimatePresence>
