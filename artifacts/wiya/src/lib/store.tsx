@@ -155,7 +155,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [{ data, error }, { data: listingData }, { data: otherProfile }] = await Promise.all([
       supabase
         .from("messages")
-        .select("id, sender_id, receiver_id, content, created_at, type, audio_url")
+        .select("id, sender_id, receiver_id, content, created_at, type, audio_url, is_read")
         .eq("listing_id", listingId)
         .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
         .order("created_at", { ascending: true }),
@@ -178,8 +178,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       senderId: m.sender_id === user.id ? "me" : "other",
       text: m.content,
       time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      createdAt: m.created_at,
       type: m.type ?? "text",
       audioUrl: m.audio_url ?? null,
+      isRead: !!m.is_read,
     }));
 
     const updatedConversation: Conversation = {
@@ -224,6 +226,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         senderId: m.sender_id === user.id ? "me" : "other",
         text: m.content,
         time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        createdAt: m.created_at,
         isRead: !!m.is_read,
         type: m.type ?? "text",
         audioUrl: m.audio_url ?? null,
