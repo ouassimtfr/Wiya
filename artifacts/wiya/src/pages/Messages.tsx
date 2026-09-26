@@ -1,12 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { MessageCircle, ChevronRight, Mic } from "lucide-react";
+import { MessageCircle, ChevronRight, Mic, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
+
+function formatConversationTime(iso?: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const now = new Date();
+
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Hier";
+
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) return date.toLocaleDateString("fr-FR", { weekday: "short" });
+
+  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
 
 export default function MessagesPage() {
   const [, navigate] = useLocation();
   const { user, conversations, fetchConversations } = useStore();
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -28,19 +48,45 @@ export default function MessagesPage() {
     );
   }
 
-  const sortedConversations = [...(conversations || [])].sort((a, b) => {
-    const aLast = a.messages?.[a.messages.length - 1]?.time || "";
-    const bLast = b.messages?.[b.messages.length - 1]?.time || "";
-    return bLast.localeCompare(aLast);
-  });
+  const sortedConversations = useMemo(() => {
+    return [...(conversations || [])].sort((a, b) => {
+      const aLast = (a.messages?.[a.messages.length - 1] as any)?.createdAt || "";
+      const bLast = (b.messages?.[b.messages.length - 1] as any)?.createdAt || "";
+      return bLast.localeCompare(aLast);
+    });
+  }, [conversations]);
+
+  const filteredConversations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sortedConversations;
+    return sortedConversations.filter((c) => {
+      const title = (c.listingTitle || "").toLowerCase();
+      const name = (c.otherUser?.name || "").toLowerCase();
+      return title.includes(q) || name.includes(q);
+    });
+  }, [sortedConversations, query]);
+
+  const hasAnyConversation = sortedConversations.length > 0;
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
-      <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10 space-y-2.5">
         <h1 className="text-lg font-bold text-gray-900">Messagerie</h1>
+        {hasAnyConversation && (
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher une conversation..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/20"
+            />
+          </div>
+        )}
       </div>
 
-      {sortedConversations.length === 0 ? (
+      {!hasAnyConversation ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -55,12 +101,17 @@ export default function MessagesPage() {
             Contactez un vendeur depuis une annonce pour démarrer une discussion.
           </p>
         </div>
+      ) : filteredConversations.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <p className="text-sm text-gray-400">Aucun résultat pour "{query}"</p>
+        </div>
       ) : (
         <div className="flex flex-col divide-y divide-gray-100">
-          {sortedConversations.map((conversation, i) => {
-            const lastMessage = conversation.messages?.[conversation.messages.length - 1];
+          {filteredConversations.map((conversation, i) => {
+            const lastMessage = conversation.messages?.[conversation.messages.length - 1] as any;
             const hasUnread = (conversation.unread ?? 0) > 0;
             const isAudioPreview = lastMessage?.type === "audio";
+            const isMePreview = lastMessage?.senderId === "me";
             return (
               <motion.button
                 key={conversation.id}
@@ -88,14 +139,15 @@ export default function MessagesPage() {
                     <h2 className={`text-sm truncate ${hasUnread ? "font-extrabold text-gray-900" : "font-bold text-gray-900"}`}>
                       {conversation.listingTitle || "Discussion"}
                     </h2>
-                    {lastMessage?.time && (
+                    {lastMessage?.createdAt && (
                       <span className={`text-[10px] flex-shrink-0 ${hasUnread ? "text-[#1B6B3A] font-semibold" : "text-gray-400"}`}>
-                        {lastMessage.time}
+                        {formatConversationTime(lastMessage.createdAt)}
                       </span>
                     )}
                   </div>
                   <p className={`text-xs truncate flex items-center gap-1 ${hasUnread ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                     {conversation.otherUser?.name ? `${conversation.otherUser.name} · ` : ""}
+                    {isMePreview && "Vous : "}
                     {isAudioPreview ? (
                       <span className="inline-flex items-center gap-1">
                         <Mic className="w-3 h-3" /> Message vocal
