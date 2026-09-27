@@ -1,173 +1,384 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
-import { MessageCircle, ChevronRight, Mic, Search } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { useRoute, useLocation } from "wouter";
+import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle, Check, CheckCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
+import ImageLightbox from "@/components/ImageLightbox";
 
-function formatConversationTime(iso?: string): string {
-  if (!iso) return "";
+function isSameDay(a: string, b: string) {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+function formatDateSeparator(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
-
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
+  if (date.toDateString() === now.toDateString()) return "Aujourd'hui";
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) return "Hier";
 
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 7) return date.toLocaleDateString("fr-FR", { weekday: "short" });
-
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-export default function MessagesPage() {
-  const [, navigate] = useLocation();
-  const { user, conversations, fetchConversations } = useStore();
-  const [query, setQuery] = useState("");
+function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error("Erreur lecture audio:", err);
+    }
+  };
 
   useEffect(() => {
-    if (user) {
-      fetchConversations();
+    const audio = audioRef.current;
+    if (!audio) return;
+    const updateProgress = () => {
+      if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
+    };
+    const onEnded = () => {
+      setIsPlaying(false);
+      setProgress(0);
+    };
+    const onLoaded = () => setDuration(audio.duration);
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("loadedmetadata", onLoaded);
+    return () => {
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("loadedmetadata", onLoaded);
+    };
+  }, []);
+
+  const formatTime = (s: number) => {
+    if (!isFinite(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className={`flex items-center gap-2 min-w-[170px] ${isMe ? "text-white" : "text-gray-900"}`}>
+      <audio ref={audioRef} src={src} preload="auto" />
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
+          isMe ? "bg-white/25" : "bg-[#1B6B3A]"
+        }`}
+      >
+        {isPlaying ? (
+          <Pause className="w-4 h-4 text-white" />
+        ) : (
+          <Play className="w-4 h-4 ml-0.5 text-white" />
+        )}
+      </button>
+      <div className="flex-1 h-1.5 rounded-full bg-black/10 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${isMe ? "bg-white" : "bg-[#1B6B3A]"}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <span className="text-[10px] opacity-80 flex-shrink-0">{formatTime(duration)}</span>
+    </div>
+  );
+}
+
+export default function ChatPage() {
+  const [, params] = useRoute("/messages/:id");
+  const [, navigate] = useLocation();
+  const conversationId = params?.id;
+
+  const { user, conversations, sendMessage, sendVoiceMessage, fetchMessages } = useStore();
+  const [inputText, setInputText] = useState("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (conversationId) {
+      fetchMessages(conversationId);
     }
-  }, [user, fetchConversations]);
+  }, [conversationId, fetchMessages]);
+
+  const conversation = conversations.find((c) => c.id === conversationId);
+  const messages = (conversation?.messages ?? []) as any[];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversation?.messages]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordSeconds(0);
+      timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
+    } catch (err) {
+      console.error("Micro inaccessible :", err);
+      alert("Impossible d'accéder au micro. Vérifiez les autorisations dans les réglages.");
+    }
+  };
+
+  const stopRecording = async (send: boolean) => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    const finalSeconds = recordSeconds;
+    setIsRecording(false);
+
+    const blob = await new Promise<Blob>((resolve) => {
+      recorder.onstop = () => {
+        resolve(new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" }));
+      };
+      recorder.stop();
+    });
+
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+
+    if (send && conversation && finalSeconds >= 1) {
+      await sendVoiceMessage(conversation.id, blob);
+    }
+  };
 
   if (!user) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500 text-sm mb-4">Connexion requise pour accéder aux messages.</p>
-        <button
-          onClick={() => navigate("/auth")}
-          className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm font-semibold"
-        >
-          Se connecter
+      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
+        <p className="text-gray-500">Connexion requise pour accéder aux messages.</p>
+      </div>
+    );
+  }
+
+  if (!conversation && conversationId) {
+    return (
+      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
+        <p className="text-gray-500 mb-4">Chargement de votre discussion...</p>
+        <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm">
+          Retour aux messages
         </button>
       </div>
     );
   }
 
-  const sortedConversations = useMemo(() => {
-    return [...(conversations || [])].sort((a, b) => {
-      const aLast = (a.messages?.[a.messages.length - 1] as any)?.createdAt || "";
-      const bLast = (b.messages?.[b.messages.length - 1] as any)?.createdAt || "";
-      return bLast.localeCompare(aLast);
-    });
-  }, [conversations]);
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || !conversation) return;
 
-  const filteredConversations = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sortedConversations;
-    return sortedConversations.filter((c) => {
-      const title = (c.listingTitle || "").toLowerCase();
-      const name = (c.otherUser?.name || "").toLowerCase();
-      return title.includes(q) || name.includes(q);
-    });
-  }, [sortedConversations, query]);
-
-  const hasAnyConversation = sortedConversations.length > 0;
+    const textToSend = inputText.trim();
+    setInputText("");
+    await sendMessage(conversation.id, textToSend);
+  };
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen flex flex-col pb-6">
-      <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10 space-y-2.5">
-        <h1 className="text-lg font-bold text-gray-900">Messagerie</h1>
-        {hasAnyConversation && (
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+    <div className="fixed inset-0 z-40 h-[100dvh] flex flex-col bg-[#EAEFEA]">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.35]"
+        style={{
+          backgroundImage: "radial-gradient(circle, #1B6B3A22 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+        }}
+      />
+
+      <div className="relative bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 flex-shrink-0 pt-[env(safe-area-inset-top)]">
+        <button onClick={() => navigate("/messages")} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <button
+          onClick={() => conversation?.listingImage && setLightboxOpen(true)}
+          className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1B6B3A]/20 to-[#C8972B]/20 ring-2 ring-white shadow flex items-center justify-center overflow-hidden flex-shrink-0"
+        >
+          {conversation?.listingImage ? (
+            <img src={conversation.listingImage} alt="" className="w-11 h-11 object-cover" />
+          ) : (
+            "💬"
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-bold text-gray-900 truncate">{conversation?.listingTitle || "Discussion"}</h2>
+          <p className="text-xs text-gray-400">
+            {conversation?.otherUser?.name ? `Avec ${conversation.otherUser.name}` : "Messagerie"}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0.5">
+        {messages.length > 0 ? (
+          <AnimatePresence initial={false}>
+            {messages.map((msg, index) => {
+              const isMe = msg.senderId === "me";
+              const isAudio = msg.type === "audio" && (msg.audioUrl || msg.audio_url);
+              const prev = messages[index - 1];
+              const next = messages[index + 1];
+
+              const showDateSeparator = !prev || !isSameDay(prev.createdAt, msg.createdAt);
+
+              const sameGroupAsPrev =
+                prev &&
+                prev.senderId === msg.senderId &&
+                isSameDay(prev.createdAt, msg.createdAt) &&
+                Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60 * 1000;
+
+              const sameGroupAsNext =
+                next &&
+                next.senderId === msg.senderId &&
+                isSameDay(next.createdAt, msg.createdAt) &&
+                Math.abs(new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5 * 60 * 1000;
+
+              const isLastInGroup = !sameGroupAsNext;
+
+              return (
+                <div key={msg.id}>
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-3">
+                      <span className="bg-white/80 backdrop-blur-sm text-[11px] font-semibold text-gray-500 px-3 py-1 rounded-full shadow-sm">
+                        {formatDateSeparator(msg.createdAt)}
+                      </span>
+                    </div>
+                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className={`max-w-[78%] ${isMe ? "self-end ml-auto" : "self-start"} ${sameGroupAsPrev ? "mt-0.5" : "mt-2"}`}
+                  >
+                    <div
+                      className={`px-3.5 py-2.5 text-sm shadow-md ${
+                        isMe
+                          ? "bg-gradient-to-br from-[#1F7A42] to-[#155A30] text-white rounded-2xl rounded-br-sm"
+                          : "bg-white text-gray-900 rounded-2xl rounded-bl-sm"
+                      }`}
+                    >
+                      {isAudio ? (
+                        <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
+                      ) : (
+                        msg.text || msg.content
+                      )}
+                    </div>
+                    {isLastInGroup && (
+                      <div className={`flex items-center gap-1 px-1.5 mt-0.5 ${isMe ? "justify-end" : ""}`}>
+                        <span className="text-[10px] text-gray-400">{msg.time}</span>
+                        {isMe && (
+                          msg.isRead ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-[#1B6B3A]" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5 text-gray-400" />
+                          )
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              );
+            })}
+          </AnimatePresence>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-400">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#C8972B]/15 flex items-center justify-center mb-1">
+              <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">Aucun message pour l'instant</p>
+            <p className="text-xs">Dites bonjour 👋</p>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="relative px-3 pb-[env(safe-area-inset-bottom)] pt-2 flex-shrink-0">
+        {isRecording ? (
+          <div className="flex items-center gap-3 bg-white rounded-2xl shadow-lg px-4 py-2.5 mx-1 mb-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            <span className="text-sm text-gray-700 flex-1">
+              Enregistrement... {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
+            </span>
+            <button
+              type="button"
+              onClick={() => stopRecording(false)}
+              className="p-2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => stopRecording(true)}
+              className="p-2.5 bg-[#1B6B3A] text-white rounded-full shadow"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSend} className="flex items-center gap-2 bg-white rounded-2xl shadow-lg px-2 py-2 mx-1 mb-1">
             <input
               type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher une conversation..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/20"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Écrivez votre message..."
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/20"
             />
-          </div>
+            {inputText.trim() ? (
+              <motion.button whileTap={{ scale: 0.9 }} type="submit" className="p-2.5 bg-[#1B6B3A] text-white rounded-full shadow flex-shrink-0">
+                <Send className="w-4 h-4" />
+              </motion.button>
+            ) : (
+              <button
+                type="button"
+                onMouseDown={startRecording}
+                onMouseUp={() => stopRecording(true)}
+                onMouseLeave={() => isRecording && stopRecording(false)}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  startRecording();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  stopRecording(true);
+                }}
+                className="p-2.5 bg-gray-100 text-gray-600 rounded-full active:bg-red-500 active:text-white transition-colors flex-shrink-0"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
+          </form>
         )}
       </div>
 
-      {!hasAnyConversation ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="w-20 h-20 rounded-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#1B6B3A]/5 flex items-center justify-center mb-4"
-          >
-            <MessageCircle className="w-8 h-8 text-[#1B6B3A]" />
-          </motion.div>
-          <p className="text-sm font-semibold text-gray-700 mb-1">Aucun message pour le moment</p>
-          <p className="text-xs text-gray-400 max-w-[220px]">
-            Contactez un vendeur depuis une annonce pour démarrer une discussion.
-          </p>
-        </div>
-      ) : filteredConversations.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <p className="text-sm text-gray-400">Aucun résultat pour "{query}"</p>
-        </div>
-      ) : (
-        <div className="flex flex-col divide-y divide-gray-100">
-          {filteredConversations.map((conversation, i) => {
-            const lastMessage = conversation.messages?.[conversation.messages.length - 1] as any;
-            const hasUnread = (conversation.unread ?? 0) > 0;
-            const isAudioPreview = lastMessage?.type === "audio";
-            const isMePreview = lastMessage?.senderId === "me";
-            return (
-              <motion.button
-                key={conversation.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.3) }}
-                whileTap={{ scale: 0.98, backgroundColor: "#F9FAFB" }}
-                onClick={() => navigate(`/messages/${conversation.id}`)}
-                className="flex items-center gap-3 px-4 py-3 bg-white transition-colors text-left"
-              >
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-[#1B6B3A]/10 ring-2 ring-white shadow-sm flex items-center justify-center text-xl overflow-hidden">
-                    {conversation.listingImage ? (
-                      <img src={conversation.listingImage} alt="" className="w-12 h-12 object-cover" />
-                    ) : (
-                      "💬"
-                    )}
-                  </div>
-                  {hasUnread && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#C8972B] ring-2 ring-white" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className={`text-sm truncate ${hasUnread ? "font-extrabold text-gray-900" : "font-bold text-gray-900"}`}>
-                      {conversation.listingTitle || "Discussion"}
-                    </h2>
-                    {lastMessage?.createdAt && (
-                      <span className={`text-[10px] flex-shrink-0 ${hasUnread ? "text-[#1B6B3A] font-semibold" : "text-gray-400"}`}>
-                        {formatConversationTime(lastMessage.createdAt)}
-                      </span>
-                    )}
-                  </div>
-                  <p className={`text-xs truncate flex items-center gap-1 ${hasUnread ? "text-gray-700 font-medium" : "text-gray-400"}`}>
-                    {conversation.otherUser?.name ? `${conversation.otherUser.name} · ` : ""}
-                    {isMePreview && "Vous : "}
-                    {isAudioPreview ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Mic className="w-3 h-3" /> Message vocal
-                      </span>
-                    ) : (
-                      lastMessage?.content || lastMessage?.text || "Nouvelle conversation"
-                    )}
-                  </p>
-                </div>
-                {hasUnread ? (
-                  <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#C8972B] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
-                    {conversation.unread}
-                  </span>
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
+      {lightboxOpen && conversation?.listingImage && (
+        <ImageLightbox images={[conversation.listingImage]} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
