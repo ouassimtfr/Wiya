@@ -1,9 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle, Check, CheckCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import ImageLightbox from "@/components/ImageLightbox";
+
+const QUICK_REPLIES = [
+  "Bonjour, c'est toujours disponible ?",
+  "Quel est votre dernier prix ?",
+  "Où peut-on se voir ?",
+  "Pouvez-vous m'envoyer plus de photos ?",
+];
+
+const WAVE = [8, 14, 10, 18, 12, 22, 16, 10, 20, 14, 24, 12, 18, 8, 16, 22, 12, 18, 10, 14, 20, 12, 16, 8];
 
 function isSameDay(a: string, b: string) {
   return new Date(a).toDateString() === new Date(b).toDateString();
@@ -67,35 +76,42 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   }, []);
 
   const formatTime = (s: number) => {
-    if (!isFinite(s)) return "0:00";
+    if (!isFinite(s) || !s) return "0:00";
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
+  const filled = Math.round((progress / 100) * WAVE.length);
+
   return (
-    <div className={`flex items-center gap-2.5 min-w-[175px] ${isMe ? "text-white" : "text-gray-900"}`}>
+    <div className="flex items-center gap-2.5 min-w-[200px]">
       <audio ref={audioRef} src={src} preload="auto" />
       <button
         type="button"
         onClick={togglePlay}
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isMe ? "bg-white/20" : "bg-[#1B6B3A]"
+        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform ${
+          isMe ? "bg-white/25" : "bg-[#1B6B3A]"
         }`}
       >
-        {isPlaying ? (
-          <Pause className="w-3.5 h-3.5 text-white" />
-        ) : (
-          <Play className="w-3.5 h-3.5 ml-0.5 text-white" />
-        )}
+        {isPlaying ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 ml-0.5 text-white" />}
       </button>
-      <div className="flex-1 h-1 rounded-full bg-black/10 overflow-hidden">
-        <div
-          className={`h-full rounded-full ${isMe ? "bg-white" : "bg-[#1B6B3A]"}`}
-          style={{ width: `${progress}%` }}
-        />
+      <div className="flex-1 flex items-center gap-[2px] h-7">
+        {WAVE.map((h, i) => (
+          <span
+            key={i}
+            className={`w-[3px] rounded-full ${
+              i < filled
+                ? isMe ? "bg-white" : "bg-[#1B6B3A]"
+                : isMe ? "bg-white/40" : "bg-gray-300"
+            }`}
+            style={{ height: `${h}px` }}
+          />
+        ))}
       </div>
-      <span className="text-[10px] opacity-70 flex-shrink-0 tabular-nums">{formatTime(duration)}</span>
+      <span className={`text-[11px] flex-shrink-0 ${isMe ? "text-white/80" : "text-gray-400"}`}>
+        {formatTime(duration)}
+      </span>
     </div>
   );
 }
@@ -129,6 +145,13 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -179,7 +202,7 @@ export default function ChatPage() {
 
   if (!user) {
     return (
-      <div className="fixed inset-0 z-[10000] bg-white h-[100dvh] flex flex-col items-center justify-center p-4">
+      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
         <p className="text-gray-500">Connexion requise pour accéder aux messages.</p>
       </div>
     );
@@ -187,7 +210,7 @@ export default function ChatPage() {
 
   if (!conversation && conversationId) {
     return (
-      <div className="fixed inset-0 z-[10000] bg-white h-[100dvh] flex flex-col items-center justify-center p-4">
+      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
         <p className="text-gray-500 mb-4">Chargement de votre discussion...</p>
         <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm">
           Retour aux messages
@@ -205,167 +228,192 @@ export default function ChatPage() {
     await sendMessage(conversation.id, textToSend);
   };
 
+  const sendQuick = async (text: string) => {
+    if (!conversation) return;
+    await sendMessage(conversation.id, text);
+  };
+
+  const otherName = conversation?.otherUser?.name || "Utilisateur";
+
   return (
-    <div className="fixed inset-0 z-[10000] h-[100dvh] flex flex-col bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0 pt-[env(safe-area-inset-top)]">
-        <button onClick={() => navigate("/messages")} className="p-1 -ml-1">
-          <ArrowLeft className="w-5 h-5 text-gray-700" strokeWidth={2.2} />
+    <div className="fixed inset-0 z-40 h-[100dvh] flex flex-col bg-[#ECF0EC]">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.25]"
+        style={{
+          backgroundImage: "radial-gradient(circle, #1B6B3A33 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
+
+      {/* En-tête */}
+      <div className="relative bg-white border-b border-gray-100 px-3 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] flex items-center gap-3 flex-shrink-0">
+        <button
+          onClick={() => navigate("/messages")}
+          className="p-2 -ml-1 rounded-full active:bg-gray-100 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
+
         <button
           onClick={() => conversation?.listingImage && setLightboxOpen(true)}
-          className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0"
+          className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-[#1B6B3A]/20 to-[#C8972B]/20 overflow-hidden flex items-center justify-center flex-shrink-0"
         >
           {conversation?.listingImage ? (
-            <img src={conversation.listingImage} alt="" className="w-full h-full object-cover" />
+            <img src={conversation.listingImage} alt="" className="w-11 h-11 object-cover" />
           ) : (
-            <MessageCircle className="w-4 h-4 text-gray-300" />
+            <MessageCircle className="w-5 h-5 text-[#1B6B3A]" />
           )}
         </button>
+
         <div className="flex-1 min-w-0">
-          <h2 className="text-[15px] font-bold text-gray-900 truncate">{conversation?.listingTitle || "Discussion"}</h2>
-          <p className="text-xs text-gray-400">
-            {conversation?.otherUser?.name ? conversation.otherUser.name : "Messagerie"}
-          </p>
+          <h2 className="text-[15px] font-bold text-gray-900 truncate leading-tight">{otherName}</h2>
+          <p className="text-xs text-gray-500 truncate mt-0.5">{conversation?.listingTitle || "Annonce"}</p>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col">
+      <div className="relative flex-1 overflow-y-auto px-3 py-4 flex flex-col">
         {messages.length > 0 ? (
-          <AnimatePresence initial={false}>
-            {messages.map((msg, index) => {
-              const isMe = msg.senderId === "me";
-              const isAudio = msg.type === "audio" && (msg.audioUrl || msg.audio_url);
-              const prev = messages[index - 1];
-              const next = messages[index + 1];
+          messages.map((msg, index) => {
+            const isMe = msg.senderId === "me";
+            const isAudio = msg.type === "audio" && (msg.audioUrl || msg.audio_url);
+            const prev = messages[index - 1];
+            const next = messages[index + 1];
 
-              const showDateSeparator = !prev || !isSameDay(prev.createdAt, msg.createdAt);
+            const showDateSeparator = !prev || !isSameDay(prev.createdAt, msg.createdAt);
 
-              const sameGroupAsPrev =
-                prev &&
-                prev.senderId === msg.senderId &&
-                isSameDay(prev.createdAt, msg.createdAt) &&
-                Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60 * 1000;
+            const sameGroupAsPrev =
+              prev &&
+              prev.senderId === msg.senderId &&
+              isSameDay(prev.createdAt, msg.createdAt) &&
+              Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60 * 1000;
 
-              const sameGroupAsNext =
-                next &&
-                next.senderId === msg.senderId &&
-                isSameDay(next.createdAt, msg.createdAt) &&
-                Math.abs(new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5 * 60 * 1000;
+            const sameGroupAsNext =
+              next &&
+              next.senderId === msg.senderId &&
+              isSameDay(next.createdAt, msg.createdAt) &&
+              Math.abs(new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5 * 60 * 1000;
 
-              const isLastInGroup = !sameGroupAsNext;
+            const corners = isMe
+              ? `${sameGroupAsPrev ? "rounded-tr-md" : ""} ${sameGroupAsNext ? "rounded-br-md" : "rounded-br-sm"}`
+              : `${sameGroupAsPrev ? "rounded-tl-md" : ""} ${sameGroupAsNext ? "rounded-bl-md" : "rounded-bl-sm"}`;
 
-              return (
-                <div key={msg.id}>
-                  {showDateSeparator && (
-                    <div className="flex justify-center my-4">
-                      <span className="text-[11px] font-semibold text-gray-400">
-                        {formatDateSeparator(msg.createdAt)}
-                      </span>
-                    </div>
-                  )}
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className={`max-w-[75%] ${isMe ? "self-end ml-auto" : "self-start"} ${sameGroupAsPrev ? "mt-0.5" : "mt-2.5"}`}
+            return (
+              <div key={msg.id} className="flex flex-col">
+                {showDateSeparator && (
+                  <div className="flex justify-center my-4">
+                    <span className="bg-white/90 text-[11px] font-semibold text-gray-500 px-3 py-1 rounded-full shadow-sm">
+                      {formatDateSeparator(msg.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className={`max-w-[80%] ${isMe ? "self-end" : "self-start"} ${sameGroupAsPrev ? "mt-0.5" : "mt-2"}`}
+                >
+                  <div
+                    className={`px-3.5 pt-2 pb-1.5 rounded-2xl shadow-sm ${corners} ${
+                      isMe ? "bg-[#1B6B3A] text-white" : "bg-white text-gray-900"
+                    }`}
                   >
-                    <div
-                      className={`px-3.5 py-2.5 text-[14px] leading-snug ${
-                        isMe
-                          ? "bg-[#1B6B3A] text-white rounded-2xl rounded-br-md"
-                          : "bg-gray-50 text-gray-900 rounded-2xl rounded-bl-md"
-                      }`}
-                    >
-                      {isAudio ? (
-                        <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
-                      ) : (
-                        msg.text || msg.content
-                      )}
-                    </div>
-                    {isLastInGroup && (
-                      <div className={`flex items-center gap-1 px-1 mt-1 ${isMe ? "justify-end" : ""}`}>
-                        <span className="text-[10px] text-gray-400">{msg.time}</span>
-                        {isMe && (
-                          msg.isRead ? (
-                            <CheckCheck className="w-3.5 h-3.5 text-[#1B6B3A]" strokeWidth={2.2} />
-                          ) : (
-                            <Check className="w-3.5 h-3.5 text-gray-300" strokeWidth={2.2} />
-                          )
-                        )}
-                      </div>
+                    {isAudio ? (
+                      <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
+                    ) : (
+                      <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">
+                        {msg.text || msg.content}
+                      </p>
                     )}
-                  </motion.div>
-                </div>
-              );
-            })}
-          </AnimatePresence>
+                    <div className={`flex items-center justify-end gap-1 mt-0.5 ${isMe ? "text-white/70" : "text-gray-400"}`}>
+                      <span className="text-[10px]">{msg.time}</span>
+                      {isMe &&
+                        (msg.isRead ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-[#F2D27A]" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        ))}
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-400">
-            <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mb-1">
-              <MessageCircle className="w-5 h-5 text-gray-300" strokeWidth={1.5} />
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
+              <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
             </div>
-            <p className="text-sm font-medium text-gray-600">Aucun message pour l'instant</p>
-            <p className="text-xs">Dites bonjour 👋</p>
+            <p className="text-sm font-bold text-gray-700">Démarrez la discussion</p>
+            <p className="text-xs text-gray-400 mt-1 mb-5">Écrivez un message ou choisissez une réponse rapide.</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {QUICK_REPLIES.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => sendQuick(q)}
+                  className="bg-white text-[13px] text-[#1B6B3A] font-medium px-3.5 py-2 rounded-full shadow-sm active:scale-95 transition-transform"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input bar */}
-      <div className="border-t border-gray-100 px-3 pb-[env(safe-area-inset-bottom)] pt-2.5 flex-shrink-0">
+      {/* Barre de saisie */}
+      <div className="relative bg-white border-t border-gray-100 px-3 pt-2.5 pb-[max(env(safe-area-inset-bottom),10px)] flex-shrink-0">
         {isRecording ? (
-          <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-2.5 mx-1 mb-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-            <span className="text-sm text-gray-600 flex-1 tabular-nums">
-              {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
-            </span>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => stopRecording(false)}
-              className="p-2 text-gray-400"
+              className="p-2.5 rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform"
             >
               <X className="w-5 h-5" />
             </button>
+            <div className="flex-1 flex items-center gap-2.5 bg-red-50 rounded-full px-4 py-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              <span className="text-sm font-semibold text-red-600 tabular-nums">
+                {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
+              </span>
+              <span className="text-xs text-red-400 truncate">Enregistrement en cours</span>
+            </div>
             <button
               type="button"
               onClick={() => stopRecording(true)}
-              className="p-2.5 bg-[#1B6B3A] text-white rounded-full"
+              className="w-11 h-11 rounded-full bg-[#1B6B3A] text-white flex items-center justify-center shadow-md active:scale-95 transition-transform flex-shrink-0"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSend} className="flex items-center gap-2 mx-1 mb-1">
+          <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
+              onFocus={() => setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 300)}
+              enterKeyHint="send"
               placeholder="Écrivez votre message..."
-              className="flex-1 bg-gray-50 rounded-full px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-gray-200 transition-colors"
+              className="flex-1 bg-gray-100 rounded-full px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/25 placeholder:text-gray-400"
             />
             {inputText.trim() ? (
-              <motion.button whileTap={{ scale: 0.9 }} type="submit" className="p-2.5 bg-[#1B6B3A] text-white rounded-full flex-shrink-0">
-                <Send className="w-4 h-4" />
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                type="submit"
+                className="w-11 h-11 rounded-full bg-[#1B6B3A] text-white flex items-center justify-center shadow-md flex-shrink-0"
+              >
+                <Send className="w-5 h-5" />
               </motion.button>
             ) : (
               <button
                 type="button"
-                onMouseDown={startRecording}
-                onMouseUp={() => stopRecording(true)}
-                onMouseLeave={() => isRecording && stopRecording(false)}
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  startRecording();
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  stopRecording(true);
-                }}
-                className="p-2.5 bg-gray-50 text-gray-500 rounded-full active:bg-red-500 active:text-white transition-colors flex-shrink-0"
+                onClick={startRecording}
+                className="w-11 h-11 rounded-full bg-[#1B6B3A]/10 text-[#1B6B3A] flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
               >
-                <Mic className="w-4 h-4" />
+                <Mic className="w-5 h-5" />
               </button>
             )}
           </form>
