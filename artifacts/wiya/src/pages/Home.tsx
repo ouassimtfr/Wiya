@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { MapPin, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -33,37 +34,15 @@ function useVisualViewportHeight() {
   return height;
 }
 
-function normalize(str: string) {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-const FRENCH_NUMBER_WORDS: Record<string, string> = {
-  zero: "0", un: "1", une: "1", deux: "2", trois: "3", quatre: "4",
-  cinq: "5", six: "6", sept: "7", huit: "8", neuf: "9", dix: "10",
-};
-
-function matchesSearch(haystackText: string, query: string) {
-  if (!query.trim()) return true;
-  const words = normalize(query)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => FRENCH_NUMBER_WORDS[w] ?? w);
-  return words.every((word) => haystackText.includes(word));
-}
-
 export default function Home() {
   const { t, lang, setLang } = useI18n();
   const { user } = useStore();
+  const [, navigate] = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [listings, setListings] = useState<any[]>([]);
   const viewportHeight = useVisualViewportHeight();
 
@@ -76,38 +55,16 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  const getSearchHaystack = (listing: any) => {
-    const categoryLabel = CATEGORIES.some((c) => c.id === listing.category) ? t(listing.category as any) : "";
-    const vehicleInfo = `${listing.vehicle_brand ?? ""} ${listing.vehicle_model ?? ""} ${listing.vehicle_year ?? ""}`;
-    return normalize(`${listing.title ?? ""} ${listing.description ?? ""} ${categoryLabel} ${vehicleInfo}`);
-  };
-
   const filteredWilayas = WILAYA_NAMES.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
   const filteredListings = listings.filter(
     (l) =>
       (!activeCategory || l.category === activeCategory) &&
-      (!activeWilaya || l.wilaya === activeWilaya) &&
-      matchesSearch(getSearchHaystack(l), searchQuery)
+      (!activeWilaya || l.wilaya === activeWilaya)
   );
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      {/* Style injecté directement ici : un sélecteur par ID gagne TOUJOURS
-          face à n'importe quelle combinaison de classes ailleurs dans le CSS,
-          donc plus de conflit possible avec les règles de mode sombre */}
-      <style>{`
-        #wiya-search-input {
-          color: #1f2937 !important;
-          -webkit-text-fill-color: #1f2937 !important;
-          caret-color: #1f2937 !important;
-        }
-        #wiya-search-input::placeholder {
-          color: #9ca3af !important;
-          -webkit-text-fill-color: #9ca3af !important;
-        }
-      `}</style>
-
       <div className="relative bg-gradient-to-b from-[#0B1F16] to-[#132C20] pb-10 pt-12 px-6 overflow-hidden border-b border-[#C7A44A]/25">
         <svg
           className="absolute -top-12 -right-12 w-64 h-64 text-[#C7A44A]/[0.14] pointer-events-none"
@@ -139,22 +96,15 @@ export default function Home() {
             <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
           </div>
 
-          <div className="flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md">
+          <button
+            onClick={() => navigate("/search")}
+            className="w-full flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md text-left active:scale-[0.99] transition-transform"
+          >
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <input
-              id="wiya-search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
-              className="flex-1 outline-none text-sm bg-transparent"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")}>
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            )}
-          </div>
+            <span className="flex-1 text-sm text-gray-400 truncate">
+              {t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -190,7 +140,7 @@ export default function Home() {
           )}
         </div>
 
-        {searchQuery && filteredListings.length === 0 && (
+        {(activeCategory || activeWilaya) && filteredListings.length === 0 && (
           <div className="text-center py-10">
             <p className="text-sm text-gray-500">{t("noResults") ?? "Aucune annonce trouvée"}</p>
           </div>
