@@ -1,4 +1,4 @@
-import { Heart, MapPin, Eye, Zap } from "lucide-react";
+import { Heart, MapPin, Zap, Briefcase } from "lucide-react";
 import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -14,14 +14,32 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const { t } = useI18n();
   const fav = isFavorite(listing.id);
 
+  const isJob = listing.category === "jobs";
   const title = listing.title ?? "Sans titre";
-  const image = listing.images?.[0] ?? "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80";
+  const realImage = listing.images?.[0] ?? "";
+  const image = realImage || (isJob ? "" : "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80");
   const price = listing.price ?? 0;
   const wilaya = listing.wilaya ?? "";
   const isBoosted = listing.is_boosted ?? false;
   const isUrgent = listing.is_urgent ?? false;
   const isNegotiable = listing.is_negotiable ?? false;
   const condition = listing.condition ?? "";
+
+  const jobType: string = listing.job_type ?? "";
+  const jobSector: string = listing.job_sector ?? "";
+  const isSeeking = isJob && listing.job_kind === "seeking";
+
+  const priceText = isJob
+    ? price > 0
+      ? `${price.toLocaleString()} ${t("da")} / mois`
+      : "Salaire à discuter"
+    : `${price.toLocaleString()} ${t("da")}`;
+
+  const Placeholder = ({ small }: { small?: boolean }) => (
+    <div className="w-full h-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#C8972B]/20 flex items-center justify-center">
+      <Briefcase className={`${small ? "w-7 h-7" : "w-9 h-9"} text-[#1B6B3A]/60`} />
+    </div>
+  );
 
   if (variant === "list") {
     return (
@@ -31,7 +49,11 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
       >
         <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-          <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
+          {image ? (
+            <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <Placeholder small />
+          )}
           {isBoosted && (
             <div className="absolute top-1 left-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <Zap className="w-2.5 h-2.5" />{t("boosted")}
@@ -47,13 +69,28 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           <div>
             <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{title}</p>
             <div className="flex items-center gap-1 mt-1">
-              <span className="text-base font-bold text-[#1B6B3A]">
-                {price.toLocaleString()} {t("da")}
-              </span>
+              <span className="text-base font-bold text-[#1B6B3A]">{priceText}</span>
               {isNegotiable && (
                 <span className="text-[10px] text-gray-400">• {t("negotiable")}</span>
               )}
             </div>
+            {isJob && (
+              <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                <span
+                  className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    isSeeking ? "bg-[#C8972B]/15 text-[#8A6414]" : "bg-[#1B6B3A]/10 text-[#1B6B3A]"
+                  }`}
+                >
+                  {isSeeking ? "Cherche" : "Recrute"}
+                </span>
+                {jobType && (
+                  <span className="flex-shrink-0 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-md">
+                    {jobType}
+                  </span>
+                )}
+                {jobSector && <span className="text-[10px] text-gray-400 truncate">{jobSector}</span>}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-gray-400">
@@ -82,7 +119,11 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
     >
       <div className="relative aspect-[4/3] bg-gray-100">
-        <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
+        {image ? (
+          <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <Placeholder />
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
@@ -102,17 +143,20 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             {t("urgent")}
           </div>
         )}
-        {condition === "new" && (
+        {!isJob && condition === "new" && (
           <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {t("conditionNew")}
+          </div>
+        )}
+        {isJob && jobType && (
+          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            {jobType}
           </div>
         )}
       </div>
       <div className="p-2.5">
         <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{title}</p>
-        <p className="text-sm font-bold text-[#1B6B3A] mt-0.5">
-          {price.toLocaleString()} {t("da")}
-        </p>
+        <p className="text-sm font-bold text-[#1B6B3A] mt-0.5">{priceText}</p>
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-0.5 text-gray-400">
             <MapPin className="w-2.5 h-2.5" />
