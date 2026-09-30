@@ -85,6 +85,7 @@ function AppShell() {
         <Switch>
           <Route path="/auth" component={() => null} />
           <Route path="/admin" component={() => null} />
+          <Route path="/messages/:id" component={() => null} />
           <Route component={BottomNav} />
         </Switch>
       </div>
