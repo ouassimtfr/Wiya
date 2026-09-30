@@ -1,174 +1,590 @@
-import { Heart, MapPin, Zap, Briefcase } from "lucide-react";
-import { useLocation } from "wouter";
-import { useStore } from "@/lib/store";
-import { useI18n } from "@/lib/i18n";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { supabase } from "./supabase";
+import { Conversation, CONVERSATIONS } from "./data";
 
-interface Props {
-  listing: any;
-  variant?: "grid" | "list";
+export interface User {
+  id: string; name: string; email: string; phone: string; avatar: string;
+  wilaya: string; memberSince: string; rating: number; reviews: number; verified: boolean;
 }
 
-export default function ListingCard({ listing, variant = "grid" }: Props) {
-  const [, navigate] = useLocation();
-  const { toggleFavorite, isFavorite } = useStore();
-  const { t } = useI18n();
-  const fav = isFavorite(listing.id);
+export interface BoostRequest {
+  id: string; listingId: string; listingTitle: string; listingImage: string;
+  planId: string; planLabel: string; price: number; days: number;
+  type: "basic" | "premium"; receiptImage: string; status: "pending" | "active" | "refused";
+  submittedAt: string; sellerName: string;
+}
 
-  const isJob = listing.category === "jobs";
-  const title = listing.title ?? "Sans titre";
-  const realImage = listing.images?.[0] ?? "";
-  const image = realImage || (isJob ? "" : "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80");
-  const price = listing.price ?? 0;
-  const wilaya = listing.wilaya ?? "";
-  const isBoosted = listing.is_boosted ?? false;
-  const isUrgent = listing.is_urgent ?? false;
-  const isNegotiable = listing.is_negotiable ?? false;
-  const condition = listing.condition ?? "";
+export interface NewListingInput {
+  title: string;
+  price: number;
+  category: string;
+  wilaya: string;
+  city: string;
+  condition: "new" | "used";
+  description: string;
+  contactPhone: string;
+  isNegotiable: boolean;
+  isUrgent: boolean;
+  images: File[];
+  jobKind?: "offer" | "seeking";
+  jobType?: string;
+  jobSector?: string;
+}
 
-  const jobType: string = listing.job_type ?? "";
-  const jobSector: string = listing.job_sector ?? "";
-  const isSeeking = isJob && listing.job_kind === "seeking";
+interface AppState {
+  user: User | null; favorites: string[]; conversations: Conversation[]; boostRequests: BoostRequest[];
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone: string) => Promise<void>;
+  logout: () => void; toggleFavorite: (listingId: string) => void; isFavorite: (listingId: string) => boolean;
+  sendMessage: (conversationId: string, text: string) => Promise<void>;
+  sendVoiceMessage: (conversationId: string, audioBlob: Blob) => Promise<void>;
+  fetchMessages: (conversationId: string) => Promise<void>;
+  fetchConversations: () => Promise<void>;
+  startConversation: (listingId: string, listingTitle: string, listingImage: string, sellerId: string, sellerName: string, sellerAvatar: string, firstMessage: string) => Promise<string>;
+  submitBoostRequest: (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => Promise<void>;
+  activateBoost: (requestId: string) => Promise<void>; refuseBoost: (requestId: string) => Promise<void>;
+  updateAvatar: (file: File) => Promise<{ error: string | null }>;
+  removeAvatar: () => Promise<{ error: string | null }>;
+  createListing: (input: NewListingInput, onProgress?: (percent: number) => void) => Promise<{ id: string | null; error: string | null }>;
+}
 
-  const priceText = isJob
-    ? price > 0
-      ? `${price.toLocaleString()} ${t("da")} / mois`
-      : "Salaire à discuter"
-    : `${price.toLocaleString()} ${t("da")}`;
+const StoreContext = createContext<AppState | null>(null);
 
-  const Placeholder = ({ small }: { small?: boolean }) => (
-    <div className="w-full h-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#C8972B]/20 flex items-center justify-center">
-      <Briefcase className={`${small ? "w-7 h-7" : "w-9 h-9"} text-[#1B6B3A]/60`} />
-    </div>
-  );
+async function ensureProfile(sbUser: any): Promise<{ name: string; avatar: string }> {
+  const fallbackName =
+    sbUser.user_metadata?.name ??
+    sbUser.user_metadata?.full_name ??
+    sbUser.email?.split("@")[0] ??
+    "Utilisateur";
+  const fallbackAvatar = sbUser.user_metadata?.avatar_url ?? sbUser.user_metadata?.picture ?? null;
 
-  if (variant === "list") {
-    return (
-      <div
-        onClick={() => navigate(`/listing/${listing.id}`)}
-        className={`bg-white rounded-2xl overflow-hidden flex gap-3 p-3 cursor-pointer active:scale-[0.98] transition-transform
-          ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
-      >
-        <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-          {image ? (
-            <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
-          ) : (
-            <Placeholder small />
-          )}
-          {isBoosted && (
-            <div className="absolute top-1 left-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Zap className="w-2.5 h-2.5" />{t("boosted")}
-            </div>
-          )}
-          {isUrgent && !isBoosted && (
-            <div className="absolute top-1 left-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-              {t("urgent")}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-          <div>
-            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{title}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-base font-bold text-[#1B6B3A]">{priceText}</span>
-              {isNegotiable && (
-                <span className="text-[10px] text-gray-400">• {t("negotiable")}</span>
-              )}
-            </div>
-            {isJob && (
-              <div className="flex items-center gap-1.5 mt-1 min-w-0">
-                <span
-                  className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                    isSeeking ? "bg-[#C8972B]/15 text-[#8A6414]" : "bg-[#1B6B3A]/10 text-[#1B6B3A]"
-                  }`}
-                >
-                  {isSeeking ? "Cherche" : "Recrute"}
-                </span>
-                {jobType && (
-                  <span className="flex-shrink-0 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-md">
-                    {jobType}
-                  </span>
-                )}
-                {jobSector && <span className="text-[10px] text-gray-400 truncate">{jobSector}</span>}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-gray-400">
-              <MapPin className="w-3 h-3" />
-              <span className="text-xs">{wilaya}</span>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="self-start mt-0.5 p-1.5"
-        >
-          <Heart
-            className={`w-4 h-4 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-300"}`}
-            strokeWidth={fav ? 0 : 1.5}
-          />
-        </button>
-      </div>
+  await supabase
+    .from("profiles")
+    .upsert(
+      { id: sbUser.id, username: fallbackName, avatar_url: fallbackAvatar },
+      { onConflict: "id", ignoreDuplicates: true }
     );
-  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("username, avatar_url")
+    .eq("id", sbUser.id)
+    .maybeSingle();
+
+  if (error) console.error("Erreur lecture profile:", error);
+
+  return {
+    name: profile?.username ?? fallbackName,
+    avatar: profile?.avatar_url ?? fallbackAvatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+  };
+}
+
+async function buildUser(sbUser: any): Promise<User> {
+  const { name, avatar } = await ensureProfile(sbUser);
+  return {
+    id: sbUser.id,
+    name,
+    email: sbUser.email ?? "",
+    phone: sbUser.user_metadata?.phone ?? "",
+    avatar,
+    wilaya: sbUser.user_metadata?.wilaya ?? "Algérie",
+    memberSince: new Date(sbUser.created_at).getFullYear().toString(),
+    rating: 0, reviews: 0, verified: sbUser.email_confirmed_at != null,
+  };
+}
+
+function rowToBoostRequest(r: any): BoostRequest {
+  return {
+    id: r.id,
+    listingId: r.listing_id,
+    listingTitle: r.listing_title,
+    listingImage: r.listing_image,
+    planId: r.plan_id,
+    planLabel: r.plan_label,
+    price: r.price,
+    days: r.days,
+    type: r.type,
+    receiptImage: r.receipt_image,
+    status: r.status,
+    submittedAt: r.submitted_at,
+    sellerName: r.seller_name,
+  };
+}
+
+function parseConversationId(conversationId: string): { listingId: string; otherUserId: string } | null {
+  const parts = conversationId.split("__");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  return { listingId: parts[0], otherUserId: parts[1] };
+}
+
+export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) { setUser(await buildUser(session.user)); }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      if (session?.user) { setUser(await buildUser(session.user)); }
+      else { setUser(null); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    fetchBoostRequests();
+  }, []);
+
+  const fetchBoostRequests = async () => {
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .select("*")
+      .order("submitted_at", { ascending: false });
+
+    if (error) { console.error("Erreur fetch boost_requests:", error); return; }
+    if (data) setBoostRequests(data.map(rowToBoostRequest));
+  };
+
+  const fetchMessages = useCallback(async (conversationId: string) => {
+    if (!user) return;
+
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
+
+    const [{ data, error }, { data: listingData }, { data: otherProfile }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select("id, sender_id, receiver_id, content, created_at, type, audio_url, is_read")
+        .eq("listing_id", listingId)
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+        .order("created_at", { ascending: true }),
+      supabase.from("listings").select("title, images").eq("id", listingId).maybeSingle(),
+      supabase.from("profiles").select("username, avatar_url").eq("id", otherUserId).maybeSingle(),
+    ]);
+
+    if (error) { console.error("Erreur fetch:", error); return; }
+
+    await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("listing_id", listingId)
+      .eq("sender_id", otherUserId)
+      .eq("receiver_id", user.id)
+      .eq("is_read", false);
+
+    const formattedMessages = data.map((m: any) => ({
+      id: m.id,
+      senderId: m.sender_id === user.id ? "me" : "other",
+      text: m.content,
+      time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      createdAt: m.created_at,
+      type: m.type ?? "text",
+      audioUrl: m.audio_url ?? null,
+      isRead: !!m.is_read,
+    }));
+
+    const updatedConversation: Conversation = {
+      id: conversationId,
+      listingTitle: listingData?.title ?? "Conversation",
+      listingImage: listingData?.images?.[0] ?? "",
+      otherUser: { name: otherProfile?.username ?? "Utilisateur" },
+      messages: formattedMessages,
+      unread: 0,
+    } as Conversation;
+
+    setConversations((prev) => {
+      const exists = prev.find((c) => c.id === conversationId);
+      if (exists) {
+        return prev.map((c) => (c.id === conversationId ? updatedConversation : c));
+      }
+      return [...prev, updatedConversation];
+    });
+  }, [user]);
+
+  const fetchConversations = useCallback(async () => {
+    if (!user) { setConversations([]); return; }
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, listing_id, sender_id, receiver_id, content, created_at, is_read, type, audio_url")
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order("created_at", { ascending: true });
+
+    if (error) { console.error("Erreur fetch conversations:", error); return; }
+
+    type Group = { listingId: string; otherUserId: string; messages: any[] };
+    const groups = new Map<string, Group>();
+
+    (data || []).forEach((m: any) => {
+      const otherUserId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
+      if (!otherUserId) return;
+
+      const conversationId = `${m.listing_id}__${otherUserId}`;
+      const formattedMessage = {
+        id: m.id,
+        senderId: m.sender_id === user.id ? "me" : "other",
+        text: m.content,
+        time: new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        createdAt: m.created_at,
+        isRead: !!m.is_read,
+        type: m.type ?? "text",
+        audioUrl: m.audio_url ?? null,
+      };
+
+      const existing = groups.get(conversationId);
+      if (existing) {
+        existing.messages.push(formattedMessage);
+      } else {
+        groups.set(conversationId, { listingId: m.listing_id, otherUserId, messages: [formattedMessage] });
+      }
+    });
+
+    const listingIds = Array.from(new Set(Array.from(groups.values()).map((g) => g.listingId)));
+    const otherUserIds = Array.from(new Set(Array.from(groups.values()).map((g) => g.otherUserId)));
+
+    const [{ data: listingsData }, { data: profilesData }] = await Promise.all([
+      listingIds.length > 0
+        ? supabase.from("listings").select("id, title, images").in("id", listingIds)
+        : Promise.resolve({ data: [] as any[] }),
+      otherUserIds.length > 0
+        ? supabase.from("profiles").select("id, username, avatar_url").in("id", otherUserIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const listingsById = new Map((listingsData || []).map((l: any) => [l.id, l]));
+    const profilesById = new Map((profilesData || []).map((p: any) => [p.id, p]));
+
+    const result: Conversation[] = Array.from(groups.entries()).map(([conversationId, g]) => {
+      const listingInfo = listingsById.get(g.listingId);
+      const profileInfo = profilesById.get(g.otherUserId);
+      const unreadCount = g.messages.filter((m: any) => m.senderId === "other" && !m.isRead).length;
+      return {
+        id: conversationId,
+        listingTitle: listingInfo?.title ?? "Conversation",
+        listingImage: listingInfo?.images?.[0] ?? "",
+        otherUser: { name: profileInfo?.username ?? "Utilisateur" },
+        messages: g.messages,
+        unread: unreadCount,
+      } as Conversation;
+    });
+
+    setConversations(result);
+  }, [user]);
+
+  const sendMessage = useCallback(async (conversationId: string, text: string) => {
+    if (!user) return;
+
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({ listing_id: listingId, sender_id: user.id, receiver_id: otherUserId, content: text, type: "text" });
+
+    if (error) {
+      console.error("Erreur envoi message:", error);
+      return;
+    }
+
+    await fetchMessages(conversationId);
+  }, [user, fetchMessages]);
+
+  const sendVoiceMessage = useCallback(async (conversationId: string, audioBlob: Blob) => {
+    if (!user) return;
+
+    const parsed = parseConversationId(conversationId);
+    if (!parsed) { console.error("ID de conversation invalide:", conversationId); return; }
+    const { listingId, otherUserId } = parsed;
+
+    const fileExt = audioBlob.type.includes("mp4") ? "mp4" : "webm";
+    const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("voice-messages")
+      .upload(filePath, audioBlob, { contentType: audioBlob.type || "audio/webm" });
+
+    if (uploadError) {
+      console.error("Erreur upload vocal:", uploadError);
+      alert("Erreur upload vocal : " + uploadError.message);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage.from("voice-messages").getPublicUrl(filePath);
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        listing_id: listingId,
+        sender_id: user.id,
+        receiver_id: otherUserId,
+        content: "",
+        type: "audio",
+        audio_url: publicData.publicUrl,
+      });
+
+    if (error) {
+      console.error("Erreur envoi vocal:", error);
+      alert("Erreur envoi vocal : " + error.message);
+      return;
+    }
+
+    await fetchMessages(conversationId);
+  }, [user, fetchMessages]);
+
+  const login = async (e: string, p: string) => { const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p }); return !error; };
+  const register = async (n: string, e: string, p: string, ph: string) => { await supabase.auth.signUp({ email: e, password: p, options: { data: { name: n, phone: ph } } }); };
+  const logout = async () => { await supabase.auth.signOut(); setUser(null); };
+  const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  const isFavorite = (id: string) => favorites.includes(id);
+
+  const startConversation = useCallback(async (
+    listingId: string,
+    _listingTitle: string,
+    _listingImage: string,
+    sellerId: string,
+    _sellerName: string,
+    _sellerAvatar: string,
+    firstMessage: string
+  ): Promise<string> => {
+    const conversationId = `${listingId}__${sellerId}`;
+    if (!user) return conversationId;
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        listing_id: listingId,
+        sender_id: user.id,
+        receiver_id: sellerId,
+        content: firstMessage,
+        type: "text",
+      });
+
+    if (error) {
+      console.error("Erreur création conversation:", error);
+    }
+
+    return conversationId;
+  }, [user]);
+
+  const submitBoostRequest = async (req: Omit<BoostRequest, "id" | "status" | "submittedAt">) => {
+    const { data, error } = await supabase
+      .from("boost_requests")
+      .insert({
+        listing_id: req.listingId,
+        listing_title: req.listingTitle,
+        listing_image: req.listingImage,
+        plan_id: req.planId,
+        plan_label: req.planLabel,
+        price: req.price,
+        days: req.days,
+        type: req.type,
+        receipt_image: req.receiptImage,
+        status: "pending",
+        submitted_at: new Date().toISOString(),
+        seller_name: req.sellerName,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erreur soumission boost:", error);
+      throw error;
+    }
+
+    if (data) {
+      setBoostRequests((prev) => [rowToBoostRequest(data), ...prev]);
+    }
+  };
+
+  const activateBoost = async (requestId: string) => {
+    const { data: reqRow, error: fetchErr } = await supabase
+      .from("boost_requests")
+      .select("listing_id")
+      .eq("id", requestId)
+      .single();
+
+    if (fetchErr || !reqRow) { console.error("Erreur récupération demande de boost:", fetchErr); return; }
+
+    const { error: updateReqErr } = await supabase
+      .from("boost_requests")
+      .update({ status: "active" })
+      .eq("id", requestId);
+
+    if (updateReqErr) { console.error("Erreur activation boost:", updateReqErr); return; }
+
+    const { error: updateListingErr } = await supabase
+      .from("listings")
+      .update({ is_boosted: true })
+      .eq("id", reqRow.listing_id);
+
+    if (updateListingErr) { console.error("Erreur mise à jour is_boosted:", updateListingErr); return; }
+
+    setBoostRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "active" } : r)));
+  };
+
+  const refuseBoost = async (requestId: string) => {
+    const { error } = await supabase
+      .from("boost_requests")
+      .update({ status: "refused" })
+      .eq("id", requestId);
+
+    if (error) { console.error("Erreur refus boost:", error); return; }
+
+    setBoostRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "refused" } : r)));
+  };
+
+  const updateAvatar = async (file: File): Promise<{ error: string | null }> => {
+    if (!user) return { error: "Non connecté" };
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${user.id}/avatar.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error("Erreur upload avatar:", uploadError);
+      return { error: uploadError.message };
+    }
+
+    const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("Erreur mise à jour profil:", updateError);
+      return { error: updateError.message };
+    }
+
+    setUser((prev) => (prev ? { ...prev, avatar: avatarUrl } : prev));
+    return { error: null };
+  };
+
+  const removeAvatar = async (): Promise<{ error: string | null }> => {
+    if (!user) return { error: "Non connecté" };
+
+    const { data: files } = await supabase.storage.from("avatars").list(user.id);
+    if (files && files.length > 0) {
+      const paths = files.map((f) => `${user.id}/${f.name}`);
+      await supabase.storage.from("avatars").remove(paths);
+    }
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("Erreur suppression avatar:", updateError);
+      return { error: updateError.message };
+    }
+
+    setUser((prev) => (prev ? { ...prev, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${prev.id}` } : prev));
+    return { error: null };
+  };
+
+  const createListing = async (
+    input: NewListingInput,
+    onProgress?: (percent: number) => void
+  ): Promise<{ id: string | null; error: string | null }> => {
+    if (!user) return { id: null, error: "Non connecté" };
+
+    const total = input.images.length;
+    let completed = 0;
+    onProgress?.(0);
+
+    const uploadOne = async (file: File): Promise<string | null> => {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("listings")
+        .upload(filePath, file);
+
+      completed += 1;
+      onProgress?.(Math.round((completed / total) * 90));
+
+      if (uploadError) {
+        console.error("Erreur upload photo annonce:", uploadError);
+        return null;
+      }
+
+      const { data } = supabase.storage.from("listings").getPublicUrl(filePath);
+      return data.publicUrl;
+    };
+
+    const results = await Promise.all(input.images.map(uploadOne));
+
+    if (results.some((url) => url === null)) {
+      return { id: null, error: "Échec de l'upload d'une ou plusieurs photos." };
+    }
+
+    const imageUrls = results as string[];
+
+    const jobFields =
+      input.category === "jobs"
+        ? {
+            job_kind: input.jobKind ?? "offer",
+            job_type: input.jobType ?? null,
+            job_sector: input.jobSector ?? null,
+          }
+        : {};
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("listings")
+      .insert({
+        title: input.title,
+        price: input.price,
+        category: input.category,
+        wilaya: input.wilaya,
+        city: input.city,
+        condition: input.condition,
+        description: input.description,
+        contact_phone: input.contactPhone,
+        is_negotiable: input.isNegotiable,
+        is_urgent: input.isUrgent,
+        is_active: true,
+        is_boosted: false,
+        images: imageUrls,
+        user_id: user.id,
+        ...jobFields,
+      })
+      .select()
+      .single();
+
+    onProgress?.(100);
+
+    if (insertError) {
+      console.error("Erreur création annonce:", insertError);
+      return { id: null, error: insertError.message };
+    }
+
+    return { id: inserted.id, error: null };
+  };
 
   return (
-    <div
-      onClick={() => navigate(`/listing/${listing.id}`)}
-      className={`bg-white rounded-2xl overflow-hidden cursor-pointer active:scale-[0.97] transition-transform
-        ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
-    >
-      <div className="relative aspect-[4/3] bg-gray-100">
-        {image ? (
-          <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <Placeholder />
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
-        >
-          <Heart
-            className={`w-3.5 h-3.5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-500"}`}
-            strokeWidth={fav ? 0 : 1.8}
-          />
-        </button>
-        {isBoosted && (
-          <div className="absolute top-2 left-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-            <Zap className="w-2.5 h-2.5" />{t("boosted")}
-          </div>
-        )}
-        {isUrgent && !isBoosted && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            {t("urgent")}
-          </div>
-        )}
-        {!isJob && condition === "new" && (
-          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            {t("conditionNew")}
-          </div>
-        )}
-        {isJob && jobType && (
-          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            {jobType}
-          </div>
-        )}
-      </div>
-      <div className="p-2.5">
-        <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{title}</p>
-        <p className="text-sm font-bold text-[#1B6B3A] mt-0.5">{priceText}</p>
-        <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-0.5 text-gray-400">
-            <MapPin className="w-2.5 h-2.5" />
-            <span className="text-[10px]">{wilaya}</span>
-          </div>
-          {isNegotiable && (
-            <span className="text-[9px] text-[#C8972B] font-medium bg-amber-50 px-1.5 py-0.5 rounded-full">
-              {t("negotiable")}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+    <StoreContext.Provider value={{
+      user, favorites, conversations, boostRequests, login, register, logout,
+      toggleFavorite, isFavorite, sendMessage, sendVoiceMessage, fetchMessages, fetchConversations, startConversation,
+      submitBoostRequest, activateBoost, refuseBoost, updateAvatar, removeAvatar, createListing,
+    }}>
+      {children}
+    </StoreContext.Provider>
   );
+}
+
+export function useStore() {
+  const ctx = useContext(StoreContext);
+  if (!ctx) throw new Error("useStore must be used within StoreProvider");
+  return ctx;
 }
