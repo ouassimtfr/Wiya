@@ -238,8 +238,7 @@ export default function SearchPage() {
               enterKeyHint="search"
               autoComplete="off"
               placeholder={isJobs ? "Métier, poste, entreprise..." : t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
-              className="flex-1 bg-transparent text-base focus:outline-none placeholder:text-gray-400 min-w-0"
-              style={{ color: "#1f2937", WebkitTextFillColor: "#1f2937" }}
+              className="flex-1 bg-transparent text-base text-gray-800 focus:outline-none placeholder:text-gray-400 min-w-0"
             />
             {query && (
               <button type="button" onClick={() => setQuery("")} className="p-0.5">
