@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import { Conversation, CONVERSATIONS } from "./data";
+import { compressImage } from "./compressImage";
 
 export interface User {
   id: string; name: string; email: string; phone: string; avatar: string;
@@ -441,12 +442,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateAvatar = async (file: File): Promise<{ error: string | null }> => {
     if (!user) return { error: "Non connecté" };
 
-    const fileExt = file.name.split(".").pop();
+    const compressed = await compressImage(file, 512, 0.85);
+    const fileExt = compressed.name.split(".").pop();
     const filePath = `${user.id}/avatar.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(filePath, file, { upsert: true });
+      .upload(filePath, compressed, { upsert: true });
 
     if (uploadError) {
       console.error("Erreur upload avatar:", uploadError);
@@ -503,7 +505,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let completed = 0;
     onProgress?.(0);
 
-    const uploadOne = async (file: File): Promise<string | null> => {
+    const uploadOne = async (rawFile: File): Promise<string | null> => {
+      const file = await compressImage(rawFile);
       const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
