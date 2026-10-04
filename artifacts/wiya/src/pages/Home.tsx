@@ -9,19 +9,27 @@ import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
-const WILAYA_NAMES = WILAYAS_DATA.slice()
-  .sort((a, b) => a.code - b.code)
-  .map((w) => w.name);
+const WILAYA_LIST = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
 
-function useVisualViewportHeight() {
-  const [height, setHeight] = useState(
-    () => window.visualViewport?.height ?? window.innerHeight
-  );
+function normalize(str: string) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function useVisualViewport() {
+  const read = () => ({
+    height: window.visualViewport?.height ?? window.innerHeight,
+    offsetTop: window.visualViewport?.offsetTop ?? 0,
+  });
+  const [vp, setVp] = useState(read);
 
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const update = () => setHeight(vv.height);
+    const update = () => setVp(read());
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
     update();
@@ -31,11 +39,11 @@ function useVisualViewportHeight() {
     };
   }, []);
 
-  return height;
+  return vp;
 }
 
 export default function Home() {
-  const { t, lang, setLang } = useI18n();
+  const { t, lang, setLang, isRTL } = useI18n();
   const { user } = useStore();
   const [, navigate] = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -44,7 +52,7 @@ export default function Home() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
-  const viewportHeight = useVisualViewportHeight();
+  const viewport = useVisualViewport();
 
   useEffect(() => {
     fetchListings();
@@ -55,13 +63,35 @@ export default function Home() {
     if (data) setListings(data);
   };
 
-  const filteredWilayas = WILAYA_NAMES.filter((w) => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+  const wilayaLabel = (name: string) => {
+    const w = WILAYA_LIST.find((x) => x.name === name);
+    return w && isRTL ? w.nameAr : name;
+  };
+
+  const q = normalize(wilayaSearch);
+  const filteredWilayas = WILAYA_LIST.filter(
+    (w) =>
+      !q ||
+      normalize(w.name).includes(q) ||
+      w.nameAr.includes(wilayaSearch.trim()) ||
+      String(w.code).padStart(2, "0").startsWith(q) ||
+      String(w.code) === q
+  );
+
   const filteredListings = listings.filter(
     (l) =>
       (!activeCategory || l.category === activeCategory) &&
       (!activeWilaya || l.wilaya === activeWilaya)
   );
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
+
+  const searchPlaceholder = isRTL ? "ابحث عن إعلان (مثال: كليو 5 2020)" : "Rechercher (ex: Clio 5 2020)";
+  const wilayaPlaceholder = isRTL ? "ابحث عن ولاية..." : "Rechercher une wilaya...";
+
+  const closeWilayaPicker = () => {
+    setShowWilayaPicker(false);
+    setWilayaSearch("");
+  };
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
@@ -82,7 +112,9 @@ export default function Home() {
               className="flex items-center gap-2 bg-[#C7A44A]/10 backdrop-blur-md px-3 py-1 rounded-full border border-[#C7A44A]/25 active:scale-95 transition-transform"
             >
               <MapPin className="w-3 h-3 text-[#C7A44A]" />
-              <span className="text-[#F3EEE2] text-[11px] font-semibold uppercase tracking-wide">{activeWilaya ?? user?.wilaya ?? "ALGER"}</span>
+              <span className="text-[#F3EEE2] text-[11px] font-semibold uppercase tracking-wide">
+                {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
+              </span>
             </button>
             <button onClick={() => setLang(lang === "fr" ? "ar" : "fr")} className="bg-[#C7A44A]/10 backdrop-blur-md text-[#F3EEE2] text-[10px] font-bold px-4 py-1.5 rounded-full border border-[#C7A44A]/25">
               {lang === "fr" ? "العربية" : "FR"}
@@ -101,9 +133,7 @@ export default function Home() {
             className="w-full flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md text-left active:scale-[0.99] transition-transform"
           >
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="flex-1 text-sm text-gray-400 truncate">
-              {t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
-            </span>
+            <span className="flex-1 text-sm text-gray-400 truncate">{searchPlaceholder}</span>
           </button>
         </div>
       </div>
@@ -125,9 +155,9 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-           <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm">
+          <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm">
             <button onClick={() => setShowWilayaPicker(true)} className="flex items-center gap-2 pl-4 pr-2 py-2 text-xs font-semibold text-gray-600">
-              <MapPin className="w-3.5 h-3.5" /> {activeWilaya ?? t("wilaya")}
+              <MapPin className="w-3.5 h-3.5" /> {activeWilaya ? wilayaLabel(activeWilaya) : t("wilaya")}
             </button>
             {activeWilaya && <button onClick={() => setActiveWilaya(null)} className="pr-3 py-2"><X className="w-3.5 h-3.5 text-gray-500" /></button>}
           </div>
@@ -142,7 +172,7 @@ export default function Home() {
 
         {(activeCategory || activeWilaya) && filteredListings.length === 0 && (
           <div className="text-center py-10">
-            <p className="text-sm text-gray-500">{t("noResults") ?? "Aucune annonce trouvée"}</p>
+            <p className="text-sm text-gray-500">{t("noResults")}</p>
           </div>
         )}
 
@@ -169,22 +199,45 @@ export default function Home() {
         )}
 
         {showWilayaPicker && (
-          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowWilayaPicker(false)}>
+          <div
+            className="fixed left-0 right-0 bg-black/40 z-[9999] flex items-end"
+            style={{ top: viewport.offsetTop, height: viewport.height }}
+            onClick={closeWilayaPicker}
+          >
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
-              style={{ maxHeight: viewportHeight * 0.85 }}
+              style={{ maxHeight: viewport.height * 0.9 }}
             >
               <div className="p-4 flex-shrink-0">
-                <input autoFocus type="text" value={wilayaSearch} onChange={(e) => setWilayaSearch(e.target.value)} placeholder={t("searchWilaya")} className="w-full bg-gray-100 p-3 rounded-xl outline-none text-sm" />
+                <input
+                  type="text"
+                  value={wilayaSearch}
+                  onChange={(e) => setWilayaSearch(e.target.value)}
+                  placeholder={wilayaPlaceholder}
+                  className="w-full bg-gray-100 p-3 rounded-xl outline-none text-base text-gray-800"
+                />
               </div>
               <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
                 {filteredWilayas.map((w) => (
-                  <button key={w} onClick={() => { setActiveWilaya(w); setShowWilayaPicker(false); setWilayaSearch(""); }} className={`p-3 rounded-xl text-sm ${activeWilaya === w ? "bg-[#1B6B3A] text-white" : "bg-gray-50"}`}>{w}</button>
+                  <button
+                    key={w.code}
+                    onClick={() => {
+                      setActiveWilaya(w.name);
+                      closeWilayaPicker();
+                    }}
+                    className={`p-3 rounded-xl text-sm text-start ${activeWilaya === w.name ? "bg-[#1B6B3A] text-white" : "bg-gray-50 text-gray-800"}`}
+                  >
+                    <span className="opacity-50 text-xs">{String(w.code).padStart(2, "0")}</span>{" "}
+                    {isRTL ? w.nameAr : w.name}
+                  </button>
                 ))}
+                {filteredWilayas.length === 0 && (
+                  <p className="col-span-2 text-center text-sm text-gray-400 py-6">{t("noResults")}</p>
+                )}
               </div>
             </motion.div>
           </div>
