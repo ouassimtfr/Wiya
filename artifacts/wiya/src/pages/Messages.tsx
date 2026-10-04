@@ -2,22 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { MessageCircle, Mic, Search, X, Check, CheckCheck } from "lucide-react";
 import { useStore } from "@/lib/store";
-
-function formatListTime(iso?: string): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return "Hier";
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
-}
+import { useI18n } from "@/lib/i18n";
 
 export default function MessagesPage() {
   const [, navigate] = useLocation();
+  const { isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
+  const locale = isRTL ? "ar-DZ" : "fr-FR";
   const { user, conversations, fetchConversations } = useStore();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "unread">("all");
@@ -25,6 +16,19 @@ export default function MessagesPage() {
   useEffect(() => {
     if (user) fetchConversations();
   }, [user, fetchConversations]);
+
+  const formatListTime = (iso?: string): string => {
+    if (!iso) return "";
+    const date = new Date(iso);
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return tr("Hier", "أمس");
+    return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
+  };
 
   const all = useMemo(() => {
     return [...(conversations as any[])]
@@ -56,12 +60,14 @@ export default function MessagesPage() {
         <div className="w-16 h-16 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center mb-4">
           <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
         </div>
-        <p className="text-gray-600 text-center text-sm">Connectez-vous pour voir vos messages.</p>
+        <p className="text-gray-600 text-center text-sm">
+          {tr("Connectez-vous pour voir vos messages.", "سجّل دخولك لعرض رسائلك.")}
+        </p>
         <button
           onClick={() => navigate("/auth")}
           className="mt-4 px-6 py-3 bg-[#1B6B3A] text-white rounded-2xl text-sm font-semibold shadow-md active:scale-95 transition-transform"
         >
-          Se connecter
+          {tr("Se connecter", "تسجيل الدخول")}
         </button>
       </div>
     );
@@ -71,10 +77,14 @@ export default function MessagesPage() {
     <div className="min-h-[100dvh] bg-white pb-28">
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md pt-[calc(env(safe-area-inset-top)+14px)]">
         <div className="px-5 flex items-end justify-between">
-          <h1 className="text-[28px] leading-none font-extrabold tracking-tight text-gray-900">Messages</h1>
+          <h1 className="text-[28px] leading-none font-extrabold tracking-tight text-gray-900">
+            {tr("Messages", "الرسائل")}
+          </h1>
           {totalUnread > 0 && (
             <span className="text-xs font-semibold text-[#1B6B3A] bg-[#1B6B3A]/10 px-2.5 py-1 rounded-full">
-              {totalUnread} non lu{totalUnread > 1 ? "s" : ""}
+              {isRTL
+                ? `${totalUnread} غير مقروءة`
+                : `${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
             </span>
           )}
         </div>
@@ -86,7 +96,7 @@ export default function MessagesPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher une annonce ou une personne"
+              placeholder={tr("Rechercher une annonce ou une personne", "ابحث عن إعلان أو شخص")}
               className="flex-1 bg-transparent text-base focus:outline-none placeholder:text-gray-400"
             />
             {query && (
@@ -99,17 +109,17 @@ export default function MessagesPage() {
 
         <div className="px-5 mt-3 flex gap-6 border-b border-gray-100">
           {[
-            { id: "all" as const, label: "Tous" },
-            { id: "unread" as const, label: "Non lus" },
-          ].map((t) => (
+            { id: "all" as const, label: tr("Tous", "الكل") },
+            { id: "unread" as const, label: tr("Non lus", "غير مقروءة") },
+          ].map((tb) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`pb-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                tab === t.id ? "border-[#1B6B3A] text-[#1B6B3A]" : "border-transparent text-gray-400"
+                tab === tb.id ? "border-[#1B6B3A] text-[#1B6B3A]" : "border-transparent text-gray-400"
               }`}
             >
-              {t.label}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -121,12 +131,15 @@ export default function MessagesPage() {
             <MessageCircle className="w-9 h-9 text-[#1B6B3A]" />
           </div>
           <p className="text-base font-bold text-gray-800">
-            {all.length === 0 ? "Aucune conversation" : "Aucun résultat"}
+            {all.length === 0 ? tr("Aucune conversation", "لا توجد محادثات") : tr("Aucun résultat", "لا توجد نتائج")}
           </p>
           <p className="text-sm text-gray-400 mt-1.5 leading-relaxed">
             {all.length === 0
-              ? "Ouvrez une annonce et contactez le vendeur pour démarrer une discussion."
-              : "Essayez un autre mot ou changez d'onglet."}
+              ? tr(
+                  "Ouvrez une annonce et contactez le vendeur pour démarrer une discussion.",
+                  "افتح إعلانا وتواصل مع البائع لبدء محادثة."
+                )
+              : tr("Essayez un autre mot ou changez d'onglet.", "جرّب كلمة أخرى أو غيّر التبويب.")}
           </p>
         </div>
       ) : (
@@ -135,15 +148,15 @@ export default function MessagesPage() {
             const last = c.messages[c.messages.length - 1];
             const isAudio = last?.type === "audio";
             const isMine = last?.senderId === "me";
-            const preview = isAudio ? "Message vocal" : last?.text || "";
+            const preview = isAudio ? tr("Message vocal", "رسالة صوتية") : last?.text || "";
             const hasUnread = c.unread > 0;
-            const name = c.otherUser?.name || "Utilisateur";
+            const name = c.otherUser?.name || tr("Utilisateur", "مستخدم");
 
             return (
               <li key={c.id}>
                 <button
                   onClick={() => navigate(`/messages/${c.id}`)}
-                  className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left active:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3.5 px-5 py-3.5 text-start active:bg-gray-50 transition-colors"
                 >
                   <div className="relative flex-shrink-0">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1B6B3A]/20 to-[#C8972B]/20 overflow-hidden flex items-center justify-center">
@@ -153,7 +166,7 @@ export default function MessagesPage() {
                         <MessageCircle className="w-6 h-6 text-[#1B6B3A]" />
                       )}
                     </div>
-                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#1B6B3A] text-white text-[11px] font-bold ring-2 ring-white flex items-center justify-center">
+                    <span className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-[#1B6B3A] text-white text-[11px] font-bold ring-2 ring-white flex items-center justify-center">
                       {name.charAt(0).toUpperCase()}
                     </span>
                   </div>
