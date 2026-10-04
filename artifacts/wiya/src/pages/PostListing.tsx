@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { ChevronLeft, Camera, X, Loader2, Briefcase } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { CATEGORIES, WILAYAS } from "@/lib/data";
+import { CATEGORIES } from "@/lib/data";
+import { WILAYAS_DATA } from "@/lib/wilayas";
 
 const JOB_TYPES = ["CDI", "CDD", "Stage", "Freelance", "Temps partiel", "Alternance"];
 
@@ -20,6 +21,8 @@ const JOB_SECTORS = [
   "Marketing et communication",
   "Autre",
 ];
+
+const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
 
 export default function PostListingPage() {
   const [, navigate] = useLocation();
@@ -269,7 +272,11 @@ export default function PostListingPage() {
               onChange={(e) => setWilaya(e.target.value)}
             >
               <option value="">Choisir</option>
-              {WILAYAS.map((w) => <option key={w} value={w}>{w}</option>)}
+              {WILAYA_OPTIONS.map((w) => (
+                <option key={w.code} value={w.name}>
+                  {String(w.code).padStart(2, "0")} - {isRTL ? w.nameAr : w.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
