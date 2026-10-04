@@ -9,18 +9,21 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
-import { WILAYAS } from "@/lib/data";
+import { WILAYAS_DATA } from "@/lib/wilayas";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
+const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
+
 function DarkModeRow({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
+  const label = isDark ? (isRTL ? "الوضع الليلي" : "Mode sombre") : t("lightMode");
   return (
     <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl shadow-sm">
       <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isDark ? "bg-indigo-950" : "bg-amber-50"}`}>
         {isDark ? <Moon className="w-4 h-4 text-indigo-300" /> : <Sun className="w-4 h-4 text-amber-500" />}
       </div>
-      <span className="flex-1 text-sm font-medium text-gray-800 text-start">{isDark ? t("darkMode") : t("lightMode")}</span>
+      <span className="flex-1 text-sm font-medium text-gray-800 text-start">{label}</span>
       <div className={`relative w-11 h-6 rounded-full transition-colors duration-300 flex-shrink-0 ${isDark ? "bg-indigo-500" : "bg-gray-200"}`}>
         <motion.div layout className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm" animate={{ left: isDark ? "calc(100% - 22px)" : "2px" }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
       </div>
@@ -76,7 +79,7 @@ function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = 
 
 export default function ProfilePage() {
   const [, navigate] = useLocation();
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
   const { user, logout, favorites, updateAvatar, removeAvatar } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
@@ -182,7 +185,7 @@ export default function ProfilePage() {
         <div className="relative flex items-center gap-3">
           {tab !== "profile" && (
             <button onClick={() => setTab("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              <ArrowLeft className="w-4.5 h-4.5 text-white" />
+              <ArrowLeft className={`w-4.5 h-4.5 text-white ${isRTL ? "rotate-180" : ""}`} />
             </button>
           )}
           <div className="relative"><UserAvatar name={user.name} avatarUrl={user.avatar} size={tab === "profile" ? 56 : 40} editable={tab === "profile"} uploading={uploadingAvatar} onPick={handleAvatarPick} onRemove={handleAvatarRemove} /></div>
@@ -204,7 +207,7 @@ export default function ProfilePage() {
                 {item.badge > 0 && (
                   <span className="text-[10px] font-bold text-white bg-[#1B6B3A] rounded-full w-5 h-5 flex items-center justify-center">{item.badge}</span>
                 )}
-                <ChevronRight className="w-4 h-4 text-gray-300" />
+                <ChevronRight className={`w-4 h-4 text-gray-300 ${isRTL ? "rotate-180" : ""}`} />
               </button>
             ))}
           </div>
@@ -261,18 +264,20 @@ export default function ProfilePage() {
               <div className="px-5 pb-5 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none focus:border-[#1B6B3A]" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
-                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]" />
+                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none focus:border-[#1B6B3A]" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("wilaya")}</label>
-                  <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#1B6B3A]">
+                  <select value={editWilaya} onChange={(e) => setEditWilaya(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none focus:border-[#1B6B3A]">
                     <option value="">{t("selectWilaya")}</option>
-                    {WILAYAS.map((w) => (
-                      <option key={w} value={w}>{w}</option>
+                    {WILAYA_OPTIONS.map((w) => (
+                      <option key={w.code} value={w.name}>
+                        {String(w.code).padStart(2, "0")} - {isRTL ? w.nameAr : w.name}
+                      </option>
                     ))}
                   </select>
                 </div>
