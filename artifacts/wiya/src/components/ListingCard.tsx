@@ -2,37 +2,65 @@ import { Heart, MapPin, Zap, Briefcase } from "lucide-react";
 import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { WILAYAS_DATA } from "@/lib/wilayas";
 
 interface Props {
   listing: any;
   variant?: "grid" | "list";
 }
 
+const JOB_TYPE_AR: Record<string, string> = {
+  CDI: "عقد غير محدد المدة",
+  CDD: "عقد محدد المدة",
+  Stage: "تربص",
+  Freelance: "عمل حر",
+  "Temps partiel": "دوام جزئي",
+  Alternance: "تكوين بالتناوب",
+};
+
+const JOB_SECTOR_AR: Record<string, string> = {
+  Informatique: "إعلام آلي",
+  "Commerce et vente": "تجارة وبيع",
+  "Restauration et hôtellerie": "مطاعم وفندقة",
+  "Bâtiment et travaux": "بناء وأشغال",
+  Santé: "صحة",
+  "Éducation et formation": "تعليم وتكوين",
+  "Transport et logistique": "نقل ولوجستيك",
+  "Administration et comptabilité": "إدارة ومحاسبة",
+  Industrie: "صناعة",
+  "Marketing et communication": "تسويق واتصال",
+  Autre: "أخرى",
+};
+
 export default function ListingCard({ listing, variant = "grid" }: Props) {
   const [, navigate] = useLocation();
   const { toggleFavorite, isFavorite } = useStore();
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const fav = isFavorite(listing.id);
 
   const isJob = listing.category === "jobs";
-  const title = listing.title ?? "Sans titre";
+  const title = listing.title ?? tr("Sans titre", "بدون عنوان");
   const realImage = listing.images?.[0] ?? "";
   const image = realImage || (isJob ? "" : "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80");
   const price = listing.price ?? 0;
-  const wilaya = listing.wilaya ?? "";
+  const wilayaRaw = listing.wilaya ?? "";
+  const wilaya = isRTL ? WILAYAS_DATA.find((w) => w.name === wilayaRaw)?.nameAr ?? wilayaRaw : wilayaRaw;
   const isBoosted = listing.is_boosted ?? false;
   const isUrgent = listing.is_urgent ?? false;
   const isNegotiable = listing.is_negotiable ?? false;
   const condition = listing.condition ?? "";
 
-  const jobType: string = listing.job_type ?? "";
-  const jobSector: string = listing.job_sector ?? "";
+  const jobTypeRaw: string = listing.job_type ?? "";
+  const jobSectorRaw: string = listing.job_sector ?? "";
+  const jobType = isRTL ? JOB_TYPE_AR[jobTypeRaw] ?? jobTypeRaw : jobTypeRaw;
+  const jobSector = isRTL ? JOB_SECTOR_AR[jobSectorRaw] ?? jobSectorRaw : jobSectorRaw;
   const isSeeking = isJob && listing.job_kind === "seeking";
 
   const priceText = isJob
     ? price > 0
-      ? `${price.toLocaleString()} ${t("da")} / mois`
-      : "Salaire à discuter"
+      ? `${price.toLocaleString()} ${t("da")} ${tr("/ mois", "/ شهر")}`
+      : tr("Salaire à discuter", "الراتب قابل للنقاش")
     : `${price.toLocaleString()} ${t("da")}`;
 
   const Placeholder = ({ small }: { small?: boolean }) => (
@@ -55,12 +83,12 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             <Placeholder small />
           )}
           {isBoosted && (
-            <div className="absolute top-1 left-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+            <div className="absolute top-1 start-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <Zap className="w-2.5 h-2.5" />{t("boosted")}
             </div>
           )}
           {isUrgent && !isBoosted && (
-            <div className="absolute top-1 left-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="absolute top-1 start-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               {t("urgent")}
             </div>
           )}
@@ -81,7 +109,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
                     isSeeking ? "bg-[#C8972B]/15 text-[#8A6414]" : "bg-[#1B6B3A]/10 text-[#1B6B3A]"
                   }`}
                 >
-                  {isSeeking ? "Cherche" : "Recrute"}
+                  {isSeeking ? tr("Cherche", "يبحث") : tr("Recrute", "يوظّف")}
                 </span>
                 {jobType && (
                   <span className="flex-shrink-0 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-md">
@@ -126,7 +154,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         )}
         <button
           onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
+          className="absolute top-2 end-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
         >
           <Heart
             className={`w-3.5 h-3.5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-500"}`}
@@ -134,22 +162,22 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           />
         </button>
         {isBoosted && (
-          <div className="absolute top-2 left-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+          <div className="absolute top-2 start-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
             <Zap className="w-2.5 h-2.5" />{t("boosted")}
           </div>
         )}
         {isUrgent && !isBoosted && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute top-2 start-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {t("urgent")}
           </div>
         )}
         {!isJob && condition === "new" && (
-          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {t("conditionNew")}
           </div>
         )}
         {isJob && jobType && (
-          <div className="absolute bottom-2 left-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {jobType}
           </div>
         )}
