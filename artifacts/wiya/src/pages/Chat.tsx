@@ -30,6 +30,15 @@ function formatDateSeparator(iso: string): string {
   return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+// Choisit le format audio le plus compatible (mp4 d'abord : lisible partout, y compris iPhone)
+function pickMimeType(): string {
+  const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
+  for (const c of candidates) {
+    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return "";
+}
+
 function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,20 +67,26 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
     const audio = audioRef.current;
     if (!audio) return;
     const updateProgress = () => {
-      if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
+      if (audio.duration && isFinite(audio.duration)) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
     };
     const onEnded = () => {
       setIsPlaying(false);
       setProgress(0);
     };
-    const onLoaded = () => setDuration(audio.duration);
+    const onLoaded = () => {
+      if (isFinite(audio.duration)) setDuration(audio.duration);
+    };
     audio.addEventListener("timeupdate", updateProgress);
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("durationchange", onLoaded);
     return () => {
       audio.removeEventListener("timeupdate", updateProgress);
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("durationchange", onLoaded);
     };
   }, []);
 
@@ -86,7 +101,7 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-[200px]">
-      <audio ref={audioRef} src={src} preload="auto" />
+      <audio ref={audioRef} src={src} preload="metadata" />
       <button
         type="button"
         onClick={togglePlay}
@@ -125,7 +140,9 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
+  const [viewport, setViewport] = useState<{ height: number; top: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -139,16 +156,38 @@ export default function ChatPage() {
     }
   }, [conversationId, fetchMessages]);
 
+  // CORRECTIF CLAVIER iOS : on suit la vraie zone visible (visualViewport),
+  // qui se réduit quand le clavier s'ouvre, contrairement à 100dvh sur iOS.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      setViewport({ height: vv.height, top: vv.offsetTop });
+      if (vv.offsetTop !== 0) window.scrollTo(0, 0);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
   const conversation = conversations.find((c) => c.id === conversationId);
   const messages = (conversation?.messages ?? []) as any[];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages]);
+  }, [conversation?.messages, viewport?.height]);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state !== "inactive") {
+        try { rec.stop(); } catch {}
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -157,11 +196,7 @@ export default function ChatPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
-        : "";
+      const mimeType = pickMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -188,17 +223,31 @@ export default function ChatPage() {
 
     const blob = await new Promise<Blob>((resolve) => {
       recorder.onstop = () => {
-        resolve(new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" }));
+        resolve(new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/mp4" }));
       };
-      recorder.stop();
+      if (recorder.state !== "inactive") recorder.stop();
+      else resolve(new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/mp4" }));
     });
 
     streamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaRecorderRef.current = null;
 
     if (send && conversation && finalSeconds >= 1) {
-      await sendVoiceMessage(conversation.id, blob);
+      setIsSendingVoice(true);
+      try {
+        await sendVoiceMessage(conversation.id, blob);
+      } catch (err) {
+        console.error("Envoi du vocal échoué :", err);
+        alert("Le message vocal n'a pas pu être envoyé. Réessayez.");
+      } finally {
+        setIsSendingVoice(false);
+      }
     }
   };
+
+  const containerStyle = viewport
+    ? { height: viewport.height, top: viewport.top }
+    : undefined;
 
   if (!user) {
     return (
@@ -236,7 +285,10 @@ export default function ChatPage() {
   const otherName = conversation?.otherUser?.name || "Utilisateur";
 
   return (
-    <div className="fixed inset-0 z-40 h-[100dvh] flex flex-col bg-[#ECF0EC]">
+    <div
+      className="fixed inset-x-0 top-0 z-40 h-[100dvh] flex flex-col bg-[#ECF0EC]"
+      style={containerStyle}
+    >
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.25]"
         style={{
@@ -387,6 +439,11 @@ export default function ChatPage() {
             >
               <Send className="w-5 h-5" />
             </button>
+          </div>
+        ) : isSendingVoice ? (
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#1B6B3A] animate-pulse" />
+            Envoi du vocal...
           </div>
         ) : (
           <form onSubmit={handleSend} className="flex items-center gap-2">
