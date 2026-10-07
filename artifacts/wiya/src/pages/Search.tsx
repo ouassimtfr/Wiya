@@ -8,13 +8,13 @@ import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
 type Sort = "relevance" | "recent" | "price_asc" | "price_desc";
-type JobKind = "offer" | "seeking";
+
+// Seules les demandes d'emploi existent sur Wiya
+const JOB_KIND = "seeking";
 
 const RECENT_KEY = "wiya_recent_searches";
 
 const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
-
-const JOB_TYPES = ["CDI", "CDD", "Stage", "Freelance", "Temps partiel", "Alternance"];
 
 const JOB_SECTORS = [
   "Informatique",
@@ -84,8 +84,6 @@ export default function SearchPage() {
   const [sort, setSort] = useState<Sort>("relevance");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const [jobKind, setJobKind] = useState<JobKind>("offer");
-  const [jobType, setJobType] = useState<string>("");
   const [jobSector, setJobSector] = useState<string>("");
 
   const isJobs = category === "jobs";
@@ -110,8 +108,6 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!isJobs) {
-      setJobKind("offer");
-      setJobType("");
       setJobSector("");
     }
   }, [isJobs]);
@@ -122,7 +118,7 @@ export default function SearchPage() {
     () =>
       listings.map((l) => {
         const vehicle = `${l.vehicle_brand ?? ""} ${l.vehicle_model ?? ""} ${l.vehicle_year ?? ""}`;
-        const job = `${l.job_type ?? ""} ${l.job_sector ?? ""}`;
+        const job = `${l.job_sector ?? ""}`;
         return {
           l,
           title: normalize(l.title ?? ""),
@@ -152,16 +148,13 @@ export default function SearchPage() {
     return map;
   }, [matching]);
 
-  const jobCounts = useMemo(() => {
-    let offer = 0;
-    let seeking = 0;
-    matching.forEach((x) => {
-      if (x.l.category !== "jobs") return;
-      if ((x.l.job_kind ?? "offer") === "seeking") seeking += 1;
-      else offer += 1;
-    });
-    return { offer, seeking };
-  }, [matching]);
+  const jobCount = useMemo(
+    () =>
+      matching.filter(
+        (x) => x.l.category === "jobs" && (x.l.job_kind ?? JOB_KIND) === JOB_KIND
+      ).length,
+    [matching]
+  );
 
   const filtered = useMemo(() => {
     const min = minPrice ? Number(minPrice) : null;
@@ -173,8 +166,7 @@ export default function SearchPage() {
       if (min !== null && Number(x.l.price) < min) return false;
       if (max !== null && Number(x.l.price) > max) return false;
       if (isJobs) {
-        if ((x.l.job_kind ?? "offer") !== jobKind) return false;
-        if (jobType && x.l.job_type !== jobType) return false;
+        if ((x.l.job_kind ?? JOB_KIND) !== JOB_KIND) return false;
         if (jobSector && x.l.job_sector !== jobSector) return false;
       }
       return true;
@@ -193,7 +185,7 @@ export default function SearchPage() {
       );
     }
     return out;
-  }, [matching, category, wilaya, minPrice, maxPrice, sort, words, isJobs, jobKind, jobType, jobSector]);
+  }, [matching, category, wilaya, minPrice, maxPrice, sort, words, isJobs, jobSector]);
 
   const hasSearch = words.length > 0 || !!category || !!wilaya || !!minPrice || !!maxPrice;
   const activeFilters =
@@ -216,7 +208,7 @@ export default function SearchPage() {
 
   const visibleCategories = CATEGORIES.filter((c) => (categoryCounts.get(c.id) || 0) > 0 || c.id === category);
 
-  const priceLabel = isJobs ? "Salaire (DA)" : "Prix (DA)";
+  const priceLabel = isJobs ? "Salaire souhaité (DA)" : "Prix (DA)";
   const sortAsc = isJobs ? "Salaire croissant" : "Prix croissant";
   const sortDesc = isJobs ? "Salaire décroissant" : "Prix décroissant";
 
@@ -237,7 +229,7 @@ export default function SearchPage() {
               onChange={(e) => setQuery(e.target.value)}
               enterKeyHint="search"
               autoComplete="off"
-              placeholder={isJobs ? "Métier, poste, entreprise..." : t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
+              placeholder={isJobs ? "Métier, compétence..." : t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
               className="flex-1 bg-transparent text-base text-gray-800 focus:outline-none placeholder:text-gray-400 min-w-0"
             />
             {query && (
@@ -288,50 +280,12 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Filtres emploi */}
+        {/* Emplois : uniquement des demandes d'emploi */}
         {isJobs && (
-          <div className="border-t border-gray-100 pt-3 pb-3 space-y-2.5">
-            <div className="px-3">
-              <div className="flex bg-gray-100 rounded-2xl p-1">
-                {[
-                  { id: "offer" as const, label: "Offres d'emploi", count: jobCounts.offer },
-                  { id: "seeking" as const, label: "Demandes d'emploi", count: jobCounts.seeking },
-                ].map((k) => (
-                  <button
-                    key={k.id}
-                    onClick={() => setJobKind(k.id)}
-                    className={`flex-1 py-2 rounded-xl text-[13px] font-bold transition-colors ${
-                      jobKind === k.id ? "bg-white text-[#1B6B3A] shadow-sm" : "text-gray-500"
-                    }`}
-                  >
-                    {k.label} ({k.count})
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div
-              className="flex gap-2 overflow-x-auto px-3 [&::-webkit-scrollbar]:hidden"
-              style={{ scrollbarWidth: "none" }}
-            >
-              <button
-                onClick={() => setJobType("")}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold ${
-                  jobType === "" ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                Tous contrats
-              </button>
-              {JOB_TYPES.map((jt) => (
-                <button
-                  key={jt}
-                  onClick={() => setJobType(jobType === jt ? "" : jt)}
-                  className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap ${
-                    jobType === jt ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {jt}
-                </button>
-              ))}
+          <div className="border-t border-gray-100 px-3 py-3">
+            <div className="flex items-center justify-between bg-gray-100 rounded-2xl px-4 py-2.5">
+              <span className="text-[13px] font-bold text-[#1B6B3A]">Demandes d'emploi</span>
+              <span className="text-[13px] font-bold text-gray-500">{jobCount}</span>
             </div>
           </div>
         )}
@@ -348,8 +302,8 @@ export default function SearchPage() {
               <Briefcase className="w-6 h-6 text-[#F2D27A]" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-base font-extrabold">Trouver un emploi</p>
-              <p className="text-white/70 text-xs mt-0.5">Offres et demandes d'emploi partout en Algérie</p>
+              <p className="text-white text-base font-extrabold">Demandes d'emploi</p>
+              <p className="text-white/70 text-xs mt-0.5">Des chercheurs d'emploi partout en Algérie</p>
             </div>
             <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
           </button>
@@ -413,7 +367,7 @@ export default function SearchPage() {
           {!loading && !error && (
             <>
               <p className="text-xs font-semibold text-gray-500 px-1 mb-2.5">
-                {filtered.length} {isJobs ? (jobKind === "offer" ? "offre" : "demande") : "annonce"}
+                {filtered.length} {isJobs ? "demande" : "annonce"}
                 {filtered.length > 1 ? "s" : ""}
               </p>
 
@@ -423,15 +377,14 @@ export default function SearchPage() {
                     {isJobs ? <Briefcase className="w-7 h-7 text-gray-300" /> : <Search className="w-7 h-7 text-gray-300" />}
                   </div>
                   <p className="text-sm font-bold text-gray-700">
-                    {isJobs ? "Aucune offre trouvée" : t("noResults") ?? "Aucune annonce trouvée"}
+                    {isJobs ? "Aucune demande trouvée" : t("noResults") ?? "Aucune annonce trouvée"}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">Essayez un autre mot ou retirez des filtres.</p>
-                  {(activeFilters > 0 || category || jobType) && (
+                  {(activeFilters > 0 || category) && (
                     <button
                       onClick={() => {
                         resetFilters();
                         setCategory("");
-                        setJobType("");
                       }}
                       className="mt-4 text-sm font-semibold text-[#1B6B3A]"
                     >
