@@ -17,6 +17,7 @@ export default function SellerProfilePage() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
 
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [listings, setListings] = useState<any[]>([]);
@@ -70,7 +71,7 @@ export default function SellerProfilePage() {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const title = `Boutique ${profile?.username ?? "Wiya"}`;
+    const title = `${tr("Boutique", "متجر")} ${profile?.username ?? "Wiya"}`;
 
     if (navigator.share) {
       try {
@@ -101,18 +102,20 @@ export default function SellerProfilePage() {
   if (!profile) {
     return (
       <div className="bg-[#F4F6F5] min-h-screen flex items-center justify-center px-4">
-        <p className="text-sm text-gray-400 text-center">Vendeur introuvable</p>
+        <p className="text-sm text-gray-400 text-center">{tr("Vendeur introuvable", "البائع غير موجود")}</p>
       </div>
     );
   }
 
-  const displayName = profile.username || "Utilisateur";
+  const displayName = profile.username || tr("Utilisateur", "مستخدم");
   const contactPhone = listings.find((l) => l.contact_phone)?.contact_phone as string | undefined;
 
   const oldestListing = listings.length > 0 ? listings[listings.length - 1] : null;
   const memberSince = oldestListing?.created_at
     ? new Date(oldestListing.created_at).getFullYear().toString()
     : null;
+
+  const n = listings.length;
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
@@ -122,9 +125,9 @@ export default function SellerProfilePage() {
           backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
           backgroundSize: "16px 16px",
         }} />
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full border border-white/10" />
-        <div className="absolute -bottom-16 -left-10 w-48 h-48 rounded-full border border-white/10" />
-        <Store className="absolute -right-4 top-8 w-32 h-32 text-white/[0.06] rotate-[-12deg]" strokeWidth={1} />
+        <div className="absolute -top-10 -end-10 w-40 h-40 rounded-full border border-white/10" />
+        <div className="absolute -bottom-16 -start-10 w-48 h-48 rounded-full border border-white/10" />
+        <Store className="absolute -end-4 top-8 w-32 h-32 text-white/[0.06] rotate-[-12deg]" strokeWidth={1} />
 
         <div className="relative flex items-center justify-between mb-6">
           <button onClick={() => window.history.back()} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15">
@@ -133,7 +136,7 @@ export default function SellerProfilePage() {
           <button
             onClick={handleShare}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15"
-            aria-label="Partager la boutique"
+            aria-label={tr("Partager la boutique", "مشاركة المتجر")}
           >
             <Share2 className="w-4 h-4 text-white" />
           </button>
@@ -143,7 +146,7 @@ export default function SellerProfilePage() {
           <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
             <Store className="w-4 h-4 text-white" />
           </div>
-          <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">Boutique</span>
+          <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">{tr("Boutique", "متجر")}</span>
         </div>
         <h1 className="relative text-2xl font-black text-white leading-tight">{displayName}</h1>
 
@@ -151,13 +154,13 @@ export default function SellerProfilePage() {
           <div className="flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1.5">
             <Package className="w-3.5 h-3.5 text-white/80" />
             <span className="text-xs font-semibold text-white">
-              {listings.length} annonce{listings.length > 1 ? "s" : ""}
+              {tr(`${n} annonce${n > 1 ? "s" : ""}`, `${n} إعلان`)}
             </span>
           </div>
           {memberSince && (
             <div className="flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1.5">
               <Calendar className="w-3.5 h-3.5 text-white/80" />
-              <span className="text-xs font-semibold text-white">Depuis {memberSince}</span>
+              <span className="text-xs font-semibold text-white">{tr("Depuis", "منذ")} {memberSince}</span>
             </div>
           )}
         </div>
@@ -166,9 +169,9 @@ export default function SellerProfilePage() {
           <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute top-14 right-4 bg-white text-[#1B6B3A] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg"
+            className="absolute top-14 end-4 bg-white text-[#1B6B3A] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg"
           >
-            Lien copié !
+            {tr("Lien copié !", "تم نسخ الرابط!")}
           </motion.div>
         )}
       </div>
@@ -200,14 +203,14 @@ export default function SellerProfilePage() {
 
       {/* Category filters */}
       {usedCategories.length > 1 && (
-        <div className="mt-5 px-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <div className="mt-5 px-4 flex gap-2 overflow-x-auto scrollbar-none pb-1">
           <button
             onClick={() => setActiveCategory(null)}
             className={`flex-shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-colors ${
               activeCategory === null ? "bg-[#1B6B3A] text-white" : "bg-white text-gray-600"
             }`}
           >
-            Tout
+            {tr("Tout", "الكل")}
           </button>
           {usedCategories.map((c) => (
             <button
@@ -226,9 +229,11 @@ export default function SellerProfilePage() {
 
       {/* Seller listings */}
       <div className="px-4 mt-6">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Toutes les annonces</h3>
+        <h3 className="text-sm font-bold text-gray-800 mb-3">{tr("Toutes les annonces", "كل الإعلانات")}</h3>
         {filteredListings.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-8">Aucune annonce dans cette catégorie</p>
+          <p className="text-sm text-gray-400 text-center py-8">
+            {tr("Aucune annonce dans cette catégorie", "لا توجد إعلانات في هذه الفئة")}
+          </p>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
             {filteredListings.map((listing, i) => (
