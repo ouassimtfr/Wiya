@@ -17,6 +17,8 @@ export default function AdminPage() {
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -49,51 +51,92 @@ export default function AdminPage() {
 
   const fetchRequests = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("boost_requests")
       .select("*")
       .order("submitted_at", { ascending: false });
+    if (error) {
+      console.error("Erreur chargement demandes:", error);
+      setActionError(`Chargement impossible : ${error.message}`);
+    }
     if (data) setRequests(data);
     setLoading(false);
   };
 
   const handleActivate = async (req: any) => {
+    setActionError("");
+    setBusyId(req.id);
     const listingId = String(req.listing_id).trim();
 
-    const { error: reqError } = await supabase
-      .from("boost_requests")
-      .update({ status: "active" })
-      .eq("id", req.id);
-
-    if (reqError) {
-      console.error("Erreur update boost_requests:", reqError);
-      return;
-    }
-
-    const { error: listingError } = await supabase
+    // 1. On boost l'annonce et on vérifie que la ligne a vraiment changé
+    const { data: listingRows, error: listingError } = await supabase
       .from("listings")
       .update({ is_boosted: true })
-      .eq("id", listingId);
+      .eq("id", listingId)
+      .select("id, is_boosted");
 
     if (listingError) {
       console.error("Erreur update listings.is_boosted:", listingError);
+      setActionError(`Boost de l'annonce impossible : ${listingError.message}`);
+      setBusyId(null);
+      return;
+    }
+    if (!listingRows || listingRows.length === 0 || !listingRows[0].is_boosted) {
+      setActionError(
+        "L'annonce n'a pas été modifiée (annonce introuvable ou droits insuffisants). Vérifie les règles RLS sur listings."
+      );
+      setBusyId(null);
       return;
     }
 
+    // 2. On passe la demande en "active" et on vérifie aussi
+    const { data: reqRows, error: reqError } = await supabase
+      .from("boost_requests")
+      .update({ status: "active" })
+      .eq("id", req.id)
+      .select("id, status");
+
+    if (reqError) {
+      console.error("Erreur update boost_requests:", reqError);
+      setActionError(`Annonce boostée, mais statut non mis à jour : ${reqError.message}`);
+      setBusyId(null);
+      return;
+    }
+    if (!reqRows || reqRows.length === 0) {
+      setActionError(
+        "Annonce boostée, mais la demande n'a pas été mise à jour (droits insuffisants sur boost_requests)."
+      );
+      setBusyId(null);
+      return;
+    }
+
+    setBusyId(null);
     fetchRequests();
   };
 
   const handleRefuse = async (req: any) => {
-    const { error } = await supabase
+    setActionError("");
+    setBusyId(req.id);
+
+    const { data: rows, error } = await supabase
       .from("boost_requests")
       .update({ status: "refused" })
-      .eq("id", req.id);
+      .eq("id", req.id)
+      .select("id, status");
 
     if (error) {
       console.error("Erreur update refus boost:", error);
+      setActionError(`Refus impossible : ${error.message}`);
+      setBusyId(null);
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      setActionError("La demande n'a pas été modifiée (droits insuffisants sur boost_requests).");
+      setBusyId(null);
       return;
     }
 
+    setBusyId(null);
     fetchRequests();
   };
 
@@ -121,6 +164,11 @@ export default function AdminPage() {
           <p className="text-white/40 text-sm">
             {user ? "Ton compte n'a pas les droits admin." : "Connecte-toi avec un compte admin pour accéder à cette page."}
           </p>
+          {!user && (
+            <button onClick={() => navigate("/auth")} className="w-full py-3.5 bg-white/10 text-white rounded-2xl font-bold text-sm">
+              Se connecter
+            </button>
+          )}
           <button onClick={() => navigate("/")} className="w-full py-3.5 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-900">
             Retour à l'accueil
           </button>
@@ -159,7 +207,14 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="flex bg-[#0f1f14] border-b border-white/5">
+      {actionError && (
+        <div className="mx-4 mt-3 bg-red-900/40 border border-red-500/30 rounded-2xl px-4 py-3 flex items-start gap-2">
+          <p className="flex-1 text-red-300 text-xs font-medium leading-snug">{actionError}</p>
+          <button onClick={() => setActionError("")}><X className="w-4 h-4 text-red-300" /></button>
+        </div>
+      )}
+
+      <div className="flex bg-[#0f1f14] border-b border-white/5 mt-3">
         {(["pending", "active", "refused"] as Tab[]).map((t) => {
           const counts = { pending: pending.length, active: active.length, refused: refused.length };
           const labels = { pending: "En attente", active: "Activés", refused: "Refusés" };
@@ -215,10 +270,10 @@ export default function AdminPage() {
 
                 {req.status === "pending" && (
                   <div className="flex gap-2 px-4 pb-4">
-                    <button onClick={() => handleActivate(req)} className="flex-1 py-3 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-green-900">
-                      <Check className="w-4 h-4" /> Activer
+                    <button onClick={() => handleActivate(req)} disabled={busyId === req.id} className="flex-1 py-3 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-green-900 disabled:opacity-50">
+                      <Check className="w-4 h-4" /> {busyId === req.id ? "..." : "Activer"}
                     </button>
-                    <button onClick={() => handleRefuse(req)} className="flex-1 py-3 bg-red-900/50 text-red-300 border border-red-500/20 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5">
+                    <button onClick={() => handleRefuse(req)} disabled={busyId === req.id} className="flex-1 py-3 bg-red-900/50 text-red-300 border border-red-500/20 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-50">
                       <X className="w-4 h-4" /> Refuser
                     </button>
                   </div>
