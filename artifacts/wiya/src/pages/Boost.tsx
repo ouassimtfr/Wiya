@@ -39,6 +39,7 @@ export default function BoostPage() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { user, submitBoostRequest } = useStore();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -48,6 +49,7 @@ export default function BoostPage() {
   const [receiptName, setReceiptName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [listing, setListing] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +61,9 @@ export default function BoostPage() {
   };
 
   const plan = PLANS.find((p) => p.id === selected);
+
+  const planName = (p: { type: "basic" | "premium"; days: number }) =>
+    `${p.type === "basic" ? tr("Standard", "عادي") : tr("Premium", "مميز")} ${p.days}${tr("j", " يوم")}`;
 
   const handleCopy = async () => {
     try { await navigator.clipboard.writeText(CCP_NUMBER); } catch { }
@@ -81,11 +86,13 @@ export default function BoostPage() {
     reader.readAsDataURL(file);
   };
 
-  // La demande est simplement créée en statut "pending" ici.
-  // C'est le Panel Admin qui décide ensuite manuellement de l'activer ou de la refuser.
+  // La demande est créée en statut "pending". Le Panel Admin l'active ou la refuse ensuite.
   const handleSubmit = async () => {
     if (!receipt || !plan || !listing) return;
+    if (!user) { navigate("/auth"); return; }
+
     setSubmitting(true);
+    setSubmitError("");
 
     try {
       await submitBoostRequest({
@@ -98,13 +105,16 @@ export default function BoostPage() {
         days: plan.days,
         type: plan.type,
         receiptImage: receipt,
-        sellerName: user?.name ?? "Vendeur",
+        sellerName: user.name ?? "Vendeur",
       });
-    } catch (err) {
+      setStep(4);
+    } catch (err: any) {
       console.error("Erreur lors de la soumission de la demande de boost :", err);
+      setSubmitError(
+        `${tr("Échec de l'envoi de la demande.", "فشل إرسال الطلب.")}${err?.message ? ` (${err.message})` : ""}`
+      );
     } finally {
       setSubmitting(false);
-      setStep(4);
     }
   };
 
@@ -115,21 +125,42 @@ export default function BoostPage() {
           <CheckCheck className="w-12 h-12 text-white" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <h2 className="text-white text-2xl font-black mb-2">Demande envoyée !</h2>
-          <p className="text-green-200 text-sm leading-relaxed">Votre reçu a bien été reçu.<br />Notre équipe va le vérifier et activera votre boost sous peu.</p>
+          <h2 className="text-white text-2xl font-black mb-2">{tr("Demande envoyée !", "تم إرسال الطلب!")}</h2>
+          <p className="text-green-200 text-sm leading-relaxed">
+            {tr("Votre reçu a bien été reçu.", "تم استلام وصلك.")}<br />
+            {tr("Notre équipe va le vérifier et activera votre boost sous peu.", "سيقوم فريقنا بالتحقق منه وتفعيل التعزيز قريبا.")}
+          </p>
           <div className="mt-4 bg-white/10 rounded-2xl px-5 py-3">
-            <p className="text-green-100 text-xs">Plan: <strong className="text-white">{plan?.label}</strong></p>
-            <p className="text-green-100 text-xs mt-0.5">Annonce: <strong className="text-white">{listing?.title}</strong></p>
+            <p className="text-green-100 text-xs">{tr("Plan", "العرض")}: <strong className="text-white">{plan ? planName(plan) : ""}</strong></p>
+            <p className="text-green-100 text-xs mt-0.5">{tr("Annonce", "الإعلان")}: <strong className="text-white">{listing?.title}</strong></p>
           </div>
         </motion.div>
         <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }} onClick={() => navigate("/")} className="mt-4 px-8 py-3.5 bg-white text-[#1B6B3A] rounded-2xl font-bold text-sm shadow-lg">
-          Retour à l'accueil
+          {tr("Retour à l'accueil", "العودة إلى الرئيسية")}
         </motion.button>
       </motion.div>
     );
   }
 
   if (!listing) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
+
+  const steps = [
+    tr("Choisir un plan", "اختر العرض"),
+    tr("Paiement BaridiMob", "الدفع عبر بريدي موب"),
+    tr("Envoyer le reçu", "إرسال الوصل"),
+  ];
+
+  const paySteps = plan
+    ? [
+        tr("Ouvrez l'application BaridiMob", "افتح تطبيق بريدي موب"),
+        tr("Appuyez sur « Virement vers CCP »", "اضغط على «تحويل إلى CCP»"),
+        tr("Saisissez le numéro CCP ci-dessus", "أدخل رقم CCP أعلاه"),
+        tr(`Entrez le montant : ${plan.price.toLocaleString()} DA`, `أدخل المبلغ: ${plan.price.toLocaleString()} دج`),
+        tr(`Motif : Boost Wiya #${listing.id}`, `السبب: Boost Wiya #${listing.id}`),
+        tr("Confirmez avec votre code secret", "أكّد برمزك السري"),
+        tr("Prenez une capture d'écran du reçu ✅", "التقط صورة شاشة للوصل ✅"),
+      ]
+    : [];
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 190px)" }}>
@@ -152,7 +183,7 @@ export default function BoostPage() {
                 {s < 3 && <div className={`w-8 h-0.5 rounded-full ${step > s ? "bg-[#C8972B]" : "bg-white/20"}`} />}
               </div>
             ))}
-            <span className="text-green-200 text-xs ms-1">{step === 1 ? "Choisir un plan" : step === 2 ? "Paiement BaridiMob" : "Envoyer le reçu"}</span>
+            <span className="text-green-200 text-xs ms-1">{steps[step - 1]}</span>
           </div>
         </div>
       </div>
@@ -166,10 +197,10 @@ export default function BoostPage() {
           )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900 truncate">{listing.title}</p>
-            <p className="text-sm font-bold text-[#1B6B3A]">{listing.price ? `${listing.price.toLocaleString()} DA` : "Prix non défini"}</p>
+            <p className="text-sm font-bold text-[#1B6B3A]">{listing.price ? `${listing.price.toLocaleString()} ${t("da")}` : tr("Prix non défini", "السعر غير محدد")}</p>
           </div>
           {plan && step > 1 && (
-            <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${plan.type === "premium" ? "bg-amber-50 text-[#C8972B]" : "bg-green-50 text-[#1B6B3A]"}`}>{plan.label}</div>
+            <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${plan.type === "premium" ? "bg-amber-50 text-[#C8972B]" : "bg-green-50 text-[#1B6B3A]"}`}>{planName(plan)}</div>
           )}
         </div>
 
@@ -177,7 +208,11 @@ export default function BoostPage() {
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
-                {[{ icon: Eye, label: "+5x vues", color: "bg-blue-50 text-blue-600" }, { icon: TrendingUp, label: "Top résultats", color: "bg-green-50 text-[#1B6B3A]" }, { icon: Star, label: "Badge vedette", color: "bg-amber-50 text-[#C8972B]" }].map((b) => (
+                {[
+                  { icon: Eye, label: tr("+5x vues", "+5 أضعاف المشاهدات"), color: "bg-blue-50 text-blue-600" },
+                  { icon: TrendingUp, label: tr("Top résultats", "أعلى النتائج"), color: "bg-green-50 text-[#1B6B3A]" },
+                  { icon: Star, label: tr("Badge vedette", "شارة مميزة"), color: "bg-amber-50 text-[#C8972B]" },
+                ].map((b) => (
                   <div key={b.label} className={`${b.color.split(" ")[0]} rounded-2xl p-3 text-center`}>
                     <b.icon className={`w-5 h-5 ${b.color.split(" ")[1]} mx-auto mb-1`} />
                     <p className={`text-[11px] font-bold ${b.color.split(" ")[1]}`}>{b.label}</p>
@@ -187,13 +222,13 @@ export default function BoostPage() {
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t("basicBoost")} — {t("basicBoostDesc")}</p></div>
                 <div className="flex gap-2 p-3">
-                  {PLANS.filter((p) => p.type === "basic").map((plan) => (
-                    <motion.button key={plan.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(plan.id)} className={`flex-1 p-3 rounded-2xl border-2 transition-all relative ${selected === plan.id ? "border-[#1B6B3A] bg-green-50" : "border-gray-100"}`}>
-                      {plan.popular && <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[#C8972B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⭐ Populaire</span>}
-                      <p className="text-lg font-black text-gray-900">{plan.days}j</p>
-                      <p className="text-sm font-bold text-[#1B6B3A]">{plan.price.toLocaleString()} DA</p>
-                      <p className="text-[10px] text-gray-400">{Math.round(plan.price / plan.days)} DA{t("perDay")}</p>
-                      {selected === plan.id && <div className="absolute top-2 end-2 w-4 h-4 bg-[#1B6B3A] rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
+                  {PLANS.filter((p) => p.type === "basic").map((p) => (
+                    <motion.button key={p.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(p.id)} className={`flex-1 p-3 rounded-2xl border-2 transition-all relative ${selected === p.id ? "border-[#1B6B3A] bg-green-50" : "border-gray-100"}`}>
+                      {p.popular && <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[#C8972B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{tr("⭐ Populaire", "⭐ الأكثر طلبا")}</span>}
+                      <p className="text-lg font-black text-gray-900">{p.days}{tr("j", " يوم")}</p>
+                      <p className="text-sm font-bold text-[#1B6B3A]">{p.price.toLocaleString()} {t("da")}</p>
+                      <p className="text-[10px] text-gray-400">{Math.round(p.price / p.days)} {t("da")}{t("perDay")}</p>
+                      {selected === p.id && <div className="absolute top-2 end-2 w-4 h-4 bg-[#1B6B3A] rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
                     </motion.button>
                   ))}
                 </div>
@@ -204,12 +239,12 @@ export default function BoostPage() {
                   <p className="text-xs font-bold text-[#C8972B] uppercase tracking-wide">{t("premiumBoost")} — {t("premiumBoostDesc")}</p>
                 </div>
                 <div className="flex gap-2 p-3">
-                  {PLANS.filter((p) => p.type === "premium").map((plan) => (
-                    <motion.button key={plan.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(plan.id)} className={`flex-1 p-3 rounded-2xl border-2 transition-all relative ${selected === plan.id ? "border-[#C8972B] bg-amber-100/60" : "border-[#C8972B]/20 bg-white/60"}`}>
-                      <p className="text-lg font-black text-gray-900">{plan.days}j</p>
-                      <p className="text-sm font-bold text-[#C8972B]">{plan.price.toLocaleString()} DA</p>
-                      <p className="text-[10px] text-gray-400">{Math.round(plan.price / plan.days)} DA{t("perDay")}</p>
-                      {selected === plan.id && <div className="absolute top-2 end-2 w-4 h-4 bg-[#C8972B] rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
+                  {PLANS.filter((p) => p.type === "premium").map((p) => (
+                    <motion.button key={p.id} whileTap={{ scale: 0.97 }} onClick={() => setSelected(p.id)} className={`flex-1 p-3 rounded-2xl border-2 transition-all relative ${selected === p.id ? "border-[#C8972B] bg-amber-100/60" : "border-[#C8972B]/20 bg-white/60"}`}>
+                      <p className="text-lg font-black text-gray-900">{p.days}{tr("j", " يوم")}</p>
+                      <p className="text-sm font-bold text-[#C8972B]">{p.price.toLocaleString()} {t("da")}</p>
+                      <p className="text-[10px] text-gray-400">{Math.round(p.price / p.days)} {t("da")}{t("perDay")}</p>
+                      {selected === p.id && <div className="absolute top-2 end-2 w-4 h-4 bg-[#C8972B] rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
                     </motion.button>
                   ))}
                 </div>
@@ -222,29 +257,32 @@ export default function BoostPage() {
               <div className="bg-white rounded-3xl shadow-md overflow-hidden border border-green-100">
                 <div className="bg-gradient-to-r from-[#1B6B3A] to-[#25924F] px-5 py-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">🏦</div>
-                  <div><p className="text-white font-black text-base">Paiement BaridiMob</p><p className="text-green-200 text-xs">Virement CCP sécurisé</p></div>
+                  <div>
+                    <p className="text-white font-black text-base">{tr("Paiement BaridiMob", "الدفع عبر بريدي موب")}</p>
+                    <p className="text-green-200 text-xs">{tr("Virement CCP sécurisé", "تحويل CCP آمن")}</p>
+                  </div>
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Numéro CCP destinataire</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{tr("Numéro CCP destinataire", "رقم CCP المستلم")}</p>
                     <div className="flex items-center gap-2 bg-gray-50 rounded-2xl p-3 border border-gray-200">
-                      <p className="flex-1 font-mono text-base font-black text-gray-900 tracking-wider break-all">{CCP_NUMBER}</p>
+                      <p dir="ltr" className="flex-1 font-mono text-base font-black text-gray-900 tracking-wider break-all">{CCP_NUMBER}</p>
                       <button onClick={handleCopy} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${copied ? "bg-green-500 text-white" : "bg-[#1B6B3A] text-white"}`}>
-                        {copied ? <><CheckCheck className="w-3.5 h-3.5" /> Copié</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
+                        {copied ? <><CheckCheck className="w-3.5 h-3.5" /> {tr("Copié", "تم النسخ")}</> : <><Copy className="w-3.5 h-3.5" /> {tr("Copier", "نسخ")}</>}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Montant à virer</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{tr("Montant à virer", "المبلغ المطلوب تحويله")}</p>
                     <div className="bg-amber-50 border border-[#C8972B]/30 rounded-2xl p-3 text-center">
-                      <p className="text-2xl font-black text-[#C8972B]">{plan.price.toLocaleString()} DA</p>
-                      <p className="text-xs text-amber-600 mt-0.5">{plan.label} — {plan.days} jours</p>
+                      <p className="text-2xl font-black text-[#C8972B]">{plan.price.toLocaleString()} {t("da")}</p>
+                      <p className="text-xs text-amber-600 mt-0.5">{planName(plan)} — {plan.days} {tr("jours", "يوم")}</p>
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Étapes à suivre</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{tr("Étapes à suivre", "الخطوات")}</p>
                     <div className="space-y-2.5">
-                      {["Ouvrez l'application BaridiMob", "Appuyez sur « Virement vers CCP »", `Saisissez le numéro CCP ci-dessus`, `Entrez le montant : ${plan.price.toLocaleString()} DA`, `Motif : Boost Wiya #${listing.id}`, "Confirmez avec votre code secret", "Prenez une capture d'écran du reçu ✅"].map((s, i) => (
+                      {paySteps.map((s, i) => (
                         <div key={i} className="flex items-start gap-3">
                           <div className="w-5 h-5 rounded-full bg-[#1B6B3A] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
                           <p className="text-sm text-gray-700 leading-snug">{s}</p>
@@ -261,27 +299,30 @@ export default function BoostPage() {
             <motion.div key="step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
               <div className="bg-white rounded-3xl shadow-md p-5 space-y-4">
                 <div>
-                  <h3 className="text-base font-black text-gray-900 mb-1">Envoyez votre reçu</h3>
-                  <p className="text-sm text-gray-500">Prenez une capture d'écran du reçu BaridiMob et importez-la ici.</p>
+                  <h3 className="text-base font-black text-gray-900 mb-1">{tr("Envoyez votre reçu", "أرسل وصلك")}</h3>
+                  <p className="text-sm text-gray-500">{tr("Prenez une capture d'écran du reçu BaridiMob et importez-la ici.", "التقط صورة شاشة لوصل بريدي موب وارفعها هنا.")}</p>
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                 {!receipt ? (
                   <motion.button whileTap={{ scale: 0.97 }} onClick={() => fileRef.current?.click()} className="w-full border-2 border-dashed border-[#1B6B3A]/30 rounded-2xl py-10 flex flex-col items-center gap-3 bg-green-50/50">
                     {uploading ? <div className="w-10 h-10 rounded-full border-2 border-[#1B6B3A] border-t-transparent animate-spin" /> : <>
                       <div className="w-14 h-14 rounded-2xl bg-[#1B6B3A]/10 flex items-center justify-center"><Upload className="w-7 h-7 text-[#1B6B3A]" /></div>
-                      <div className="text-center"><p className="text-sm font-bold text-[#1B6B3A]">Importer la capture d'écran</p><p className="text-xs text-gray-400 mt-0.5">JPG, PNG — max 10 Mo</p></div>
+                      <div className="text-center">
+                        <p className="text-sm font-bold text-[#1B6B3A]">{tr("Importer la capture d'écran", "رفع لقطة الشاشة")}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{tr("JPG, PNG — max 10 Mo", "JPG, PNG — الحد الأقصى 10 ميغا")}</p>
+                      </div>
                     </>}
                   </motion.button>
                 ) : (
                   <div className="space-y-3">
                     <div className="relative rounded-2xl overflow-hidden border border-green-200 shadow-sm">
-                      <img src={receipt} alt="Reçu" className="w-full object-contain max-h-72" />
+                      <img src={receipt} alt={tr("Reçu", "الوصل")} className="w-full object-contain max-h-72" />
                       <button onClick={() => { setReceipt(null); setReceiptName(""); }} className="absolute top-2 end-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"><X className="w-4 h-4 text-white" /></button>
                       <div className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
-                        <div className="flex items-center gap-2"><ImageIcon className="w-3.5 h-3.5 text-white" /><span className="text-white text-xs font-medium truncate">{receiptName || "reçu.jpg"}</span></div>
+                        <div className="flex items-center gap-2"><ImageIcon className="w-3.5 h-3.5 text-white" /><span className="text-white text-xs font-medium truncate">{receiptName || "receipt.jpg"}</span></div>
                       </div>
                     </div>
-                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">Changer l'image</button>
+                    <button onClick={() => fileRef.current?.click()} className="w-full py-2 text-sm text-[#1B6B3A] font-semibold border border-[#1B6B3A]/30 rounded-2xl">{tr("Changer l'image", "تغيير الصورة")}</button>
                   </div>
                 )}
               </div>
@@ -292,15 +333,18 @@ export default function BoostPage() {
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
         {step === 1 && (<>
-          {selected && <p className="text-center text-xs text-gray-500 mb-2">Plan sélectionné: <strong className="text-gray-800">{plan?.price.toLocaleString()} DA — {plan?.days} jours</strong></p>}
+          {selected && plan && <p className="text-center text-xs text-gray-500 mb-2">{tr("Plan sélectionné", "العرض المختار")}: <strong className="text-gray-800">{plan.price.toLocaleString()} {t("da")} — {plan.days} {tr("jours", "يوم")}</strong></p>}
           <button onClick={() => setStep(2)} disabled={!selected} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
-            <Zap className="w-4 h-4 fill-white" />Continuer vers le paiement
+            <Zap className="w-4 h-4 fill-white" />{tr("Continuer vers le paiement", "المتابعة إلى الدفع")}
           </button>
         </>)}
-        {step === 2 && <button onClick={() => setStep(3)} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2">J'ai effectué le virement →</button>}
-        {step === 3 && <button onClick={handleSubmit} disabled={!receipt || uploading || submitting} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
-          {submitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCheck className="w-4 h-4" />Soumettre la demande</>}
-        </button>}
+        {step === 2 && <button onClick={() => setStep(3)} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 flex items-center justify-center gap-2">{tr("J'ai effectué le virement →", "لقد أجريت التحويل ←")}</button>}
+        {step === 3 && (<>
+          {submitError && <p className="text-xs text-red-500 font-medium text-center mb-2">{submitError}</p>}
+          <button onClick={handleSubmit} disabled={!receipt || uploading || submitting} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
+            {submitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCheck className="w-4 h-4" />{tr("Soumettre la demande", "إرسال الطلب")}</>}
+          </button>
+        </>)}
       </div>
     </div>
   );
