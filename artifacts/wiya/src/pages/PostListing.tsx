@@ -1,12 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, Camera, X, Loader2, Briefcase } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
-
-const JOB_TYPES = ["CDI", "CDD", "Stage", "Freelance", "Temps partiel", "Alternance"];
 
 const JOB_SECTORS = [
   "Informatique",
@@ -22,11 +20,26 @@ const JOB_SECTORS = [
   "Autre",
 ];
 
+const JOB_SECTOR_AR: Record<string, string> = {
+  Informatique: "إعلام آلي",
+  "Commerce et vente": "تجارة وبيع",
+  "Restauration et hôtellerie": "مطاعم وفندقة",
+  "Bâtiment et travaux": "بناء وأشغال",
+  Santé: "صحة",
+  "Éducation et formation": "تعليم وتكوين",
+  "Transport et logistique": "نقل ولوجستيك",
+  "Administration et comptabilité": "إدارة ومحاسبة",
+  Industrie: "صناعة",
+  "Marketing et communication": "تسويق واتصال",
+  Autre: "أخرى",
+};
+
 const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
 
 export default function PostListingPage() {
   const [, navigate] = useLocation();
   const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { user, createListing } = useStore();
 
   const [title, setTitle] = useState("");
@@ -44,17 +57,15 @@ export default function PostListingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
-
-  const [jobKind, setJobKind] = useState<"offer" | "seeking">("offer");
-  const [jobType, setJobType] = useState("");
   const [jobSector, setJobSector] = useState("");
 
   const isJobs = category === "jobs";
 
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
+  useEffect(() => {
+    if (!user) navigate("/auth");
+  }, [user]);
+
+  if (!user) return null;
 
   const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -73,19 +84,18 @@ export default function PostListingPage() {
   const handleSubmit = async () => {
     setErrorMsg("");
 
-    if (!category) return setErrorMsg("Choisis une catégorie.");
-    if (!title.trim()) return setErrorMsg("Le titre est obligatoire.");
+    if (!category) return setErrorMsg(tr("Choisis une catégorie.", "اختر فئة."));
+    if (!title.trim()) return setErrorMsg(tr("Le titre est obligatoire.", "العنوان إجباري."));
 
     if (isJobs) {
-      if (!jobType) return setErrorMsg("Choisis un type de contrat.");
-      if (!jobSector) return setErrorMsg("Choisis un secteur.");
+      if (!jobSector) return setErrorMsg(tr("Choisis un secteur.", "اختر القطاع."));
     } else {
-      if (!price || Number(price) <= 0) return setErrorMsg("Indique un prix valide.");
-      if (images.length === 0) return setErrorMsg("Ajoute au moins une photo.");
+      if (!price || Number(price) <= 0) return setErrorMsg(tr("Indique un prix valide.", "أدخل سعرا صحيحا."));
+      if (images.length === 0) return setErrorMsg(tr("Ajoute au moins une photo.", "أضف صورة واحدة على الأقل."));
     }
 
-    if (!wilaya) return setErrorMsg("Choisis une wilaya.");
-    if (!description.trim()) return setErrorMsg("La description est obligatoire.");
+    if (!wilaya) return setErrorMsg(tr("Choisis une wilaya.", "اختر الولاية."));
+    if (!description.trim()) return setErrorMsg(tr("La description est obligatoire.", "الوصف إجباري."));
 
     setSubmitting(true);
     setProgress(0);
@@ -103,7 +113,7 @@ export default function PostListingPage() {
         isNegotiable,
         isUrgent,
         images,
-        ...(isJobs ? { jobKind, jobType, jobSector } : {}),
+        ...(isJobs ? { jobKind: "seeking" as const, jobSector } : {}),
       },
       setProgress
     );
@@ -111,27 +121,31 @@ export default function PostListingPage() {
     setSubmitting(false);
 
     if (error || !id) {
-      setErrorMsg(`Erreur lors de la publication : ${error ?? "inconnue"}`);
+      setErrorMsg(
+        `${tr("Erreur lors de la publication", "خطأ أثناء النشر")} : ${error ?? tr("inconnue", "غير معروف")}`
+      );
       return;
     }
 
     navigate(`/listing/${id}`);
   };
 
+  const labelClass = "text-xs font-bold text-gray-500 uppercase mb-1.5";
+
   return (
-    <div className="bg-white min-h-screen pb-32">
+    <div className="bg-white min-h-screen pb-40">
       <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
         <button onClick={() => navigate("/")} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
           <ChevronLeft className={`w-5 h-5 text-gray-700 ${isRTL ? "rotate-180" : ""}`} />
         </button>
         <h1 className="text-base font-bold text-gray-900">
-          {isJobs ? (jobKind === "offer" ? "Publier une offre d'emploi" : "Publier une demande d'emploi") : "Publier une annonce"}
+          {isJobs ? tr("Publier une demande d'emploi", "نشر طلب عمل") : tr("Publier une annonce", "نشر إعلان")}
         </h1>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Catégorie</p>
+          <p className={labelClass}>{tr("Catégorie", "الفئة")}</p>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
             {CATEGORIES.map((c) => (
               <button
@@ -152,54 +166,20 @@ export default function PostListingPage() {
           <div className="rounded-2xl bg-[#1B6B3A]/5 border border-[#1B6B3A]/15 p-3.5 space-y-3.5">
             <div className="flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-[#1B6B3A]" />
-              <p className="text-sm font-bold text-[#1B6B3A]">Détails de l'emploi</p>
-            </div>
-
-            <div className="flex bg-white rounded-2xl p-1 border border-gray-100">
-              {[
-                { id: "offer" as const, label: "Je recrute" },
-                { id: "seeking" as const, label: "Je cherche un emploi" },
-              ].map((k) => (
-                <button
-                  key={k.id}
-                  onClick={() => setJobKind(k.id)}
-                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${
-                    jobKind === k.id ? "bg-[#1B6B3A] text-white" : "text-gray-500"
-                  }`}
-                >
-                  {k.label}
-                </button>
-              ))}
+              <p className="text-sm font-bold text-[#1B6B3A]">{tr("Je cherche un emploi", "أبحث عن عمل")}</p>
             </div>
 
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Type de contrat</p>
-              <div className="flex flex-wrap gap-2">
-                {JOB_TYPES.map((jt) => (
-                  <button
-                    key={jt}
-                    onClick={() => setJobType(jt)}
-                    className={`px-3.5 py-2 rounded-full text-[13px] font-semibold border ${
-                      jobType === jt ? "bg-[#1B6B3A] text-white border-[#1B6B3A]" : "bg-white text-gray-600 border-gray-200"
-                    }`}
-                  >
-                    {jt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Secteur</p>
+              <p className={labelClass}>{tr("Secteur", "القطاع")}</p>
               <select
-                className="w-full bg-white border border-gray-200 rounded-2xl px-3 py-3 text-sm outline-none text-gray-800"
+                className="w-full bg-white border border-gray-200 rounded-2xl px-3 py-3 text-base outline-none text-gray-800"
                 value={jobSector}
                 onChange={(e) => setJobSector(e.target.value)}
               >
-                <option value="">Choisir un secteur</option>
+                <option value="">{tr("Choisir un secteur", "اختر القطاع")}</option>
                 {JOB_SECTORS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {isRTL ? JOB_SECTOR_AR[s] ?? s : s}
                   </option>
                 ))}
               </select>
@@ -208,8 +188,10 @@ export default function PostListingPage() {
         )}
 
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-2">
-            {isJobs ? `Photo ou logo (facultatif) (${images.length}/6)` : `Photos (${images.length}/6)`}
+          <p className={`${labelClass} mb-2`}>
+            {isJobs
+              ? `${tr("Photo (facultatif)", "صورة (اختياري)")} (${images.length}/6)`
+              : `${tr("Photos", "الصور")} (${images.length}/6)`}
           </p>
           <div className="flex gap-2 flex-wrap">
             {previews.map((src, i) => (
@@ -226,7 +208,7 @@ export default function PostListingPage() {
             {images.length < 6 && (
               <label className="w-20 h-20 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
                 <Camera className="w-5 h-5 text-gray-400" />
-                <span className="text-[10px] text-gray-400 mt-1">Ajouter</span>
+                <span className="text-[10px] text-gray-400 mt-1">{tr("Ajouter", "إضافة")}</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
               </label>
             )}
@@ -234,15 +216,13 @@ export default function PostListingPage() {
         </div>
 
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">{isJobs ? "Intitulé du poste" : "Titre"}</p>
+          <p className={labelClass}>{isJobs ? tr("Poste recherché", "المنصب المطلوب") : tr("Titre", "العنوان")}</p>
           <input
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none"
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none"
             placeholder={
               isJobs
-                ? jobKind === "offer"
-                  ? "Ex : Développeur web, Vendeur, Chauffeur"
-                  : "Ex : Comptable, 5 ans d'expérience"
-                : "Ex : iPhone 13 Pro 256Go"
+                ? tr("Ex : Comptable, 5 ans d'expérience", "مثال: محاسب، 5 سنوات خبرة")
+                : tr("Ex : iPhone 13 Pro 256Go", "مثال: iPhone 13 Pro 256Go")
             }
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -250,14 +230,16 @@ export default function PostListingPage() {
         </div>
 
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">
-            {isJobs ? `Salaire par mois (${t("da")}) (facultatif)` : `Prix (${t("da")})`}
+          <p className={labelClass}>
+            {isJobs
+              ? `${tr("Salaire souhaité par mois", "الراتب المطلوب شهريا")} (${t("da")}) (${tr("facultatif", "اختياري")})`
+              : `${tr("Prix", "السعر")} (${t("da")})`}
           </p>
           <input
             type="number"
             inputMode="numeric"
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none"
-            placeholder={isJobs ? "Laisser vide = à discuter" : "0"}
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none"
+            placeholder={isJobs ? tr("Laisser vide = à discuter", "اتركه فارغا = قابل للنقاش") : "0"}
             value={price}
             onChange={(e) => setPrice(e.target.value)}
           />
@@ -265,13 +247,13 @@ export default function PostListingPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Wilaya</p>
+            <p className={labelClass}>{tr("Wilaya", "الولاية")}</p>
             <select
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 text-sm outline-none"
+              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 text-base outline-none"
               value={wilaya}
               onChange={(e) => setWilaya(e.target.value)}
             >
-              <option value="">Choisir</option>
+              <option value="">{tr("Choisir", "اختر")}</option>
               {WILAYA_OPTIONS.map((w) => (
                 <option key={w.code} value={w.name}>
                   {String(w.code).padStart(2, "0")} - {isRTL ? w.nameAr : w.name}
@@ -280,10 +262,10 @@ export default function PostListingPage() {
             </select>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Ville (optionnel)</p>
+            <p className={labelClass}>{tr("Ville (optionnel)", "المدينة (اختياري)")}</p>
             <input
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 text-sm outline-none"
-              placeholder="Ex : Boufarik"
+              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-3 text-base outline-none"
+              placeholder={tr("Ex : Boufarik", "مثال: بوفاريك")}
               value={city}
               onChange={(e) => setCity(e.target.value)}
             />
@@ -292,7 +274,7 @@ export default function PostListingPage() {
 
         {!isJobs && (
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">État</p>
+            <p className={labelClass}>{tr("État", "الحالة")}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setCondition("new")}
@@ -311,18 +293,20 @@ export default function PostListingPage() {
         )}
 
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">
-            {isJobs ? (jobKind === "offer" ? "Description du poste" : "Votre profil") : "Description"}
-          </p>
+          <p className={labelClass}>{isJobs ? tr("Votre profil", "ملفك الشخصي") : tr("Description", "الوصف")}</p>
           <textarea
             rows={4}
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none resize-none"
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none resize-none"
             placeholder={
               isJobs
-                ? jobKind === "offer"
-                  ? "Missions, profil recherché, horaires, avantages..."
-                  : "Expérience, diplômes, compétences, disponibilité..."
-                : "Décris ton produit, son état, les détails importants..."
+                ? tr(
+                    "Expérience, diplômes, compétences, disponibilité...",
+                    "الخبرة، الشهادات، المهارات، التوفر..."
+                  )
+                : tr(
+                    "Décris ton produit, son état, les détails importants...",
+                    "صف منتجك وحالته والتفاصيل المهمة..."
+                  )
             }
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -330,10 +314,12 @@ export default function PostListingPage() {
         </div>
 
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Téléphone de contact (optionnel)</p>
+          <p className={labelClass}>{tr("Téléphone de contact (optionnel)", "هاتف التواصل (اختياري)")}</p>
           <input
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none"
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none"
             placeholder="0555 12 34 56"
+            inputMode="tel"
+            dir="ltr"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -342,7 +328,7 @@ export default function PostListingPage() {
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isNegotiable} onChange={(e) => setIsNegotiable(e.target.checked)} />
-            {isJobs ? "Salaire négociable" : t("negotiable")}
+            {isJobs ? tr("Salaire négociable", "الراتب قابل للتفاوض") : t("negotiable")}
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} />
@@ -353,7 +339,7 @@ export default function PostListingPage() {
         {errorMsg && <p className="text-sm text-red-500 font-medium">{errorMsg}</p>}
       </div>
 
-      <div className="fixed bottom-[60px] left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 py-3 z-[30]">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 py-3 z-[30]">
         {submitting && (
           <div className="mb-2">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -363,7 +349,9 @@ export default function PostListingPage() {
               />
             </div>
             <p className="text-[11px] text-gray-400 mt-1 text-center">
-              {progress < 90 && images.length > 0 ? "Envoi des photos..." : "Publication de l'annonce..."}
+              {progress < 90 && images.length > 0
+                ? tr("Envoi des photos...", "جاري إرسال الصور...")
+                : tr("Publication de l'annonce...", "جاري نشر الإعلان...")}
             </p>
           </div>
         )}
@@ -373,7 +361,11 @@ export default function PostListingPage() {
           className="w-full py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {submitting ? "Publication..." : isJobs ? "Publier l'offre" : "Publier l'annonce"}
+          {submitting
+            ? tr("Publication...", "جاري النشر...")
+            : isJobs
+            ? tr("Publier ma demande", "نشر طلبي")
+            : tr("Publier l'annonce", "نشر الإعلان")}
         </button>
       </div>
     </div>
