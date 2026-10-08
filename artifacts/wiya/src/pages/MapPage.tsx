@@ -12,7 +12,8 @@ const SVG_H = 510;
 
 export default function MapPage() {
   const [, navigate] = useLocation();
-  const { lang } = useI18n();
+  const { isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const [selected, setSelected] = useState<Wilaya | null>(null);
   const [query, setQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -21,10 +22,12 @@ export default function MapPage() {
   useEffect(() => {
     supabase
       .from("listings")
-      .select("id, title, price, wilaya, images, category, condition, is_active, created_at, user_id, is_boosted, is_urgent, is_negotiable")
+      .select("id, title, price, wilaya, images, category, condition, is_active, created_at, user_id, is_boosted, is_urgent, is_negotiable, job_kind, job_sector")
       .eq("is_active", true)
       .then(({ data }) => { if (data) setListings(data); });
   }, []);
+
+  const wName = (w: Wilaya) => (isRTL ? w.nameAr : w.name);
 
   const listingsForWilaya = selected
     ? listings.filter((l) => l.wilaya === selected.name)
@@ -37,16 +40,20 @@ export default function MapPage() {
   const countForWilaya = (name: string) =>
     listings.filter((l) => l.wilaya === name).length;
 
+  const nSel = listingsForWilaya.length;
+
   return (
     <div className="bg-[#0f3d22] min-h-screen pb-20 flex flex-col">
       {/* Header */}
       <div className="px-4 pt-12 pb-3 flex items-center gap-3 flex-shrink-0">
         <button onClick={() => navigate("/")} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
-          <ArrowLeft className="w-4 h-4 text-white" />
+          <ArrowLeft className={`w-4 h-4 text-white ${isRTL ? "rotate-180" : ""}`} />
         </button>
         <div className="flex-1">
-          <h1 className="text-white font-black text-base">Carte des Wilayas</h1>
-          <p className="text-green-300 text-xs">{WILAYAS_DATA.length} wilayas · Algérie</p>
+          <h1 className="text-white font-black text-base">{tr("Carte des Wilayas", "خريطة الولايات")}</h1>
+          <p className="text-green-300 text-xs">
+            {WILAYAS_DATA.length} {tr("wilayas · Algérie", "ولاية · الجزائر")}
+          </p>
         </div>
         <button onClick={() => setShowSearch(!showSearch)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
           <Search className="w-4 h-4 text-white" />
@@ -60,16 +67,23 @@ export default function MapPage() {
             <div className="bg-white/15 rounded-2xl p-2 backdrop-blur-sm">
               <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
                 <Search className="w-3.5 h-3.5 text-green-200" />
-                <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher une wilaya..." className="flex-1 bg-transparent text-white text-sm placeholder-green-300 outline-none" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={tr("Rechercher une wilaya...", "ابحث عن ولاية...")}
+                  className="flex-1 bg-transparent text-white text-base placeholder-green-300 outline-none"
+                />
                 {query && <button onClick={() => setQuery("")}><X className="w-3.5 h-3.5 text-green-300" /></button>}
               </div>
               {filteredWilayas.length > 0 && (
                 <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                   {filteredWilayas.map((w) => (
-                    <button key={w.code} onClick={() => { setSelected(w); setQuery(""); setShowSearch(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-left">
+                    <button key={w.code} onClick={() => { setSelected(w); setQuery(""); setShowSearch(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-start">
                       <span className="text-xs font-bold text-green-300 w-6">{w.code}</span>
-                      <span className="text-sm text-white font-medium">{w.name}</span>
-                      <span className="text-xs text-green-300 ml-auto">{w.nameAr}</span>
+                      <span className="text-sm text-white font-medium">{wName(w)}</span>
+                      <span className="text-xs text-green-300 ms-auto">{isRTL ? w.name : w.nameAr}</span>
                     </button>
                   ))}
                 </div>
@@ -83,15 +97,15 @@ export default function MapPage() {
       <div className="flex items-center gap-4 px-4 mb-2 flex-shrink-0">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-[#E8C84A] border-2 border-white/30" />
-          <span className="text-[10px] text-green-200 font-medium">Avec annonces</span>
+          <span className="text-[10px] text-green-200 font-medium">{tr("Avec annonces", "فيها إعلانات")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-white/40 border-2 border-white/20" />
-          <span className="text-[10px] text-green-200 font-medium">Sans annonces</span>
+          <span className="text-[10px] text-green-200 font-medium">{tr("Sans annonces", "بدون إعلانات")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-[#ff6b35] border-2 border-white/30" />
-          <span className="text-[10px] text-green-200 font-medium">Sélectionnée</span>
+          <span className="text-[10px] text-green-200 font-medium">{tr("Sélectionnée", "المحددة")}</span>
         </div>
       </div>
 
@@ -148,7 +162,7 @@ export default function MapPage() {
               return (
                 <g>
                   <rect x={labelX - 35} y={labelY - 10} width={70} height={16} rx={8} fill="#ff6b35" opacity="0.95" />
-                  <text x={labelX} y={labelY - 10 + 8} textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">{selected.name}</text>
+                  <text x={labelX} y={labelY - 10 + 8} textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">{wName(selected)}</text>
                 </g>
               );
             })()}
@@ -158,14 +172,16 @@ export default function MapPage() {
         {/* Liste wilayas */}
         {!selected && (
           <div className="w-full mt-4">
-            <p className="text-green-300 text-xs font-semibold px-1 mb-2">Toutes les wilayas ({WILAYAS_DATA.length})</p>
+            <p className="text-green-300 text-xs font-semibold px-1 mb-2">
+              {tr("Toutes les wilayas", "كل الولايات")} ({WILAYAS_DATA.length})
+            </p>
             <div className="grid grid-cols-3 gap-1.5">
               {WILAYAS_DATA.map((w) => {
                 const count = countForWilaya(w.name);
                 return (
-                  <button key={w.code} onClick={() => setSelected(w)} className={`rounded-xl px-2 py-2 text-left flex items-center gap-1.5 transition-colors ${count > 0 ? "bg-[#E8C84A]/15 border border-[#E8C84A]/30" : "bg-white/5 border border-white/10"}`}>
+                  <button key={w.code} onClick={() => setSelected(w)} className={`rounded-xl px-2 py-2 text-start flex items-center gap-1.5 transition-colors ${count > 0 ? "bg-[#E8C84A]/15 border border-[#E8C84A]/30" : "bg-white/5 border border-white/10"}`}>
                     <span className="text-[10px] font-black text-green-400 w-5 flex-shrink-0">{w.code}</span>
-                    <span className="text-[10px] font-semibold text-white truncate flex-1">{lang === "ar" ? w.nameAr : w.name}</span>
+                    <span className="text-[10px] font-semibold text-white truncate flex-1">{wName(w)}</span>
                     {count > 0 && <span className="text-[9px] font-bold text-[#E8C84A] bg-[#E8C84A]/20 rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">{count}</span>}
                   </button>
                 );
@@ -186,14 +202,14 @@ export default function MapPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-gray-400">{selected.code}</span>
-                      <h2 className="text-base font-black text-gray-900">{selected.name}</h2>
+                      <h2 className="text-base font-black text-gray-900">{wName(selected)}</h2>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{selected.nameAr}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{isRTL ? selected.name : selected.nameAr}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {listingsForWilaya.length > 0 && (
+                    {nSel > 0 && (
                       <span className="text-xs font-bold text-[#1B6B3A] bg-green-50 px-2.5 py-1 rounded-full">
-                        {listingsForWilaya.length} annonce{listingsForWilaya.length > 1 ? "s" : ""}
+                        {tr(`${nSel} annonce${nSel > 1 ? "s" : ""}`, `${nSel} إعلان`)}
                       </span>
                     )}
                     <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
@@ -206,9 +222,11 @@ export default function MapPage() {
                 {listingsForWilaya.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
                     <MapPin className="w-8 h-8 text-gray-200" />
-                    <p className="text-sm text-gray-500 font-medium">Aucune annonce à {selected.name}</p>
+                    <p className="text-sm text-gray-500 font-medium">
+                      {tr(`Aucune annonce à ${selected.name}`, `لا توجد إعلانات في ${selected.nameAr}`)}
+                    </p>
                     <button onClick={() => { setSelected(null); navigate("/post"); }} className="text-xs text-[#1B6B3A] font-semibold mt-1">
-                      Soyez le premier à publier ici →
+                      {tr("Soyez le premier à publier ici →", "كن أول من ينشر هنا ←")}
                     </button>
                   </div>
                 ) : (
@@ -219,8 +237,8 @@ export default function MapPage() {
               </div>
               {listingsForWilaya.length > 0 && (
                 <div className="px-4 pb-4 flex-shrink-0">
-                  <button onClick={() => navigate(`/search?wilaya=${selected.name}`)} className="w-full py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm">
-                    Voir toutes les annonces à {selected.name}
+                  <button onClick={() => navigate(`/search?wilaya=${encodeURIComponent(selected.name)}`)} className="w-full py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm">
+                    {tr(`Voir toutes les annonces à ${selected.name}`, `عرض كل الإعلانات في ${selected.nameAr}`)}
                   </button>
                 </div>
               )}
