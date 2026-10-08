@@ -9,7 +9,8 @@ import AppHeader from "@/components/AppHeader";
 import { useLocation } from "wouter";
 
 export default function FavoritesPage() {
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { favorites } = useStore();
   const [, navigate] = useLocation();
   const [favListings, setFavListings] = useState<any[]>([]);
@@ -32,6 +33,8 @@ export default function FavoritesPage() {
     setFavListings(data ?? []);
     setLoading(false);
   };
+
+  const n = favListings.length;
 
   return (
     <div className="bg-[#F4F6F5] min-h-screen pb-20">
@@ -56,13 +59,16 @@ export default function FavoritesPage() {
             onClick={() => navigate("/")}
             className="px-8 py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm"
           >
-            Parcourir les annonces
+            {tr("Parcourir les annonces", "تصفح الإعلانات")}
           </button>
         </div>
       ) : (
         <div className="px-4 pt-4 space-y-2.5">
           <p className="text-xs text-gray-500 font-medium">
-            {favListings.length} annonce{favListings.length > 1 ? "s" : ""} sauvegardée{favListings.length > 1 ? "s" : ""}
+            {tr(
+              `${n} annonce${n > 1 ? "s" : ""} sauvegardée${n > 1 ? "s" : ""}`,
+              `${n} إعلان محفوظ`
+            )}
           </p>
           {favListings.map((listing, i) => (
             <motion.div
