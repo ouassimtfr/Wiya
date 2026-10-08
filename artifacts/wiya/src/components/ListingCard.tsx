@@ -9,15 +9,6 @@ interface Props {
   variant?: "grid" | "list";
 }
 
-const JOB_TYPE_AR: Record<string, string> = {
-  CDI: "عقد غير محدد المدة",
-  CDD: "عقد محدد المدة",
-  Stage: "تربص",
-  Freelance: "عمل حر",
-  "Temps partiel": "دوام جزئي",
-  Alternance: "تكوين بالتناوب",
-};
-
 const JOB_SECTOR_AR: Record<string, string> = {
   Informatique: "إعلام آلي",
   "Commerce et vente": "تجارة وبيع",
@@ -51,9 +42,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const isNegotiable = listing.is_negotiable ?? false;
   const condition = listing.condition ?? "";
 
-  const jobTypeRaw: string = listing.job_type ?? "";
   const jobSectorRaw: string = listing.job_sector ?? "";
-  const jobType = isRTL ? JOB_TYPE_AR[jobTypeRaw] ?? jobTypeRaw : jobTypeRaw;
   const jobSector = isRTL ? JOB_SECTOR_AR[jobSectorRaw] ?? jobSectorRaw : jobSectorRaw;
   const isSeeking = isJob && listing.job_kind === "seeking";
 
@@ -109,13 +98,8 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
                     isSeeking ? "bg-[#C8972B]/15 text-[#8A6414]" : "bg-[#1B6B3A]/10 text-[#1B6B3A]"
                   }`}
                 >
-                  {isSeeking ? tr("Cherche", "يبحث") : tr("Recrute", "يوظّف")}
+                  {isSeeking ? tr("Cherche un emploi", "يبحث عن عمل") : tr("Recrute", "يوظّف")}
                 </span>
-                {jobType && (
-                  <span className="flex-shrink-0 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-md">
-                    {jobType}
-                  </span>
-                )}
                 {jobSector && <span className="text-[10px] text-gray-400 truncate">{jobSector}</span>}
               </div>
             )}
@@ -176,9 +160,9 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             {t("conditionNew")}
           </div>
         )}
-        {isJob && jobType && (
-          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            {jobType}
+        {isJob && jobSector && (
+          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full max-w-[90%] truncate">
+            {jobSector}
           </div>
         )}
       </div>
