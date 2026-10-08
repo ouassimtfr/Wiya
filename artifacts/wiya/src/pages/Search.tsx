@@ -30,6 +30,20 @@ const JOB_SECTORS = [
   "Autre",
 ];
 
+const JOB_SECTOR_AR: Record<string, string> = {
+  Informatique: "إعلام آلي",
+  "Commerce et vente": "تجارة وبيع",
+  "Restauration et hôtellerie": "مطاعم وفندقة",
+  "Bâtiment et travaux": "بناء وأشغال",
+  Santé: "صحة",
+  "Éducation et formation": "تعليم وتكوين",
+  "Transport et logistique": "نقل ولوجستيك",
+  "Administration et comptabilité": "إدارة ومحاسبة",
+  Industrie: "صناعة",
+  "Marketing et communication": "تسويق واتصال",
+  Autre: "أخرى",
+};
+
 const FRENCH_NUMBER_WORDS: Record<string, string> = {
   zero: "0", un: "1", une: "1", deux: "2", trois: "3", quatre: "4",
   cinq: "5", six: "6", sept: "7", huit: "8", neuf: "9", dix: "10",
@@ -68,7 +82,8 @@ function clearRecent() {
 
 export default function SearchPage() {
   const [, navigate] = useLocation();
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [query, setQuery] = useState("");
@@ -88,6 +103,16 @@ export default function SearchPage() {
 
   const isJobs = category === "jobs";
 
+  const sectorLabel = (s: string) => (isRTL ? JOB_SECTOR_AR[s] ?? s : s);
+
+  useEffect(() => {
+    // Wilaya passée dans l'adresse (ex: depuis la carte) : /search?wilaya=Blida
+    try {
+      const w = new URLSearchParams(window.location.search).get("wilaya");
+      if (w && WILAYAS_DATA.some((x) => x.name === w)) setWilaya(w);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     inputRef.current?.focus();
     (async () => {
@@ -98,7 +123,7 @@ export default function SearchPage() {
         .order("created_at", { ascending: false });
       if (err) {
         console.error("Erreur chargement annonces:", err);
-        setError("Impossible de charger les annonces. Réessayez dans un instant.");
+        setError(tr("Impossible de charger les annonces. Réessayez dans un instant.", "تعذر تحميل الإعلانات. حاول مجددا بعد قليل."));
       } else {
         setListings(data || []);
       }
@@ -208,17 +233,23 @@ export default function SearchPage() {
 
   const visibleCategories = CATEGORIES.filter((c) => (categoryCounts.get(c.id) || 0) > 0 || c.id === category);
 
-  const priceLabel = isJobs ? "Salaire souhaité (DA)" : "Prix (DA)";
-  const sortAsc = isJobs ? "Salaire croissant" : "Prix croissant";
-  const sortDesc = isJobs ? "Salaire décroissant" : "Prix décroissant";
+  const priceLabel = isJobs
+    ? tr("Salaire souhaité (DA)", "الراتب المطلوب (دج)")
+    : tr("Prix (DA)", "السعر (دج)");
+  const sortAsc = isJobs ? tr("Salaire croissant", "الراتب تصاعدي") : tr("Prix croissant", "السعر تصاعدي");
+  const sortDesc = isJobs ? tr("Salaire décroissant", "الراتب تنازلي") : tr("Prix décroissant", "السعر تنازلي");
+
+  const countWord = isJobs
+    ? tr(filtered.length > 1 ? "demandes" : "demande", "طلب")
+    : tr(filtered.length > 1 ? "annonces" : "annonce", "إعلان");
 
   return (
     <div className="bg-[#F4F6F5] min-h-full pb-6">
       {/* Barre de recherche */}
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100 pt-[calc(env(safe-area-inset-top)+10px)]">
         <form onSubmit={submit} className="px-3 pb-3 flex items-center gap-2">
-          <button type="button" onClick={() => navigate("/")} className="p-2 -ml-1 rounded-full active:bg-gray-100">
-            <ArrowLeft className="w-5 h-5 text-gray-800" />
+          <button type="button" onClick={() => navigate("/")} className="p-2 -ms-1 rounded-full active:bg-gray-100">
+            <ArrowLeft className={`w-5 h-5 text-gray-800 ${isRTL ? "rotate-180" : ""}`} />
           </button>
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-3.5 py-2.5 min-w-0">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -229,7 +260,11 @@ export default function SearchPage() {
               onChange={(e) => setQuery(e.target.value)}
               enterKeyHint="search"
               autoComplete="off"
-              placeholder={isJobs ? "Métier, compétence..." : t("searchPlaceholder") ?? "Rechercher (ex: Clio 5 2020)"}
+              placeholder={
+                isJobs
+                  ? tr("Métier, compétence...", "مهنة، مهارة...")
+                  : tr("Rechercher (ex: Clio 5 2020)", "ابحث (مثال: كليو 5 2020)")
+              }
               className="flex-1 bg-transparent text-base text-gray-800 focus:outline-none placeholder:text-gray-400 min-w-0"
             />
             {query && (
@@ -245,7 +280,7 @@ export default function SearchPage() {
           >
             <SlidersHorizontal className="w-5 h-5 text-gray-700" />
             {activeFilters > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#1B6B3A] text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-[#1B6B3A] text-white text-[10px] font-bold flex items-center justify-center">
                 {activeFilters}
               </span>
             )}
@@ -264,7 +299,7 @@ export default function SearchPage() {
                 category === "" ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
               }`}
             >
-              Tout ({matching.length})
+              {tr("Tout", "الكل")} ({matching.length})
             </button>
             {visibleCategories.map((cat) => (
               <button
@@ -284,7 +319,7 @@ export default function SearchPage() {
         {isJobs && (
           <div className="border-t border-gray-100 px-3 py-3">
             <div className="flex items-center justify-between bg-gray-100 rounded-2xl px-4 py-2.5">
-              <span className="text-[13px] font-bold text-[#1B6B3A]">Demandes d'emploi</span>
+              <span className="text-[13px] font-bold text-[#1B6B3A]">{tr("Demandes d'emploi", "طلبات العمل")}</span>
               <span className="text-[13px] font-bold text-gray-500">{jobCount}</span>
             </div>
           </div>
@@ -296,22 +331,24 @@ export default function SearchPage() {
         <div className="px-4 pt-5 space-y-6">
           <button
             onClick={() => setCategory("jobs")}
-            className="w-full flex items-center gap-3 bg-gradient-to-br from-[#0B1F16] to-[#1B6B3A] rounded-3xl px-5 py-4 text-left shadow-md active:scale-[0.99] transition-transform"
+            className="w-full flex items-center gap-3 bg-gradient-to-br from-[#0B1F16] to-[#1B6B3A] rounded-3xl px-5 py-4 text-start shadow-md active:scale-[0.99] transition-transform"
           >
             <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
               <Briefcase className="w-6 h-6 text-[#F2D27A]" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-base font-extrabold">Demandes d'emploi</p>
-              <p className="text-white/70 text-xs mt-0.5">Des chercheurs d'emploi partout en Algérie</p>
+              <p className="text-white text-base font-extrabold">{tr("Demandes d'emploi", "طلبات العمل")}</p>
+              <p className="text-white/70 text-xs mt-0.5">
+                {tr("Des chercheurs d'emploi partout en Algérie", "باحثون عن عمل في كل أنحاء الجزائر")}
+              </p>
             </div>
-            <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
+            <ChevronRight className={`w-5 h-5 text-white/70 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
           </button>
 
           {recent.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-gray-800">Recherches récentes</p>
+                <p className="text-sm font-bold text-gray-800">{tr("Recherches récentes", "عمليات البحث الأخيرة")}</p>
                 <button
                   onClick={() => {
                     clearRecent();
@@ -319,7 +356,7 @@ export default function SearchPage() {
                   }}
                   className="text-xs font-semibold text-[#1B6B3A]"
                 >
-                  Effacer
+                  {tr("Effacer", "مسح")}
                 </button>
               </div>
               <ul className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -327,7 +364,7 @@ export default function SearchPage() {
                   <li key={r}>
                     <button
                       onClick={() => setQuery(r)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 border-b border-gray-50 last:border-0"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-start active:bg-gray-50 border-b border-gray-50 last:border-0"
                     >
                       <Clock className="w-4 h-4 text-gray-300" />
                       <span className="text-sm text-gray-700">{r}</span>
@@ -339,7 +376,7 @@ export default function SearchPage() {
           )}
 
           <div>
-            <p className="text-sm font-bold text-gray-800 mb-3">Parcourir par catégorie</p>
+            <p className="text-sm font-bold text-gray-800 mb-3">{tr("Parcourir par catégorie", "تصفح حسب الفئة")}</p>
             <div className="grid grid-cols-4 gap-2.5">
               {CATEGORIES.map((cat) => (
                 <button
@@ -361,14 +398,13 @@ export default function SearchPage() {
       {/* Résultats */}
       {hasSearch && (
         <div className="px-4 pt-3">
-          {loading && <p className="text-center text-sm text-gray-400 py-10">Chargement...</p>}
+          {loading && <p className="text-center text-sm text-gray-400 py-10">{tr("Chargement...", "جاري التحميل...")}</p>}
           {error && <p className="text-center text-sm text-red-500 py-10">{error}</p>}
 
           {!loading && !error && (
             <>
               <p className="text-xs font-semibold text-gray-500 px-1 mb-2.5">
-                {filtered.length} {isJobs ? "demande" : "annonce"}
-                {filtered.length > 1 ? "s" : ""}
+                {filtered.length} {countWord}
               </p>
 
               {filtered.length === 0 ? (
@@ -377,9 +413,13 @@ export default function SearchPage() {
                     {isJobs ? <Briefcase className="w-7 h-7 text-gray-300" /> : <Search className="w-7 h-7 text-gray-300" />}
                   </div>
                   <p className="text-sm font-bold text-gray-700">
-                    {isJobs ? "Aucune demande trouvée" : t("noResults") ?? "Aucune annonce trouvée"}
+                    {isJobs
+                      ? tr("Aucune demande trouvée", "لم يتم العثور على طلبات")
+                      : tr("Aucune annonce trouvée", "لم يتم العثور على إعلانات")}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Essayez un autre mot ou retirez des filtres.</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {tr("Essayez un autre mot ou retirez des filtres.", "جرّب كلمة أخرى أو احذف بعض المرشحات.")}
+                  </p>
                   {(activeFilters > 0 || category) && (
                     <button
                       onClick={() => {
@@ -388,7 +428,7 @@ export default function SearchPage() {
                       }}
                       className="mt-4 text-sm font-semibold text-[#1B6B3A]"
                     >
-                      Réinitialiser les filtres
+                      {tr("Réinitialiser les filtres", "إعادة ضبط المرشحات")}
                     </button>
                   )}
                 </div>
@@ -415,38 +455,38 @@ export default function SearchPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setSheetOpen(false)} />
           <div className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-3xl px-5 pt-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[85dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-extrabold text-gray-900">Filtres</h2>
+              <h2 className="text-lg font-extrabold text-gray-900">{tr("Filtres", "المرشحات")}</h2>
               <button onClick={() => setSheetOpen(false)} className="p-1.5 rounded-full bg-gray-100">
                 <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
 
-            <p className="text-sm font-bold text-gray-800 mb-2">Wilaya</p>
+            <p className="text-sm font-bold text-gray-800 mb-2">{tr("Wilaya", "الولاية")}</p>
             <select
               value={wilaya}
               onChange={(e) => setWilaya(e.target.value)}
               className="w-full bg-gray-100 rounded-xl px-3.5 py-3 text-base mb-5 focus:outline-none text-gray-800"
             >
-              <option value="">Toute l'Algérie</option>
+              <option value="">{tr("Toute l'Algérie", "كل الجزائر")}</option>
               {WILAYA_OPTIONS.map((w) => (
                 <option key={w.code} value={w.name}>
-                  {String(w.code).padStart(2, "0")} - {w.name}
+                  {String(w.code).padStart(2, "0")} - {isRTL ? w.nameAr : w.name}
                 </option>
               ))}
             </select>
 
             {isJobs && (
               <>
-                <p className="text-sm font-bold text-gray-800 mb-2">Secteur</p>
+                <p className="text-sm font-bold text-gray-800 mb-2">{tr("Secteur", "القطاع")}</p>
                 <select
                   value={jobSector}
                   onChange={(e) => setJobSector(e.target.value)}
                   className="w-full bg-gray-100 rounded-xl px-3.5 py-3 text-base mb-5 focus:outline-none text-gray-800"
                 >
-                  <option value="">Tous les secteurs</option>
+                  <option value="">{tr("Tous les secteurs", "كل القطاعات")}</option>
                   {JOB_SECTORS.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {sectorLabel(s)}
                     </option>
                   ))}
                 </select>
@@ -460,7 +500,7 @@ export default function SearchPage() {
                 inputMode="numeric"
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)}
-                placeholder="Min"
+                placeholder={tr("Min", "الأدنى")}
                 className="flex-1 min-w-0 bg-gray-100 rounded-xl px-3.5 py-3 text-base focus:outline-none text-gray-800"
               />
               <input
@@ -468,16 +508,16 @@ export default function SearchPage() {
                 inputMode="numeric"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="Max"
+                placeholder={tr("Max", "الأقصى")}
                 className="flex-1 min-w-0 bg-gray-100 rounded-xl px-3.5 py-3 text-base focus:outline-none text-gray-800"
               />
             </div>
 
-            <p className="text-sm font-bold text-gray-800 mb-2">Trier par</p>
+            <p className="text-sm font-bold text-gray-800 mb-2">{tr("Trier par", "ترتيب حسب")}</p>
             <div className="flex flex-wrap gap-2 mb-6">
               {[
-                { id: "relevance" as const, label: "Pertinence" },
-                { id: "recent" as const, label: "Plus récentes" },
+                { id: "relevance" as const, label: tr("Pertinence", "الأكثر صلة") },
+                { id: "recent" as const, label: tr("Plus récentes", "الأحدث") },
                 { id: "price_asc" as const, label: sortAsc },
                 { id: "price_desc" as const, label: sortDesc },
               ].map((s) => (
@@ -498,13 +538,16 @@ export default function SearchPage() {
                 onClick={resetFilters}
                 className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm"
               >
-                Réinitialiser
+                {tr("Réinitialiser", "إعادة ضبط")}
               </button>
               <button
                 onClick={() => setSheetOpen(false)}
                 className="flex-1 py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-semibold text-sm shadow-md"
               >
-                Voir {filtered.length} résultat{filtered.length > 1 ? "s" : ""}
+                {tr(
+                  `Voir ${filtered.length} résultat${filtered.length > 1 ? "s" : ""}`,
+                  `عرض ${filtered.length} نتيجة`
+                )}
               </button>
             </div>
           </div>
