@@ -2,10 +2,13 @@ import { useLocation } from "wouter";
 import { X, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/lib/notifications";
+import { useI18n } from "@/lib/i18n";
 import { CATEGORIES } from "@/lib/data";
+import { WILAYAS_DATA } from "@/lib/wilayas";
 
 export default function NotificationToast() {
   const { toastQueue, dismissToast, markRead } = useNotifications();
+  const { t, isRTL } = useI18n();
   const [, navigate] = useLocation();
 
   return (
@@ -13,6 +16,9 @@ export default function NotificationToast() {
       <AnimatePresence>
         {toastQueue.map((notif) => {
           const category = CATEGORIES.find((c) => c.id === notif.category);
+          const wilayaLabel = isRTL
+            ? WILAYAS_DATA.find((w) => w.name === notif.wilaya)?.nameAr ?? notif.wilaya
+            : notif.wilaya;
 
           return (
             <motion.div
@@ -38,7 +44,7 @@ export default function NotificationToast() {
                     alt=""
                     className="w-11 h-11 rounded-xl object-cover bg-gray-100"
                   />
-                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#1B6B3A] rounded-full flex items-center justify-center border-2 border-white">
+                  <div className="absolute -top-1.5 -end-1.5 w-5 h-5 bg-[#1B6B3A] rounded-full flex items-center justify-center border-2 border-white">
                     <Bell className="w-2.5 h-2.5 text-white fill-white" />
                   </div>
                 </div>
@@ -49,12 +55,12 @@ export default function NotificationToast() {
                     <span className="text-[10px] font-bold text-[#1B6B3A] bg-green-50 px-1.5 py-0.5 rounded-full">
                       {category?.icon} {notif.matchedAlert}
                     </span>
-                    <span className="text-[9px] text-gray-400">• Maintenant</span>
+                    <span className="text-[9px] text-gray-400">• {isRTL ? "الآن" : "Maintenant"}</span>
                   </div>
                   <p className="text-xs font-bold text-gray-900 truncate">{notif.listingTitle}</p>
                   <p className="text-xs font-semibold text-[#1B6B3A]">
-                    {notif.listingPrice.toLocaleString()} DA
-                    <span className="text-gray-400 font-normal"> · {notif.wilaya}</span>
+                    {notif.listingPrice.toLocaleString()} {t("da")}
+                    <span className="text-gray-400 font-normal"> · {wilayaLabel}</span>
                   </p>
                 </div>
 
