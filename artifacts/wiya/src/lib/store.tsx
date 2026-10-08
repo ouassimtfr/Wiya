@@ -1,6 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 import { Conversation, CONVERSATIONS } from "./data";
+
+const FAV_KEY = "wiya_favorites";
+
+function loadLocalFavorites(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.map(String) : [];
+  } catch {
+    return [];
+  }
+}
 
 async function compressImage(file: File, maxSize = 1280, quality = 0.8): Promise<File> {
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
@@ -140,9 +151,10 @@ function parseConversationId(conversationId: string): { listingId: string; other
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>(loadLocalFavorites);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [boostRequests, setBoostRequests] = useState<BoostRequest[]>([]);
+  const prevUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -154,6 +166,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Les favoris sont toujours gardés sur l'appareil (même sans compte)
+  useEffect(() => {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch {}
+  }, [favorites]);
+
+  // À la connexion : on récupère les favoris du compte et on y ajoute ceux de l'appareil.
+  // À la déconnexion : on vide les favoris pour ne pas les mélanger avec un autre compte.
+  useEffect(() => {
+    if (!user) {
+      if (prevUserIdRef.current) {
+        setFavorites([]);
+        try { localStorage.removeItem(FAV_KEY); } catch {}
+      }
+      prevUserIdRef.current = null;
+      return;
+    }
+
+    prevUserIdRef.current = user.id;
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("listing_id")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Erreur chargement favoris:", error);
+        return;
+      }
+      if (cancelled) return;
+
+      const remote = (data ?? []).map((r: any) => String(r.listing_id));
+      const local = loadLocalFavorites();
+      const merged = Array.from(new Set([...remote, ...local]));
+      setFavorites(merged);
+
+      const missing = merged.filter((id) => !remote.includes(id));
+      if (missing.length > 0) {
+        const { error: upErr } = await supabase
+          .from("favorites")
+          .upsert(
+            missing.map((id) => ({ user_id: user.id, listing_id: id })),
+            { onConflict: "user_id,listing_id" }
+          );
+        if (upErr) console.error("Erreur synchro favoris:", upErr);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchBoostRequests();
@@ -360,7 +424,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const login = async (e: string, p: string) => { const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p }); return !error; };
   const register = async (n: string, e: string, p: string, ph: string) => { await supabase.auth.signUp({ email: e, password: p, options: { data: { name: n, phone: ph } } }); };
   const logout = async () => { await supabase.auth.signOut(); setUser(null); };
-  const toggleFavorite = (id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+
+  const toggleFavorite = (id: string) => {
+    const wasFav = favorites.includes(id);
+
+    // Mise à jour immédiate à l'écran
+    setFavorites((prev) => (wasFav ? prev.filter((f) => f !== id) : [...prev, id]));
+
+    // Sauvegarde sur le compte si l'utilisateur est connecté
+    if (user) {
+      if (wasFav) {
+        supabase
+          .from("favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("listing_id", id)
+          .then(({ error }) => { if (error) console.error("Erreur retrait favori:", error); });
+      } else {
+        supabase
+          .from("favorites")
+          .upsert({ user_id: user.id, listing_id: id }, { onConflict: "user_id,listing_id" })
+          .then(({ error }) => { if (error) console.error("Erreur ajout favori:", error); });
+      }
+    }
+  };
+
   const isFavorite = (id: string) => favorites.includes(id);
 
   const startConversation = useCallback(async (
@@ -557,7 +645,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const jobFields =
       input.category === "jobs"
         ? {
-            job_kind: input.jobKind ?? "offer",
+            job_kind: input.jobKind ?? "seeking",
             job_type: input.jobType ?? null,
             job_sector: input.jobSector ?? null,
           }
