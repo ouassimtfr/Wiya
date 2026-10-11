@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { WILAYAS_DATA } from "@/lib/wilayas";
+import { compressImage } from "@/lib/imageCompress";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
@@ -37,7 +38,7 @@ function UserAvatar({ name, avatarUrl, size = 72, editable = false, uploading = 
   const hasCustomAvatar = !!avatarUrl && !avatarUrl.includes("dicebear");
 
   const content = hasCustomAvatar ? (
-    <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full bg-white/20 border-2 border-white/40 shadow-lg object-cover" />
+    <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full bg-white/20 border-2 border-white/40 shadow-lg object-cover" decoding="async" />
   ) : (
     <div style={{ width: size, height: size }} className="rounded-full bg-white/30 border-2 border-white/40 shadow-lg flex items-center justify-center">
       <span className="text-white font-black text-2xl">{initials}</span>
@@ -115,10 +116,12 @@ export default function ProfilePage() {
     }
   }, [showSettings]);
 
+  // La photo de profil est réduite (512 px max) avant l'envoi : upload beaucoup plus rapide.
   const handleAvatarPick = async (file: File) => {
     setUploadingAvatar(true);
     setAvatarError("");
-    const { error } = await updateAvatar(file);
+    const small = await compressImage(file, 512, 0.85);
+    const { error } = await updateAvatar(small);
     if (error) setAvatarError(error);
     setUploadingAvatar(false);
   };
