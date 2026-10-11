@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
+import { compressImages } from "@/lib/imageCompress";
 
 const JOB_SECTORS = [
   "Informatique",
@@ -54,6 +55,7 @@ export default function PostListingPage() {
   const [isUrgent, setIsUrgent] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [compressing, setCompressing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
@@ -67,13 +69,25 @@ export default function PostListingPage() {
 
   if (!user) return null;
 
-  const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Les photos sont compressées dès qu'elles sont choisies :
+  // l'aperçu s'affiche vite et l'envoi final est beaucoup plus léger.
+  const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    const combined = [...images, ...files].slice(0, 6);
-    setImages(combined);
-    setPreviews(combined.map((f) => URL.createObjectURL(f)));
     e.target.value = "";
+    if (files.length === 0) return;
+
+    const room = Math.max(0, 6 - images.length);
+    const picked = files.slice(0, room);
+    if (picked.length === 0) return;
+
+    setCompressing(true);
+    const compressed = await compressImages(picked, 1280, 0.8);
+    setCompressing(false);
+
+    setImages((prev) => [...prev, ...compressed].slice(0, 6));
+    setPreviews((prev) =>
+      [...prev, ...compressed.map((f) => URL.createObjectURL(f))].slice(0, 6)
+    );
   };
 
   const handleRemoveImage = (index: number) => {
@@ -84,6 +98,7 @@ export default function PostListingPage() {
   const handleSubmit = async () => {
     setErrorMsg("");
 
+    if (compressing) return;
     if (!category) return setErrorMsg(tr("Choisis une catégorie.", "اختر فئة."));
     if (!title.trim()) return setErrorMsg(tr("Le titre est obligatoire.", "العنوان إجباري."));
 
@@ -205,7 +220,12 @@ export default function PostListingPage() {
                 </button>
               </div>
             ))}
-            {images.length < 6 && (
+            {compressing && (
+              <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center animate-pulse">
+                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+              </div>
+            )}
+            {images.length < 6 && !compressing && (
               <label className="w-20 h-20 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
                 <Camera className="w-5 h-5 text-gray-400" />
                 <span className="text-[10px] text-gray-400 mt-1">{tr("Ajouter", "إضافة")}</span>
@@ -357,11 +377,13 @@ export default function PostListingPage() {
         )}
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || compressing}
           className="w-full py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {submitting
+          {submitting || compressing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {compressing
+            ? tr("Préparation des photos...", "جاري تجهيز الصور...")
+            : submitting
             ? tr("Publication...", "جاري النشر...")
             : isJobs
             ? tr("Publier ma demande", "نشر طلبي")
