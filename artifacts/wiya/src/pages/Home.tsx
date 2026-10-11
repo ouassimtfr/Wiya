@@ -42,6 +42,20 @@ function useVisualViewport() {
   return vp;
 }
 
+// Carte "fantôme" affichée pendant le chargement des annonces (à la place d'un écran vide)
+function ListingSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl flex gap-3 p-3 shadow-sm animate-pulse">
+      <div className="w-24 h-24 rounded-xl bg-gray-200 flex-shrink-0" />
+      <div className="flex-1 py-1 space-y-2.5">
+        <div className="h-3.5 bg-gray-200 rounded w-3/4" />
+        <div className="h-4 bg-gray-200 rounded w-1/2" />
+        <div className="h-3 bg-gray-200 rounded w-1/3" />
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { t, lang, setLang, isRTL } = useI18n();
   const { user } = useStore();
@@ -52,6 +66,7 @@ export default function Home() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const viewport = useVisualViewport();
 
   useEffect(() => {
@@ -61,6 +76,7 @@ export default function Home() {
   const fetchListings = async () => {
     const { data } = await supabase.from("listings").select("*").eq("is_active", true).order("created_at", { ascending: false });
     if (data) setListings(data);
+    setLoading(false);
   };
 
   const wilayaLabel = (name: string) => {
@@ -170,14 +186,16 @@ export default function Home() {
           )}
         </div>
 
-        {(activeCategory || activeWilaya) && filteredListings.length === 0 && (
+        {!loading && (activeCategory || activeWilaya) && filteredListings.length === 0 && (
           <div className="text-center py-10">
             <p className="text-sm text-gray-500">{t("noResults")}</p>
           </div>
         )}
 
         <div className="space-y-3">
-          {filteredListings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)
+            : filteredListings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
         </div>
       </div>
 
