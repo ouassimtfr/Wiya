@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Heart, MapPin, Zap, Briefcase } from "lucide-react";
 import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -30,6 +31,11 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const fav = isFavorite(listing.id);
 
+  // Chargement progressif : fond gris animé tant que la photo n'est pas arrivée,
+  // puis la photo apparaît en fondu. Si la photo échoue, on affiche le placeholder.
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
   const isJob = listing.category === "jobs";
   const title = listing.title ?? tr("Sans titre", "بدون عنوان");
   const realImage = listing.images?.[0] ?? "";
@@ -58,6 +64,28 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     </div>
   );
 
+  const renderImage = (small?: boolean) => {
+    if (!image || failed) return <Placeholder small={small} />;
+    return (
+      <>
+        {!loaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+        <img
+          src={image}
+          alt={title}
+          loading="lazy"
+          decoding="async"
+          ref={(el) => {
+            // Photo déjà en cache : onLoad ne se déclenche pas toujours, on vérifie à la main
+            if (el && !loaded && el.complete && el.naturalWidth > 0) setLoaded(true);
+          }}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        />
+      </>
+    );
+  };
+
   if (variant === "list") {
     return (
       <div
@@ -66,11 +94,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
       >
         <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-          {image ? (
-            <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
-          ) : (
-            <Placeholder small />
-          )}
+          {renderImage(true)}
           {isBoosted && (
             <div className="absolute top-1 start-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <Zap className="w-2.5 h-2.5" />{t("boosted")}
@@ -131,11 +155,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
     >
       <div className="relative aspect-[4/3] bg-gray-100">
-        {image ? (
-          <img src={image} alt={title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <Placeholder />
-        )}
+        {renderImage(false)}
         <button
           onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
           className="absolute top-2 end-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
