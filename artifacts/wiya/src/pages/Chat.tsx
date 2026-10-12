@@ -3,13 +3,21 @@ import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle, Check, CheckCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 import ImageLightbox from "@/components/ImageLightbox";
 
-const QUICK_REPLIES = [
+const QUICK_REPLIES_FR = [
   "Bonjour, c'est toujours disponible ?",
   "Quel est votre dernier prix ?",
   "Où peut-on se voir ?",
   "Pouvez-vous m'envoyer plus de photos ?",
+];
+
+const QUICK_REPLIES_AR = [
+  "مرحبا، هل ما زال متوفرا؟",
+  "ما هو آخر سعر؟",
+  "أين يمكننا اللقاء؟",
+  "هل يمكنك إرسال المزيد من الصور؟",
 ];
 
 const WAVE = [8, 14, 10, 18, 12, 22, 16, 10, 20, 14, 24, 12, 18, 8, 16, 22, 12, 18, 10, 14, 20, 12, 16, 8];
@@ -18,16 +26,16 @@ function isSameDay(a: string, b: string) {
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
-function formatDateSeparator(iso: string): string {
+function formatDateSeparator(iso: string, isRTL: boolean): string {
   const date = new Date(iso);
   const now = new Date();
-  if (date.toDateString() === now.toDateString()) return "Aujourd'hui";
+  if (date.toDateString() === now.toDateString()) return isRTL ? "اليوم" : "Aujourd'hui";
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return "Hier";
+  if (date.toDateString() === yesterday.toDateString()) return isRTL ? "أمس" : "Hier";
 
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  return date.toLocaleDateString(isRTL ? "ar-DZ" : "fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 // Choisit le format audio le plus compatible (mp4 d'abord : lisible partout, y compris iPhone)
@@ -100,7 +108,7 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
   const filled = Math.round((progress / 100) * WAVE.length);
 
   return (
-    <div className="flex items-center gap-2.5 min-w-[200px]">
+    <div className="flex items-center gap-2.5 min-w-[200px]" dir="ltr">
       <audio ref={audioRef} src={src} preload="metadata" />
       <button
         type="button"
@@ -134,7 +142,10 @@ function VoiceBubble({ src, isMe }: { src: string; isMe: boolean }) {
 export default function ChatPage() {
   const [, params] = useRoute("/messages/:id");
   const [, navigate] = useLocation();
+  const { isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const conversationId = params?.id;
+  const QUICK_REPLIES = isRTL ? QUICK_REPLIES_AR : QUICK_REPLIES_FR;
 
   const { user, conversations, sendMessage, sendVoiceMessage, fetchMessages } = useStore();
   const [inputText, setInputText] = useState("");
@@ -209,7 +220,12 @@ export default function ChatPage() {
       timerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
     } catch (err) {
       console.error("Micro inaccessible :", err);
-      alert("Impossible d'accéder au micro. Vérifiez les autorisations dans les réglages.");
+      alert(
+        tr(
+          "Impossible d'accéder au micro. Vérifiez les autorisations dans les réglages.",
+          "تعذر الوصول إلى الميكروفون. تحقق من الأذونات في الإعدادات."
+        )
+      );
     }
   };
 
@@ -238,7 +254,12 @@ export default function ChatPage() {
         await sendVoiceMessage(conversation.id, blob);
       } catch (err) {
         console.error("Envoi du vocal échoué :", err);
-        alert("Le message vocal n'a pas pu être envoyé. Réessayez.");
+        alert(
+          tr(
+            "Le message vocal n'a pas pu être envoyé. Réessayez.",
+            "تعذر إرسال الرسالة الصوتية. حاول مرة أخرى."
+          )
+        );
       } finally {
         setIsSendingVoice(false);
       }
@@ -252,7 +273,9 @@ export default function ChatPage() {
   if (!user) {
     return (
       <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500">Connexion requise pour accéder aux messages.</p>
+        <p className="text-gray-500">
+          {tr("Connexion requise pour accéder aux messages.", "يجب تسجيل الدخول للوصول إلى الرسائل.")}
+        </p>
       </div>
     );
   }
@@ -260,9 +283,11 @@ export default function ChatPage() {
   if (!conversation && conversationId) {
     return (
       <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500 mb-4">Chargement de votre discussion...</p>
+        <p className="text-gray-500 mb-4">
+          {tr("Chargement de votre discussion...", "جاري تحميل المحادثة...")}
+        </p>
         <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm">
-          Retour aux messages
+          {tr("Retour aux messages", "العودة إلى الرسائل")}
         </button>
       </div>
     );
@@ -282,7 +307,7 @@ export default function ChatPage() {
     await sendMessage(conversation.id, text);
   };
 
-  const otherName = conversation?.otherUser?.name || "Utilisateur";
+  const otherName = conversation?.otherUser?.name || tr("Utilisateur", "مستخدم");
 
   return (
     <div
@@ -301,9 +326,9 @@ export default function ChatPage() {
       <div className="relative bg-white border-b border-gray-100 px-3 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] flex items-center gap-3 flex-shrink-0">
         <button
           onClick={() => navigate("/messages")}
-          className="p-2 -ml-1 rounded-full active:bg-gray-100 transition-colors"
+          className="p-2 -ms-1 rounded-full active:bg-gray-100 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-800" />
+          <ArrowLeft className={`w-5 h-5 text-gray-800 ${isRTL ? "rotate-180" : ""}`} />
         </button>
 
         <button
@@ -319,12 +344,14 @@ export default function ChatPage() {
 
         <div className="flex-1 min-w-0">
           <h2 className="text-[15px] font-bold text-gray-900 truncate leading-tight">{otherName}</h2>
-          <p className="text-xs text-gray-500 truncate mt-0.5">{conversation?.listingTitle || "Annonce"}</p>
+          <p className="text-xs text-gray-500 truncate mt-0.5">
+            {conversation?.listingTitle || tr("Annonce", "إعلان")}
+          </p>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="relative flex-1 overflow-y-auto px-3 py-4 flex flex-col">
+      <div className="relative flex-1 overflow-y-auto px-3 py-4 flex flex-col" dir="ltr">
         {messages.length > 0 ? (
           messages.map((msg, index) => {
             const isMe = msg.senderId === "me";
@@ -355,7 +382,7 @@ export default function ChatPage() {
                 {showDateSeparator && (
                   <div className="flex justify-center my-4">
                     <span className="bg-white/90 text-[11px] font-semibold text-gray-500 px-3 py-1 rounded-full shadow-sm">
-                      {formatDateSeparator(msg.createdAt)}
+                      {formatDateSeparator(msg.createdAt, isRTL)}
                     </span>
                   </div>
                 )}
@@ -373,7 +400,7 @@ export default function ChatPage() {
                     {isAudio ? (
                       <VoiceBubble src={msg.audioUrl || msg.audio_url} isMe={isMe} />
                     ) : (
-                      <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">
+                      <p dir="auto" className="text-[15px] leading-snug whitespace-pre-wrap break-words">
                         {msg.text || msg.content}
                       </p>
                     )}
@@ -392,12 +419,14 @@ export default function ChatPage() {
             );
           })
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4" dir={isRTL ? "rtl" : "ltr"}>
             <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
               <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
             </div>
-            <p className="text-sm font-bold text-gray-700">Démarrez la discussion</p>
-            <p className="text-xs text-gray-400 mt-1 mb-5">Écrivez un message ou choisissez une réponse rapide.</p>
+            <p className="text-sm font-bold text-gray-700">{tr("Démarrez la discussion", "ابدأ المحادثة")}</p>
+            <p className="text-xs text-gray-400 mt-1 mb-5">
+              {tr("Écrivez un message ou choisissez une réponse rapide.", "اكتب رسالة أو اختر ردا سريعا.")}
+            </p>
             <div className="flex flex-wrap justify-center gap-2">
               {QUICK_REPLIES.map((q) => (
                 <button
@@ -427,33 +456,36 @@ export default function ChatPage() {
             </button>
             <div className="flex-1 flex items-center gap-2.5 bg-red-50 rounded-full px-4 py-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-              <span className="text-sm font-semibold text-red-600 tabular-nums">
+              <span className="text-sm font-semibold text-red-600 tabular-nums" dir="ltr">
                 {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
               </span>
-              <span className="text-xs text-red-400 truncate">Enregistrement en cours</span>
+              <span className="text-xs text-red-400 truncate">
+                {tr("Enregistrement en cours", "جاري التسجيل")}
+              </span>
             </div>
             <button
               type="button"
               onClick={() => stopRecording(true)}
               className="w-11 h-11 rounded-full bg-[#1B6B3A] text-white flex items-center justify-center shadow-md active:scale-95 transition-transform flex-shrink-0"
             >
-              <Send className="w-5 h-5" />
+              <Send className={`w-5 h-5 ${isRTL ? "-scale-x-100" : ""}`} />
             </button>
           </div>
         ) : isSendingVoice ? (
           <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
             <span className="w-2.5 h-2.5 rounded-full bg-[#1B6B3A] animate-pulse" />
-            Envoi du vocal...
+            {tr("Envoi du vocal...", "جاري إرسال الرسالة الصوتية...")}
           </div>
         ) : (
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               type="text"
+              dir="auto"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onFocus={() => setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 300)}
               enterKeyHint="send"
-              placeholder="Écrivez votre message..."
+              placeholder={tr("Écrivez votre message...", "اكتب رسالتك...")}
               className="flex-1 bg-gray-100 rounded-full px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#1B6B3A]/25 placeholder:text-gray-400"
             />
             {inputText.trim() ? (
@@ -462,7 +494,7 @@ export default function ChatPage() {
                 type="submit"
                 className="w-11 h-11 rounded-full bg-[#1B6B3A] text-white flex items-center justify-center shadow-md flex-shrink-0"
               >
-                <Send className="w-5 h-5" />
+                <Send className={`w-5 h-5 ${isRTL ? "-scale-x-100" : ""}`} />
               </motion.button>
             ) : (
               <button
