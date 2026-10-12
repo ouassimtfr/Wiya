@@ -18,20 +18,10 @@ function GoogleLogo() {
   );
 }
 
-function translateError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes("invalid login credentials")) return "Email ou mot de passe incorrect.";
-  if (m.includes("email not confirmed")) return "Confirmez d'abord votre adresse email (vérifiez votre boîte mail).";
-  if (m.includes("user already registered")) return "Un compte existe déjà avec cet email.";
-  if (m.includes("password should be at least")) return "Le mot de passe doit contenir au moins 6 caractères.";
-  if (m.includes("unable to validate email")) return "Adresse email invalide.";
-  if (m.includes("rate limit")) return "Trop de tentatives. Réessayez dans quelques minutes.";
-  return message || "Une erreur est survenue";
-}
-
 export default function AuthPage() {
   const [, navigate] = useLocation();
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
 
   const [mode, setMode] = useState<Mode>("login");
   const [showPass, setShowPass] = useState(false);
@@ -44,6 +34,32 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<"google" | null>(null);
 
+  const translateError = (message: string): string => {
+    const m = message.toLowerCase();
+    if (m.includes("invalid login credentials"))
+      return tr("Email ou mot de passe incorrect.", "البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+    if (m.includes("email not confirmed"))
+      return tr(
+        "Confirmez d'abord votre adresse email (vérifiez votre boîte mail).",
+        "يرجى تأكيد بريدك الإلكتروني أولا (تحقق من صندوق الوارد)."
+      );
+    if (m.includes("user already registered"))
+      return tr("Un compte existe déjà avec cet email.", "يوجد حساب بهذا البريد الإلكتروني بالفعل.");
+    if (m.includes("password should be at least"))
+      return tr(
+        "Le mot de passe doit contenir au moins 6 caractères.",
+        "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل."
+      );
+    if (m.includes("unable to validate email"))
+      return tr("Adresse email invalide.", "عنوان البريد الإلكتروني غير صالح.");
+    if (m.includes("rate limit"))
+      return tr(
+        "Trop de tentatives. Réessayez dans quelques minutes.",
+        "محاولات كثيرة. أعد المحاولة بعد دقائق."
+      );
+    return message || tr("Une erreur est survenue", "حدث خطأ");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -53,7 +69,7 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         if (!email || !password) {
-          setError("Veuillez remplir tous les champs");
+          setError(tr("Veuillez remplir tous les champs", "يرجى ملء جميع الحقول"));
           setLoading(false);
           return;
         }
@@ -65,7 +81,7 @@ export default function AuthPage() {
         navigate("/");
       } else {
         if (!name || !email || !password) {
-          setError("Veuillez remplir tous les champs");
+          setError(tr("Veuillez remplir tous les champs", "يرجى ملء جميع الحقول"));
           setLoading(false);
           return;
         }
@@ -81,7 +97,12 @@ export default function AuthPage() {
 
         // Si la confirmation par email est activée, aucune session n'est créée tout de suite
         if (!data.session) {
-          setInfo("Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse, puis connectez-vous.");
+          setInfo(
+            tr(
+              "Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse, puis connectez-vous.",
+              "تم إنشاء الحساب! تحقق من بريدك الإلكتروني لتأكيد العنوان، ثم سجّل الدخول."
+            )
+          );
           setMode("login");
           setPassword("");
         } else {
@@ -108,24 +129,27 @@ export default function AuthPage() {
       },
     });
     if (error) {
-      setError("Erreur connexion Google.");
+      setError(tr("Erreur connexion Google.", "خطأ في الاتصال عبر Google."));
       setSocialLoading(null);
     }
   };
 
+  const inputClass =
+    "w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-base outline-none focus:border-[#1B6B3A]";
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="bg-[#1B6B3A] pt-12 pb-10 px-6 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-white flex flex-col">
+      <div className="bg-[#1B6B3A] pt-[calc(3rem+env(safe-area-inset-top))] pb-10 px-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-[#C8972B]" />
           <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-white" />
         </div>
         <div className="relative">
           <button onClick={() => navigate("/")} className="mb-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/20">
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
           </button>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-white text-3xl font-black">
+            <h1 className="text-white text-3xl font-black" dir="ltr">
               <span className="text-[#E8C84A]">W</span>iya
             </h1>
           </div>
@@ -158,13 +182,15 @@ export default function AuthPage() {
             className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 shadow-sm disabled:opacity-50"
           >
             <GoogleLogo />
-            {socialLoading === "google" ? "Redirection..." : "Continuer avec Google"}
+            {socialLoading === "google"
+              ? tr("Redirection...", "جاري التحويل...")
+              : tr("Continuer avec Google", "المتابعة عبر Google")}
           </button>
         </div>
 
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-xs text-gray-400">ou</span>
+          <span className="text-xs text-gray-400">{tr("ou", "أو")}</span>
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
@@ -175,11 +201,12 @@ export default function AuthPage() {
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("name")}</label>
                 <input
                   type="text"
+                  dir="auto"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Karim Benali"
+                  placeholder={tr("Karim Benali", "كريم بن علي")}
                   autoComplete="name"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-base outline-none focus:border-[#1B6B3A]"
+                  className={inputClass}
                 />
               </div>
             )}
@@ -187,12 +214,13 @@ export default function AuthPage() {
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("email")}</label>
               <input
                 type="email"
+                dir="ltr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="exemple@email.com"
                 autoComplete="email"
                 autoCapitalize="none"
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-base outline-none focus:border-[#1B6B3A]"
+                className={inputClass}
               />
             </div>
             {mode === "register" && (
@@ -200,11 +228,12 @@ export default function AuthPage() {
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">{t("phone")}</label>
                 <input
                   type="tel"
+                  dir="ltr"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="06 XX XX XX XX"
                   autoComplete="tel"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-base outline-none focus:border-[#1B6B3A]"
+                  className={inputClass}
                 />
               </div>
             )}
@@ -213,11 +242,12 @@ export default function AuthPage() {
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
+                  dir="ltr"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-base outline-none focus:border-[#1B6B3A]"
+                  className={inputClass}
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -227,7 +257,7 @@ export default function AuthPage() {
             {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
             {info && <p className="text-xs text-[#1B6B3A] font-medium">{info}</p>}
             <button type="submit" disabled={loading} className="w-full py-4 bg-[#1B6B3A] text-white rounded-2xl font-bold text-sm shadow-lg disabled:opacity-60">
-              {loading ? "Chargement..." : mode === "login" ? t("login") : t("register")}
+              {loading ? tr("Chargement...", "جاري التحميل...") : mode === "login" ? t("login") : t("register")}
             </button>
           </motion.form>
         </AnimatePresence>
