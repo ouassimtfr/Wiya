@@ -37,7 +37,7 @@ export default function FavoritesPage() {
   const n = favListings.length;
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-20">
+    <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <AppHeader title={t("favorites")} showBack />
 
       {loading ? (
