@@ -15,7 +15,7 @@ export default function BottomNav() {
   const [onFavorites] = useRoute("/favorites");
   const [onProfile] = useRoute("/profile");
 
-  // Correction : On utilise un état local pour les messages non lus en temps réel
+  // État local pour les messages non lus en temps réel
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function BottomNav() {
       return;
     }
 
-    // 1. Fonction pour compter les vrais messages non lus directement en BDD
+    // 1. Compte les vrais messages non lus directement en BDD
     const fetchUnreadCount = async () => {
       const { count, error } = await supabase
         .from("messages")
@@ -56,7 +56,7 @@ export default function BottomNav() {
     };
   }, [user]);
 
-  // CORRECTION : on cache complètement la nav globale quand on est dans une
+  // On cache complètement la nav globale quand on est dans une
   // conversation ouverte, pour laisser la barre de saisie du chat prendre
   // toute la place en bas, sans chevauchement.
   if (onMessages2) {
@@ -65,48 +65,48 @@ export default function BottomNav() {
 
   const items = [
     { label: t("home"), icon: Home, path: "/", active: !!onHome },
-    // On remplace l'ancien unreadCount défaillant par notre unreadMessages tout neuf
     { label: t("messages"), icon: MessageCircle, path: "/messages", active: !!(onMessages || onMessages2), badge: unreadMessages },
     { label: t("post"), icon: Plus, path: "/post", active: false, primary: true },
     { label: t("favorites"), icon: Heart, path: "/favorites", active: !!onFavorites },
     { label: t("profile"), icon: User, path: "/profile", active: !!onProfile },
   ];
 
+  // Barre flottante : arrondie, détachée du bord, avec le "+" doré au centre.
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-lg safe-bottom">
-      <div className="flex items-center justify-around h-16 px-2 max-w-lg mx-auto">
+    <nav className="pointer-events-auto mx-3 mb-2 h-14 rounded-[26px] bg-card border border-border shadow-[0_10px_30px_rgba(0,0,0,0.16)]">
+      <div className="flex items-center justify-around h-full px-2">
         {items.map((item) => (
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 relative transition-all duration-200
-              ${item.primary ? "scale-100" : ""}`}
+            aria-label={item.label}
+            className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 relative active:scale-95 transition-transform duration-150"
           >
             {item.primary ? (
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1B6B3A] to-[#25924F] flex items-center justify-center shadow-lg shadow-green-200 -mt-4">
-                <item.icon className="w-6 h-6 text-white" strokeWidth={2.5} />
+              <div className="w-[52px] h-[52px] -translate-y-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center shadow-[0_0_0_4px_hsl(var(--card)),0_8px_18px_rgba(242,169,59,0.45)]">
+                <item.icon className="w-6 h-6" strokeWidth={2.75} />
               </div>
             ) : (
               <>
+                {item.active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-1 rounded-b-full bg-primary" />
+                )}
                 <div className="relative">
                   <item.icon
-                    className={`w-5 h-5 transition-colors ${item.active ? "text-[#1B6B3A]" : "text-gray-400"}`}
+                    className={`w-5 h-5 transition-colors ${item.active ? "text-primary" : "text-muted-foreground"}`}
                     strokeWidth={item.active ? 2.5 : 1.8}
                   />
                   {item.badge != null && item.badge > 0 && (
-                    <span className="absolute -top-1.5 -end-1.5 min-w-[16px] h-4 px-1 bg-[#C8972B] rounded-full text-white text-[9px] font-bold flex items-center justify-center border border-white">
+                    <span className="absolute -top-1.5 -end-2 min-w-[16px] h-4 px-1 bg-destructive rounded-full text-white text-[9px] font-bold flex items-center justify-center border border-card">
                       {item.badge}
                     </span>
                   )}
                 </div>
                 <span
-                  className={`text-[10px] font-medium transition-colors ${item.active ? "text-[#1B6B3A]" : "text-gray-400"}`}
+                  className={`text-[10px] font-semibold transition-colors ${item.active ? "text-primary" : "text-muted-foreground"}`}
                 >
                   {item.label}
                 </span>
-                {item.active && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#1B6B3A]" />
-                )}
               </>
             )}
           </button>
