@@ -120,7 +120,7 @@ export default function BoostPage() {
 
   if (step === 4) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#1B6B3A] flex flex-col items-center justify-center px-8 text-center gap-5">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-[100dvh] bg-[#1B6B3A] flex flex-col items-center justify-center px-8 text-center gap-5">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5, delay: 0.15 }} className="w-24 h-24 bg-[#C8972B] rounded-full flex items-center justify-center shadow-2xl">
           <CheckCheck className="w-12 h-12 text-white" />
         </motion.div>
@@ -142,7 +142,7 @@ export default function BoostPage() {
     );
   }
 
-  if (!listing) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
+  if (!listing) return <div className="min-h-[100dvh] flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" /></div>;
 
   const steps = [
     tr("Choisir un plan", "اختر العرض"),
@@ -163,8 +163,8 @@ export default function BoostPage() {
     : [];
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 190px)" }}>
-      <div className="bg-[#1B6B3A] pt-12 pb-5 px-4 relative overflow-hidden">
+    <div className="bg-[#F4F6F5] min-h-[100dvh]" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 190px)" }}>
+      <div className="bg-[#1B6B3A] pt-[calc(3rem+env(safe-area-inset-top))] pb-5 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"><div className="absolute -bottom-4 right-4 w-32 h-32 rounded-full bg-[#C8972B]" /></div>
         <div className="relative">
           <button onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : window.history.back()} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 mb-4">
@@ -331,7 +331,7 @@ export default function BoostPage() {
         </AnimatePresence>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-3 shadow-lg z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
+      <div className="fixed bottom-0 inset-x-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 pt-3 shadow-lg z-40" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
         {step === 1 && (<>
           {selected && plan && <p className="text-center text-xs text-gray-500 mb-2">{tr("Plan sélectionné", "العرض المختار")}: <strong className="text-gray-800">{plan.price.toLocaleString()} {t("da")} — {plan.days} {tr("jours", "يوم")}</strong></p>}
           <button onClick={() => setStep(2)} disabled={!selected} className="w-full py-4 bg-gradient-to-r from-[#1B6B3A] to-[#25924F] text-white rounded-2xl font-bold text-sm shadow-lg shadow-green-200 disabled:opacity-40 flex items-center justify-center gap-2">
