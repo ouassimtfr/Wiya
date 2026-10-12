@@ -153,6 +153,7 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const [viewport, setViewport] = useState<{ height: number; top: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -162,9 +163,17 @@ export default function ChatPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (conversationId) {
-      fetchMessages(conversationId);
-    }
+    if (!conversationId) return;
+    let cancelled = false;
+    setLoadingMessages(true);
+    Promise.resolve(fetchMessages(conversationId))
+      .catch((err) => console.error("Erreur chargement messages:", err))
+      .finally(() => {
+        if (!cancelled) setLoadingMessages(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [conversationId, fetchMessages]);
 
   // CORRECTIF CLAVIER iOS : on suit la vraie zone visible (visualViewport),
@@ -272,8 +281,8 @@ export default function ChatPage() {
 
   if (!user) {
     return (
-      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500">
+      <div className="fixed inset-0 z-40 bg-background h-[100dvh] flex flex-col items-center justify-center p-4">
+        <p className="text-muted-foreground">
           {tr("Connexion requise pour accéder aux messages.", "يجب تسجيل الدخول للوصول إلى الرسائل.")}
         </p>
       </div>
@@ -282,8 +291,8 @@ export default function ChatPage() {
 
   if (!conversation && conversationId) {
     return (
-      <div className="fixed inset-0 z-40 bg-[#F4F6F5] h-[100dvh] flex flex-col items-center justify-center p-4">
-        <p className="text-gray-500 mb-4">
+      <div className="fixed inset-0 z-40 bg-background h-[100dvh] flex flex-col items-center justify-center p-4">
+        <p className="text-muted-foreground mb-4">
           {tr("Chargement de votre discussion...", "جاري تحميل المحادثة...")}
         </p>
         <button onClick={() => navigate("/messages")} className="px-4 py-2 bg-[#1B6B3A] text-white rounded-xl text-sm">
@@ -311,7 +320,7 @@ export default function ChatPage() {
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-40 h-[100dvh] flex flex-col bg-[#ECF0EC]"
+      className="fixed inset-x-0 top-0 z-40 h-[100dvh] flex flex-col bg-background"
       style={containerStyle}
     >
       <div
@@ -418,13 +427,17 @@ export default function ChatPage() {
               </div>
             );
           })
+        ) : loadingMessages ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-4" dir={isRTL ? "rtl" : "ltr"}>
             <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
               <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
             </div>
-            <p className="text-sm font-bold text-gray-700">{tr("Démarrez la discussion", "ابدأ المحادثة")}</p>
-            <p className="text-xs text-gray-400 mt-1 mb-5">
+            <p className="text-sm font-bold text-foreground">{tr("Démarrez la discussion", "ابدأ المحادثة")}</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-5">
               {tr("Écrivez un message ou choisissez une réponse rapide.", "اكتب رسالة أو اختر ردا سريعا.")}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
