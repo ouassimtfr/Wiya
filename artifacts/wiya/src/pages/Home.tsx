@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { MapPin, Search, X } from "lucide-react";
+import { MapPin, Search, X, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -45,11 +45,11 @@ function useVisualViewport() {
 // Carte "fantôme" affichée pendant le chargement des annonces
 function ListingSkeleton() {
   return (
-    <div className="bg-card border border-border rounded-3xl flex gap-3 p-3 shadow-sm animate-pulse">
-      <div className="w-24 h-24 rounded-2xl bg-muted flex-shrink-0" />
-      <div className="flex-1 py-1 space-y-2.5">
-        <div className="h-3.5 bg-muted rounded w-3/4" />
+    <div className="bg-card rounded-[22px] overflow-hidden ring-1 ring-border/60 animate-pulse">
+      <div className="aspect-square bg-muted" />
+      <div className="p-3 space-y-2">
         <div className="h-4 bg-muted rounded w-1/2" />
+        <div className="h-3 bg-muted rounded w-5/6" />
         <div className="h-3 bg-muted rounded w-1/3" />
       </div>
     </div>
@@ -74,7 +74,11 @@ export default function Home() {
   }, []);
 
   const fetchListings = async () => {
-    const { data } = await supabase.from("listings").select("*").eq("is_active", true).order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
     if (data) setListings(data);
     setLoading(false);
   };
@@ -112,43 +116,50 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-background min-h-screen pb-6">
-      {/* ─── En-tête émeraude ─── */}
-      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-16 rounded-b-[32px] overflow-hidden">
-        <div className="absolute -top-16 -end-16 w-56 h-56 rounded-full border-[34px] border-white/[0.08] pointer-events-none" />
+    <div className="bg-background min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      {/* ─── En-tête émeraude compact ─── */}
+      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-12 rounded-b-[28px] overflow-hidden">
+        <div className="absolute -top-14 -end-14 w-52 h-52 rounded-full border-[30px] border-white/[0.07] pointer-events-none" />
 
         <div className="relative z-10 flex items-center justify-between">
-          <button
-            onClick={() => setShowWilayaPicker(true)}
-            className="flex items-center gap-1.5 bg-white/15 px-3 py-2 rounded-full text-sm font-semibold active:scale-95 transition-transform"
-          >
-            <MapPin className="w-4 h-4" />
-            {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
-          </button>
-          <span className="font-display text-3xl font-extrabold tracking-tight">Wiya</span>
-          <button
-            onClick={() => setLang(lang === "fr" ? "ar" : "fr")}
-            className="bg-white/15 text-sm font-bold px-3.5 py-2 rounded-full active:scale-95 transition-transform"
-          >
-            {lang === "fr" ? "العربية" : "FR"}
-          </button>
+          <span dir="ltr" className="font-display text-[28px] font-extrabold tracking-tight leading-none">
+            Wiya<span className="text-accent">.</span>
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowWilayaPicker(true)}
+              className="flex items-center gap-1.5 bg-white/15 ps-2.5 pe-2 py-2 rounded-full text-[13px] font-semibold active:scale-95 transition-transform"
+            >
+              <MapPin className="w-4 h-4" />
+              {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
+              <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+            </button>
+            <button
+              onClick={() => setLang(lang === "fr" ? "ar" : "fr")}
+              className="bg-white/15 text-[13px] font-bold px-3 py-2 rounded-full active:scale-95 transition-transform"
+            >
+              {lang === "fr" ? "العربية" : "FR"}
+            </button>
+          </div>
         </div>
 
-        <h1 className="relative z-10 mt-5 text-2xl font-bold leading-tight max-w-[16ch]">
+        <p className="relative z-10 mt-4 text-[15px] text-white/85 font-medium">
           {tr("Achetez et vendez près de chez vous", "اشترِ وبع بالقرب منك")}
-        </h1>
+        </p>
       </div>
 
       {/* ─── Barre de recherche (chevauche l'en-tête) ─── */}
       <button
         onClick={() => navigate("/search")}
-        className="relative z-20 -mt-7 mx-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3.5 shadow-lg text-start active:scale-[0.99] transition-transform"
+        className="relative z-20 -mt-6 mx-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-card ring-1 ring-border/70 rounded-2xl px-4 py-3.5 shadow-lg text-start active:scale-[0.99] transition-transform"
       >
-        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+        <Search className="w-5 h-5 text-primary flex-shrink-0" />
         <span className="flex-1 text-[15px] text-muted-foreground truncate">{searchPlaceholder}</span>
+        <SlidersHorizontal className="w-5 h-5 text-muted-foreground flex-shrink-0" />
       </button>
 
-      {/* ─── Catégories (défilement horizontal) ─── */}
+      {/* ─── Catégories ─── */}
       <div className="flex gap-3 overflow-x-auto scrollbar-none px-4 pt-5 pb-1">
         {CATEGORIES.map((cat) => {
           const active = activeCategory === cat.id;
@@ -156,18 +167,20 @@ export default function Home() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(active ? null : cat.id)}
-              className="flex-none flex flex-col items-center gap-1.5 w-[70px]"
+              className="flex-none flex flex-col items-center gap-1.5 w-[68px] active:scale-95 transition-transform"
             >
               <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border transition-colors ${
-                  active ? "bg-primary border-primary" : "bg-card border-border"
+                className={`w-[60px] h-[60px] rounded-full flex items-center justify-center text-[26px] transition-all ${
+                  active
+                    ? "bg-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    : "bg-card ring-1 ring-border/70 shadow-sm"
                 }`}
               >
                 {cat.icon}
               </div>
               <span
-                className={`text-[11px] font-semibold text-center leading-tight ${
-                  active ? "text-primary" : "text-foreground"
+                className={`text-[11px] font-semibold text-center leading-tight line-clamp-2 ${
+                  active ? "text-primary" : "text-foreground/80"
                 }`}
               >
                 {t(cat.id as any)}
@@ -207,7 +220,7 @@ export default function Home() {
       {!loading && featured.length > 0 && (
         <>
           <div className="px-5 pt-6 pb-3">
-            <h2 className="text-xl font-bold text-foreground">{tr("À la une", "مميّز")}</h2>
+            <h2 className="text-xl font-extrabold text-foreground">{tr("À la une", "مميّز")}</h2>
           </div>
           <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory px-4 pb-2">
             {featured.map((listing) => (
@@ -217,20 +230,27 @@ export default function Home() {
         </>
       )}
 
-      {/* ─── Nouvelles annonces ─── */}
-      <div className="px-5 pt-6 pb-3">
-        <h2 className="text-xl font-bold text-foreground">{tr("Nouvelles annonces", "أحدث الإعلانات")}</h2>
+      {/* ─── Nouvelles annonces (grille 2 colonnes) ─── */}
+      <div className="px-5 pt-6 pb-3 flex items-baseline justify-between">
+        <h2 className="text-xl font-extrabold text-foreground">{tr("Nouvelles annonces", "أحدث الإعلانات")}</h2>
+        {!loading && others.length > 0 && (
+          <span className="text-xs font-semibold text-muted-foreground">{others.length}</span>
+        )}
       </div>
 
-      <div className="px-4 space-y-3">
-        {!loading && filteredListings.length === 0 && (
-          <div className="text-center py-10">
-            <p className="text-sm text-muted-foreground">{t("noResults")}</p>
-          </div>
-        )}
+      {!loading && filteredListings.length === 0 && (
+        <div className="text-center py-12 px-8">
+          <p className="text-sm font-semibold text-foreground">{t("noResults")}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {tr("Essayez une autre catégorie ou wilaya.", "جرّب فئة أو ولاية أخرى.")}
+          </p>
+        </div>
+      )}
+
+      <div className="px-4 grid grid-cols-2 gap-3">
         {loading
           ? Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)
-          : others.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
+          : others.map((listing) => <ListingCard key={listing.id} listing={listing} variant="grid" />)}
       </div>
 
       {/* ─── Choix de la wilaya ─── */}
