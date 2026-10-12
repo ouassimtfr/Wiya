@@ -7,7 +7,7 @@ import { WILAYAS_DATA } from "@/lib/wilayas";
 
 interface Props {
   listing: any;
-  variant?: "grid" | "list";
+  variant?: "grid" | "list" | "featured";
 }
 
 const JOB_SECTOR_AR: Record<string, string> = {
@@ -31,8 +31,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const fav = isFavorite(listing.id);
 
-  // Chargement progressif : fond gris animé tant que la photo n'est pas arrivée,
-  // puis la photo apparaît en fondu. Si la photo échoue, on affiche le placeholder.
+  // Chargement progressif : fond animé tant que la photo n'est pas arrivée, puis fondu.
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -59,8 +58,8 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     : `${price.toLocaleString()} ${t("da")}`;
 
   const Placeholder = ({ small }: { small?: boolean }) => (
-    <div className="w-full h-full bg-gradient-to-br from-[#1B6B3A]/15 to-[#C8972B]/20 flex items-center justify-center">
-      <Briefcase className={`${small ? "w-7 h-7" : "w-9 h-9"} text-[#1B6B3A]/60`} />
+    <div className="w-full h-full bg-gradient-to-br from-primary/15 to-accent/25 flex items-center justify-center">
+      <Briefcase className={`${small ? "w-7 h-7" : "w-9 h-9"} text-primary/60`} />
     </div>
   );
 
@@ -68,7 +67,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     if (!image || failed) return <Placeholder small={small} />;
     return (
       <>
-        {!loaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+        {!loaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
         <img
           src={image}
           alt={title}
@@ -86,116 +85,148 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     );
   };
 
+  const badges = (
+    <>
+      {isBoosted && (
+        <div className="absolute top-2 start-2 bg-accent text-accent-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
+          <Zap className="w-3 h-3" />
+          {t("boosted")}
+        </div>
+      )}
+      {isUrgent && !isBoosted && (
+        <div className="absolute top-2 start-2 bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+          {t("urgent")}
+        </div>
+      )}
+    </>
+  );
+
+  const heartOverlay = (
+    <button
+      onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
+      aria-label="Favori"
+      className="absolute top-2 end-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform"
+    >
+      <Heart
+        className={`w-4 h-4 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-white"}`}
+        strokeWidth={fav ? 0 : 2}
+      />
+    </button>
+  );
+
+  const jobRow = isJob && (
+    <div className="flex items-center gap-1.5 mt-1 min-w-0">
+      <span
+        className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+          isSeeking ? "bg-accent/20 text-foreground" : "bg-primary/10 text-primary"
+        }`}
+      >
+        {isSeeking ? tr("Cherche un emploi", "يبحث عن عمل") : tr("Recrute", "يوظّف")}
+      </span>
+      {jobSector && <span className="text-[10px] text-muted-foreground truncate">{jobSector}</span>}
+    </div>
+  );
+
+  // ─── Grande carte "À la une" (annonces boostées) ───
+  if (variant === "featured") {
+    return (
+      <div
+        onClick={() => navigate(`/listing/${listing.id}`)}
+        className="flex-none w-[78%] snap-start bg-card rounded-3xl overflow-hidden cursor-pointer border border-accent/70 shadow-md active:scale-[0.98] transition-transform"
+      >
+        <div className="relative h-44 bg-muted">
+          {renderImage(false)}
+          {badges}
+          {heartOverlay}
+        </div>
+        <div className="p-3.5">
+          <p className="font-display text-xl font-bold text-primary leading-tight">{priceText}</p>
+          <p className="text-[15px] font-semibold text-foreground truncate mt-0.5">{title}</p>
+          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="text-xs">{wilaya}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Carte en liste (accueil, mes annonces) ───
   if (variant === "list") {
     return (
       <div
         onClick={() => navigate(`/listing/${listing.id}`)}
-        className={`bg-white rounded-2xl overflow-hidden flex gap-3 p-3 cursor-pointer active:scale-[0.98] transition-transform
-          ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
+        className="bg-card rounded-3xl p-3 flex gap-3 cursor-pointer border border-border shadow-sm active:scale-[0.98] transition-transform"
       >
-        <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+        <div className="relative w-24 h-24 flex-shrink-0 rounded-2xl overflow-hidden bg-muted">
           {renderImage(true)}
-          {isBoosted && (
-            <div className="absolute top-1 start-1 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Zap className="w-2.5 h-2.5" />{t("boosted")}
-            </div>
-          )}
-          {isUrgent && !isBoosted && (
-            <div className="absolute top-1 start-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          {isUrgent && (
+            <div className="absolute top-1 start-1 bg-destructive text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               {t("urgent")}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
           <div>
-            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{title}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-base font-bold text-[#1B6B3A]">{priceText}</span>
-              {isNegotiable && (
-                <span className="text-[10px] text-gray-400">• {t("negotiable")}</span>
-              )}
+            <p className="text-[15px] font-semibold text-foreground truncate leading-tight">{title}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="font-display text-lg font-bold text-primary">{priceText}</span>
+              {isNegotiable && <span className="text-[10px] text-muted-foreground">• {t("negotiable")}</span>}
             </div>
-            {isJob && (
-              <div className="flex items-center gap-1.5 mt-1 min-w-0">
-                <span
-                  className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                    isSeeking ? "bg-[#C8972B]/15 text-[#8A6414]" : "bg-[#1B6B3A]/10 text-[#1B6B3A]"
-                  }`}
-                >
-                  {isSeeking ? tr("Cherche un emploi", "يبحث عن عمل") : tr("Recrute", "يوظّف")}
-                </span>
-                {jobSector && <span className="text-[10px] text-gray-400 truncate">{jobSector}</span>}
-              </div>
-            )}
+            {jobRow}
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-gray-400">
-              <MapPin className="w-3 h-3" />
-              <span className="text-xs">{wilaya}</span>
-            </div>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="text-xs">{wilaya}</span>
           </div>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="self-start mt-0.5 p-1.5"
+          aria-label="Favori"
+          className="self-start p-1.5 active:scale-90 transition-transform"
         >
           <Heart
-            className={`w-4 h-4 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-300"}`}
-            strokeWidth={fav ? 0 : 1.5}
+            className={`w-5 h-5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
+            strokeWidth={fav ? 0 : 1.6}
           />
         </button>
       </div>
     );
   }
 
+  // ─── Carte en grille ───
   return (
     <div
       onClick={() => navigate(`/listing/${listing.id}`)}
-      className={`bg-white rounded-2xl overflow-hidden cursor-pointer active:scale-[0.97] transition-transform
-        ${isBoosted ? "ring-1 ring-[#C8972B]/40 shadow-md" : "shadow-sm"}`}
+      className={`bg-card rounded-3xl overflow-hidden cursor-pointer border shadow-sm active:scale-[0.97] transition-transform ${
+        isBoosted ? "border-accent/70" : "border-border"
+      }`}
     >
-      <div className="relative aspect-[4/3] bg-gray-100">
+      <div className="relative aspect-[4/3] bg-muted">
         {renderImage(false)}
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="absolute top-2 end-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm"
-        >
-          <Heart
-            className={`w-3.5 h-3.5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-500"}`}
-            strokeWidth={fav ? 0 : 1.8}
-          />
-        </button>
-        {isBoosted && (
-          <div className="absolute top-2 start-2 bg-[#C8972B] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-            <Zap className="w-2.5 h-2.5" />{t("boosted")}
-          </div>
-        )}
-        {isUrgent && !isBoosted && (
-          <div className="absolute top-2 start-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            {t("urgent")}
-          </div>
-        )}
+        {badges}
+        {heartOverlay}
         {!isJob && condition === "new" && (
-          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="absolute bottom-2 start-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
             {t("conditionNew")}
           </div>
         )}
         {isJob && jobSector && (
-          <div className="absolute bottom-2 start-2 bg-[#1B6B3A] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full max-w-[90%] truncate">
+          <div className="absolute bottom-2 start-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full max-w-[90%] truncate">
             {jobSector}
           </div>
         )}
       </div>
-      <div className="p-2.5">
-        <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{title}</p>
-        <p className="text-sm font-bold text-[#1B6B3A] mt-0.5">{priceText}</p>
-        <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-0.5 text-gray-400">
-            <MapPin className="w-2.5 h-2.5" />
-            <span className="text-[10px]">{wilaya}</span>
+      <div className="p-3">
+        <p className="font-display text-base font-bold text-primary leading-tight">{priceText}</p>
+        <p className="text-[13px] font-semibold text-foreground truncate mt-0.5">{title}</p>
+        <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <MapPin className="w-3 h-3" />
+            <span className="text-[11px]">{wilaya}</span>
           </div>
           {isNegotiable && (
-            <span className="text-[9px] text-[#C8972B] font-medium bg-amber-50 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] text-foreground font-medium bg-accent/25 px-1.5 py-0.5 rounded-full">
               {t("negotiable")}
             </span>
           )}
