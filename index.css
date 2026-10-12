@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -60,6 +59,7 @@
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
+  --font-display: var(--app-font-display);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -79,47 +79,49 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 240 5% 96%;
-  --foreground: 144 40% 10%;
-  --border: 144 10% 88%;
+  /* Nouvelle palette Wiya : vert émeraude + or safran sur fond crème */
+  --background: 52 22% 95%;
+  --foreground: 150 30% 10%;
+  --border: 60 10% 89%;
   --card: 0 0% 100%;
-  --card-foreground: 144 40% 10%;
-  --card-border: 144 10% 90%;
+  --card-foreground: 150 30% 10%;
+  --card-border: 60 10% 90%;
   --sidebar: 0 0% 100%;
-  --sidebar-foreground: 144 40% 10%;
-  --sidebar-border: 144 10% 88%;
-  --sidebar-primary: 144 60% 26%;
+  --sidebar-foreground: 150 30% 10%;
+  --sidebar-border: 60 10% 89%;
+  --sidebar-primary: 162 85% 26%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 144 60% 26%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 144 60% 26%;
+  --sidebar-accent: 37 89% 57%;
+  --sidebar-accent-foreground: 36 100% 12%;
+  --sidebar-ring: 162 85% 26%;
   --popover: 0 0% 100%;
-  --popover-foreground: 144 40% 10%;
-  --popover-border: 144 10% 88%;
-  --primary: 144 60% 26%;
+  --popover-foreground: 150 30% 10%;
+  --popover-border: 60 10% 89%;
+  --primary: 162 85% 26%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 39 65% 48%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 144 10% 94%;
-  --muted-foreground: 144 10% 45%;
-  --accent: 39 65% 48%;
-  --accent-foreground: 0 0% 100%;
+  --secondary: 37 89% 57%;
+  --secondary-foreground: 36 100% 12%;
+  --muted: 60 12% 92%;
+  --muted-foreground: 150 8% 42%;
+  --accent: 37 89% 57%;
+  --accent-foreground: 36 100% 12%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --input: 144 10% 88%;
-  --ring: 144 60% 26%;
-  --chart-1: 144 60% 26%;
-  --chart-2: 39 65% 48%;
+  --input: 60 10% 89%;
+  --ring: 162 85% 26%;
+  --chart-1: 162 85% 26%;
+  --chart-2: 37 89% 57%;
   --chart-3: 210 80% 55%;
   --chart-4: 270 60% 55%;
   --chart-5: 15 80% 55%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'DM Sans', 'Inter', system-ui, sans-serif;
+  --app-font-display: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;
   --app-font-serif: 'Playfair Display', Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  --radius: .5rem; /* 8px */
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00); /*replace with H S L */
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00); /*replace with H S L */
+  --radius: .75rem;
+  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-md: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
@@ -170,37 +172,37 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 144 20% 8%;
-  --foreground: 144 10% 96%;
-  --border: 144 15% 20%;
-  --card: 144 20% 11%;
-  --card-foreground: 144 10% 96%;
-  --card-border: 144 15% 18%;
-  --sidebar: 144 20% 9%;
-  --sidebar-foreground: 144 10% 96%;
-  --sidebar-border: 144 15% 18%;
-  --sidebar-primary: 144 55% 40%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 39 65% 48%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 144 55% 40%;
-  --popover: 144 20% 11%;
-  --popover-foreground: 144 10% 96%;
-  --popover-border: 144 15% 18%;
-  --primary: 144 55% 40%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 39 65% 48%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 144 15% 16%;
-  --muted-foreground: 144 10% 55%;
-  --accent: 39 65% 48%;
-  --accent-foreground: 0 0% 100%;
+  --background: 160 25% 6%;
+  --foreground: 150 14% 95%;
+  --border: 160 18% 15%;
+  --card: 160 22% 10%;
+  --card-foreground: 150 14% 95%;
+  --card-border: 160 18% 15%;
+  --sidebar: 160 22% 8%;
+  --sidebar-foreground: 150 14% 95%;
+  --sidebar-border: 160 18% 15%;
+  --sidebar-primary: 162 67% 46%;
+  --sidebar-primary-foreground: 160 80% 8%;
+  --sidebar-accent: 37 89% 57%;
+  --sidebar-accent-foreground: 36 100% 12%;
+  --sidebar-ring: 162 67% 46%;
+  --popover: 160 22% 10%;
+  --popover-foreground: 150 14% 95%;
+  --popover-border: 160 18% 15%;
+  --primary: 162 67% 46%;
+  --primary-foreground: 160 80% 8%;
+  --secondary: 37 89% 57%;
+  --secondary-foreground: 36 100% 12%;
+  --muted: 160 18% 14%;
+  --muted-foreground: 150 10% 60%;
+  --accent: 37 89% 57%;
+  --accent-foreground: 36 100% 12%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --input: 144 15% 20%;
-  --ring: 144 55% 40%;
-  --chart-1: 144 55% 40%;
-  --chart-2: 39 65% 48%;
+  --input: 160 18% 15%;
+  --ring: 162 67% 46%;
+  --chart-1: 162 67% 46%;
+  --chart-2: 37 89% 57%;
   --chart-3: 210 80% 55%;
   --chart-4: 270 60% 55%;
   --chart-5: 15 80% 55%;
@@ -216,41 +218,62 @@
 
 }
 
+/* ─── Nouveau look Wiya : remplace les couleurs écrites en dur dans les pages ─── */
+
+/* Vert principal (ancien #1B6B3A) → émeraude */
+.bg-\[\#1B6B3A\] { background-color: hsl(var(--primary)) !important; }
+.text-\[\#1B6B3A\] { color: hsl(var(--primary)) !important; }
+.border-\[\#1B6B3A\] { border-color: hsl(var(--primary)) !important; }
+.focus\:border-\[\#1B6B3A\]:focus { border-color: hsl(var(--primary)) !important; }
+
+/* Or (ancien #C8972B) → safran, texte foncé pour rester lisible */
+.bg-\[\#C8972B\] { background-color: hsl(var(--accent)) !important; }
+.bg-\[\#C8972B\].text-white { color: hsl(var(--accent-foreground)) !important; }
+
+/* Fond des pages (ancien #F4F6F5) → crème */
+.bg-\[\#F4F6F5\] { background-color: hsl(var(--background)) !important; }
+.bg-\[\#f4f6f5\] { background-color: hsl(var(--background)) !important; }
+
 /* ─── Wiya dark-mode overrides for hardcoded colours ─────────────────────── */
 
+/* Vert en mode sombre : plus profond pour que le texte blanc reste lisible */
+html.dark .bg-\[\#1B6B3A\] { background-color: #0E8F68 !important; }
+html.dark .text-\[\#1B6B3A\] { color: #3DDCA6 !important; }
+html.dark .border-\[\#1B6B3A\] { border-color: #0E8F68 !important; }
+
 /* Page backgrounds */
-html.dark .bg-\[\#F4F6F5\] { background-color: #0e1d16 !important; }
-html.dark .bg-\[\#f4f6f5\] { background-color: #0e1d16 !important; }
-html.dark .bg-\[\#ECF0EC\] { background-color: #0e1d16 !important; }
+html.dark .bg-\[\#F4F6F5\] { background-color: #0B1210 !important; }
+html.dark .bg-\[\#f4f6f5\] { background-color: #0B1210 !important; }
+html.dark .bg-\[\#ECF0EC\] { background-color: #0B1210 !important; }
 
 /* White surfaces → dark card */
-html.dark .bg-white { background-color: #162419 !important; }
-html.dark .bg-white\/90 { background-color: rgba(22, 36, 25, 0.9) !important; }
+html.dark .bg-white { background-color: #142019 !important; }
+html.dark .bg-white\/90 { background-color: rgba(20, 32, 25, 0.9) !important; }
 
 /* Gray surfaces */
-html.dark .bg-gray-50  { background-color: #111d18 !important; }
-html.dark .bg-gray-100 { background-color: #162419 !important; }
-html.dark .bg-gray-200 { background-color: #1e3228 !important; }
+html.dark .bg-gray-50  { background-color: #101A15 !important; }
+html.dark .bg-gray-100 { background-color: #142019 !important; }
+html.dark .bg-gray-200 { background-color: #22322A !important; }
 
 /* Body outer chrome */
-html.dark body { background-color: #0a150f !important; }
+html.dark body { background-color: #070D0A !important; }
 
 /* Text */
-html.dark .text-gray-900 { color: #eef5f0 !important; }
-html.dark .text-gray-800 { color: #d9ece0 !important; }
-html.dark .text-gray-700 { color: #b8d5c0 !important; }
-html.dark .text-gray-600 { color: #8fb8a0 !important; }
-html.dark .text-gray-500 { color: #6a9c80 !important; }
-html.dark .text-gray-400 { color: #4e7a64 !important; }
-html.dark .text-gray-300 { color: #3a5e4c !important; }
+html.dark .text-gray-900 { color: #EEF4F0 !important; }
+html.dark .text-gray-800 { color: #DCEBE2 !important; }
+html.dark .text-gray-700 { color: #BCD6C6 !important; }
+html.dark .text-gray-600 { color: #93B8A3 !important; }
+html.dark .text-gray-500 { color: #6F9C84 !important; }
+html.dark .text-gray-400 { color: #53796A !important; }
+html.dark .text-gray-300 { color: #3D5E4E !important; }
 
 /* Borders */
-html.dark .border-gray-50  { border-color: #162419 !important; }
-html.dark .border-gray-100 { border-color: #1e3228 !important; }
-html.dark .border-gray-200 { border-color: #2a4436 !important; }
+html.dark .border-gray-50  { border-color: #142019 !important; }
+html.dark .border-gray-100 { border-color: #22322A !important; }
+html.dark .border-gray-200 { border-color: #2D4538 !important; }
 
 /* Bottom nav */
-html.dark nav.border-t { border-color: #1e3228 !important; }
+html.dark nav.border-t { border-color: #22322A !important; }
 
 /* Listing cards & sheet overlays that use bg-white/bg-gray */
 html.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,.5) !important; }
@@ -275,6 +298,12 @@ html.dark .shadow-lg { box-shadow: 0 8px 16px rgba(0,0,0,.5) !important; }
     -webkit-font-smoothing: antialiased;
     -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* Titres : police "display" plus expressive */
+  h1, h2, h3 {
+    font-family: var(--app-font-display);
+    letter-spacing: -0.015em;
   }
 
   .scrollbar-none {
@@ -424,15 +453,15 @@ select,
 html.dark input,
 html.dark textarea,
 html.dark select {
-  color: #eef5f0 !important;
-  -webkit-text-fill-color: #eef5f0 !important;
-  caret-color: #eef5f0 !important;
+  color: #EEF4F0 !important;
+  -webkit-text-fill-color: #EEF4F0 !important;
+  caret-color: #EEF4F0 !important;
 }
 
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #6a9c80 !important;
-  -webkit-text-fill-color: #6a9c80 !important;
+  color: #6F9C84 !important;
+  -webkit-text-fill-color: #6F9C84 !important;
 }
 
 /* Remplissage automatique (autofill) lisible en mode sombre */
@@ -440,9 +469,9 @@ html.dark input:-webkit-autofill,
 html.dark input:-webkit-autofill:hover,
 html.dark input:-webkit-autofill:focus,
 html.dark textarea:-webkit-autofill {
-  -webkit-text-fill-color: #eef5f0 !important;
-  -webkit-box-shadow: 0 0 0 1000px #111d18 inset !important;
-  caret-color: #eef5f0 !important;
+  -webkit-text-fill-color: #EEF4F0 !important;
+  -webkit-box-shadow: 0 0 0 1000px #101A15 inset !important;
+  caret-color: #EEF4F0 !important;
 }
 
 /* ─── Safari iOS : hauteur d'écran dynamique ─────────────────────────────── */
