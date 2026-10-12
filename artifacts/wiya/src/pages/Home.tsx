@@ -42,15 +42,15 @@ function useVisualViewport() {
   return vp;
 }
 
-// Carte "fantôme" affichée pendant le chargement des annonces (à la place d'un écran vide)
+// Carte "fantôme" affichée pendant le chargement des annonces
 function ListingSkeleton() {
   return (
-    <div className="bg-white rounded-2xl flex gap-3 p-3 shadow-sm animate-pulse">
-      <div className="w-24 h-24 rounded-xl bg-gray-200 flex-shrink-0" />
+    <div className="bg-card border border-border rounded-3xl flex gap-3 p-3 shadow-sm animate-pulse">
+      <div className="w-24 h-24 rounded-2xl bg-muted flex-shrink-0" />
       <div className="flex-1 py-1 space-y-2.5">
-        <div className="h-3.5 bg-gray-200 rounded w-3/4" />
-        <div className="h-4 bg-gray-200 rounded w-1/2" />
-        <div className="h-3 bg-gray-200 rounded w-1/3" />
+        <div className="h-3.5 bg-muted rounded w-3/4" />
+        <div className="h-4 bg-muted rounded w-1/2" />
+        <div className="h-3 bg-muted rounded w-1/3" />
       </div>
     </div>
   );
@@ -58,12 +58,12 @@ function ListingSkeleton() {
 
 export default function Home() {
   const { t, lang, setLang, isRTL } = useI18n();
+  const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { user } = useStore();
   const [, navigate] = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +99,8 @@ export default function Home() {
       (!activeCategory || l.category === activeCategory) &&
       (!activeWilaya || l.wilaya === activeWilaya)
   );
+  const featured = filteredListings.filter((l) => l.is_boosted);
+  const others = filteredListings.filter((l) => !l.is_boosted);
   const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
 
   const searchPlaceholder = isRTL ? "ابحث عن إعلان (مثال: كليو 5 2020)" : "Rechercher (ex: Clio 5 2020)";
@@ -110,112 +112,129 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-20">
-      <div className="relative bg-gradient-to-b from-[#0B1F16] to-[#132C20] pb-10 pt-12 px-6 overflow-hidden border-b border-[#C7A44A]/25">
-        <svg
-          className="absolute -top-12 -right-12 w-64 h-64 text-[#C7A44A]/[0.14] pointer-events-none"
-          viewBox="0 0 100 100"
-          fill="none"
-        >
-          <rect x="20" y="20" width="60" height="60" stroke="currentColor" strokeWidth="0.5" />
-          <rect x="20" y="20" width="60" height="60" stroke="currentColor" strokeWidth="0.5" transform="rotate(45 50 50)" />
-        </svg>
+    <div className="bg-background min-h-screen pb-6">
+      {/* ─── En-tête émeraude ─── */}
+      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-16 rounded-b-[32px] overflow-hidden">
+        <div className="absolute -top-16 -end-16 w-56 h-56 rounded-full border-[34px] border-white/[0.08] pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col gap-5">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setShowWilayaPicker(true)}
-              className="flex items-center gap-2 bg-[#C7A44A]/10 backdrop-blur-md px-3 py-1 rounded-full border border-[#C7A44A]/25 active:scale-95 transition-transform"
-            >
-              <MapPin className="w-3 h-3 text-[#C7A44A]" />
-              <span className="text-[#F3EEE2] text-[11px] font-semibold uppercase tracking-wide">
-                {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
-              </span>
-            </button>
-            <button onClick={() => setLang(lang === "fr" ? "ar" : "fr")} className="bg-[#C7A44A]/10 backdrop-blur-md text-[#F3EEE2] text-[10px] font-bold px-4 py-1.5 rounded-full border border-[#C7A44A]/25">
-              {lang === "fr" ? "العربية" : "FR"}
-            </button>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-[#F3EEE2] text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
-              <span className="text-[#C7A44A]">W</span>iya
-            </h1>
-            <span className="h-[3px] w-[3px] rounded-full bg-[#C7A44A]/70 self-center" />
-            <span className="text-[#F3EEE2]/50 text-[10px] uppercase tracking-[0.2em]">Marketplace</span>
-          </div>
-
+        <div className="relative z-10 flex items-center justify-between">
           <button
-            onClick={() => navigate("/search")}
-            className="w-full flex items-center gap-2 bg-white/95 rounded-2xl px-4 py-3 shadow-md text-left active:scale-[0.99] transition-transform"
+            onClick={() => setShowWilayaPicker(true)}
+            className="flex items-center gap-1.5 bg-white/15 px-3 py-2 rounded-full text-sm font-semibold active:scale-95 transition-transform"
           >
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="flex-1 text-sm text-gray-400 truncate">{searchPlaceholder}</span>
+            <MapPin className="w-4 h-4" />
+            {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
+          </button>
+          <span className="font-display text-3xl font-extrabold tracking-tight">Wiya</span>
+          <button
+            onClick={() => setLang(lang === "fr" ? "ar" : "fr")}
+            className="bg-white/15 text-sm font-bold px-3.5 py-2 rounded-full active:scale-95 transition-transform"
+          >
+            {lang === "fr" ? "العربية" : "FR"}
           </button>
         </div>
+
+        <h1 className="relative z-10 mt-5 text-2xl font-bold leading-tight max-w-[16ch]">
+          {tr("Achetez et vendez près de chez vous", "اشترِ وبع بالقرب منك")}
+        </h1>
       </div>
 
-      <div className="px-4 -mt-8 relative z-20 space-y-5">
-        <div className="bg-white p-5 rounded-3xl shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-gray-800">{t("categories")}</h2>
-            <button onClick={() => setShowCategoryPicker(true)} className="text-xs text-[#1B6B3A] font-semibold">{t("seeAll")}</button>
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {CATEGORIES.slice(0, 5).map((cat) => (
-              <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)} className="flex flex-col items-center gap-1.5">
-                <div className={`w-10 h-10 flex items-center justify-center rounded-2xl text-lg transition-colors ${activeCategory === cat.id ? "bg-[#1B6B3A]/15 ring-2 ring-[#1B6B3A]" : "bg-gray-50"}`}>{cat.icon}</div>
-                <span className="text-[9px] font-semibold text-gray-600 text-center leading-tight">{t(cat.id as any)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* ─── Barre de recherche (chevauche l'en-tête) ─── */}
+      <button
+        onClick={() => navigate("/search")}
+        className="relative z-20 -mt-7 mx-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3.5 shadow-lg text-start active:scale-[0.99] transition-transform"
+      >
+        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+        <span className="flex-1 text-[15px] text-muted-foreground truncate">{searchPlaceholder}</span>
+      </button>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm">
-            <button onClick={() => setShowWilayaPicker(true)} className="flex items-center gap-2 pl-4 pr-2 py-2 text-xs font-semibold text-gray-600">
-              <MapPin className="w-3.5 h-3.5" /> {activeWilaya ? wilayaLabel(activeWilaya) : t("wilaya")}
+      {/* ─── Catégories (défilement horizontal) ─── */}
+      <div className="flex gap-3 overflow-x-auto scrollbar-none px-4 pt-5 pb-1">
+        {CATEGORIES.map((cat) => {
+          const active = activeCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(active ? null : cat.id)}
+              className="flex-none flex flex-col items-center gap-1.5 w-[70px]"
+            >
+              <div
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border transition-colors ${
+                  active ? "bg-primary border-primary" : "bg-card border-border"
+                }`}
+              >
+                {cat.icon}
+              </div>
+              <span
+                className={`text-[11px] font-semibold text-center leading-tight ${
+                  active ? "text-primary" : "text-foreground"
+                }`}
+              >
+                {t(cat.id as any)}
+              </span>
             </button>
-            {activeWilaya && <button onClick={() => setActiveWilaya(null)} className="pr-3 py-2"><X className="w-3.5 h-3.5 text-gray-500" /></button>}
-          </div>
+          );
+        })}
+      </div>
+
+      {/* ─── Filtres actifs ─── */}
+      {(activeWilaya || activeCategoryData) && (
+        <div className="flex items-center gap-2 flex-wrap px-4 pt-3">
+          {activeWilaya && (
+            <button
+              onClick={() => setActiveWilaya(null)}
+              className="flex items-center gap-1.5 ps-3 pe-2 py-1.5 bg-primary/10 rounded-full text-xs font-semibold text-primary"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              {wilayaLabel(activeWilaya)}
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           {activeCategoryData && (
-            <button onClick={() => setActiveCategory(null)} className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-[#1B6B3A]/10 rounded-full text-xs font-semibold text-[#1B6B3A]">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className="flex items-center gap-1.5 ps-3 pe-2 py-1.5 bg-primary/10 rounded-full text-xs font-semibold text-primary"
+            >
               <span>{activeCategoryData.icon}</span>
-              <span>{t(activeCategoryData.id as any)}</span>
+              {t(activeCategoryData.id as any)}
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
+      )}
 
-        {!loading && (activeCategory || activeWilaya) && filteredListings.length === 0 && (
-          <div className="text-center py-10">
-            <p className="text-sm text-gray-500">{t("noResults")}</p>
+      {/* ─── À la une (annonces boostées) ─── */}
+      {!loading && featured.length > 0 && (
+        <>
+          <div className="px-5 pt-6 pb-3">
+            <h2 className="text-xl font-bold text-foreground">{tr("À la une", "مميّز")}</h2>
           </div>
-        )}
+          <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory px-4 pb-2">
+            {featured.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} variant="featured" />
+            ))}
+          </div>
+        </>
+      )}
 
-        <div className="space-y-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)
-            : filteredListings.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
-        </div>
+      {/* ─── Nouvelles annonces ─── */}
+      <div className="px-5 pt-6 pb-3">
+        <h2 className="text-xl font-bold text-foreground">{tr("Nouvelles annonces", "أحدث الإعلانات")}</h2>
       </div>
 
-      <AnimatePresence>
-        {showCategoryPicker && (
-          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end" onClick={() => setShowCategoryPicker(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col max-h-[85vh] overflow-hidden">
-              <div className="px-6 pt-6"><div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" /></div>
-              <div className="overflow-y-auto px-6 pb-20 grid grid-cols-4 gap-3">
-                {CATEGORIES.map((cat) => (
-                  <button key={cat.id} onClick={() => { setActiveCategory(cat.id); setShowCategoryPicker(false); }} className="p-3 rounded-2xl flex flex-col items-center gap-1.5 bg-gray-50">
-                    <span className="text-xl">{cat.icon}</span>
-                    <span className="text-[10px] font-bold text-gray-700 text-center">{t(cat.id as any)}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
+      <div className="px-4 space-y-3">
+        {!loading && filteredListings.length === 0 && (
+          <div className="text-center py-10">
+            <p className="text-sm text-muted-foreground">{t("noResults")}</p>
           </div>
         )}
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)
+          : others.map((listing) => <ListingCard key={listing.id} listing={listing} variant="list" />)}
+      </div>
 
+      {/* ─── Choix de la wilaya ─── */}
+      <AnimatePresence>
         {showWilayaPicker && (
           <div
             className="fixed left-0 right-0 bg-black/40 z-[9999] flex items-end"
@@ -227,7 +246,7 @@ export default function Home() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
+              className="bg-card w-full max-w-[430px] mx-auto rounded-t-3xl flex flex-col overflow-hidden"
               style={{ maxHeight: viewport.height * 0.9 }}
             >
               <div className="p-4 flex-shrink-0">
@@ -236,7 +255,7 @@ export default function Home() {
                   value={wilayaSearch}
                   onChange={(e) => setWilayaSearch(e.target.value)}
                   placeholder={wilayaPlaceholder}
-                  className="w-full bg-gray-100 p-3 rounded-xl outline-none text-base text-gray-800"
+                  className="w-full bg-muted p-3 rounded-xl outline-none text-base text-foreground"
                 />
               </div>
               <div className="overflow-y-auto min-h-0 px-4 pb-6 grid grid-cols-2 gap-2">
@@ -247,14 +266,16 @@ export default function Home() {
                       setActiveWilaya(w.name);
                       closeWilayaPicker();
                     }}
-                    className={`p-3 rounded-xl text-sm text-start ${activeWilaya === w.name ? "bg-[#1B6B3A] text-white" : "bg-gray-50 text-gray-800"}`}
+                    className={`p-3 rounded-xl text-sm text-start ${
+                      activeWilaya === w.name ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    }`}
                   >
                     <span className="opacity-50 text-xs">{String(w.code).padStart(2, "0")}</span>{" "}
                     {isRTL ? w.nameAr : w.name}
                   </button>
                 ))}
                 {filteredWilayas.length === 0 && (
-                  <p className="col-span-2 text-center text-sm text-gray-400 py-6">{t("noResults")}</p>
+                  <p className="col-span-2 text-center text-sm text-muted-foreground py-6">{t("noResults")}</p>
                 )}
               </div>
             </motion.div>
