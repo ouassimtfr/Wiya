@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, MapPin, Zap, Briefcase } from "lucide-react";
+import { Heart, MapPin, Zap, Briefcase, Camera, Package } from "lucide-react";
 import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -37,8 +37,9 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
 
   const isJob = listing.category === "jobs";
   const title = listing.title ?? tr("Sans titre", "بدون عنوان");
-  const realImage = listing.images?.[0] ?? "";
-  const image = realImage || (isJob ? "" : "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&q=80");
+  const images: string[] = Array.isArray(listing.images) ? listing.images : [];
+  const image = images[0] ?? "";
+  const photoCount = images.length;
   const price = listing.price ?? 0;
   const wilayaRaw = listing.wilaya ?? "";
   const wilaya = isRTL ? WILAYAS_DATA.find((w) => w.name === wilayaRaw)?.nameAr ?? wilayaRaw : wilayaRaw;
@@ -57,9 +58,28 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
       : tr("Salaire à discuter", "الراتب قابل للنقاش")
     : `${price.toLocaleString()} ${t("da")}`;
 
+  const timeAgo = (iso?: string): string => {
+    if (!iso) return "";
+    const diff = Date.now() - new Date(iso).getTime();
+    if (!isFinite(diff) || diff < 0) return "";
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return tr("À l'instant", "الآن");
+    if (mins < 60) return tr(`Il y a ${mins} min`, `منذ ${mins} دقيقة`);
+    if (hrs < 24) return tr(`Il y a ${hrs} h`, `منذ ${hrs} ساعة`);
+    if (days < 30) return tr(`Il y a ${days} j`, `منذ ${days} يوم`);
+    return new Date(iso).toLocaleDateString(isRTL ? "ar-DZ" : "fr-FR", { day: "2-digit", month: "short" });
+  };
+  const when = timeAgo(listing.created_at);
+
   const Placeholder = ({ small }: { small?: boolean }) => (
-    <div className="w-full h-full bg-gradient-to-br from-primary/15 to-accent/25 flex items-center justify-center">
-      <Briefcase className={`${small ? "w-7 h-7" : "w-9 h-9"} text-primary/60`} />
+    <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/20 flex items-center justify-center">
+      {isJob ? (
+        <Briefcase className={`${small ? "w-7 h-7" : "w-10 h-10"} text-primary/50`} />
+      ) : (
+        <Package className={`${small ? "w-7 h-7" : "w-10 h-10"} text-primary/40`} />
+      )}
     </div>
   );
 
@@ -86,39 +106,61 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   };
 
   const badges = (
-    <>
+    <div className="absolute top-2 start-2 flex flex-col items-start gap-1">
       {isBoosted && (
-        <div className="absolute top-2 start-2 bg-accent text-accent-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
-          <Zap className="w-3 h-3" />
-          {t("boosted")}
+        <div className="bg-accent text-accent-foreground text-[10px] font-extrabold px-2 py-1 rounded-full flex items-center gap-1 shadow">
+          <Zap className="w-3 h-3 fill-current" />
+          {tr("À la une", "مميز")}
         </div>
       )}
-      {isUrgent && !isBoosted && (
-        <div className="absolute top-2 start-2 bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+      {isUrgent && (
+        <div className="bg-destructive text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow">
           {t("urgent")}
         </div>
       )}
-    </>
+    </div>
   );
 
   const heartOverlay = (
     <button
-      onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleFavorite(listing.id);
+      }}
       aria-label="Favori"
-      className="absolute top-2 end-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform"
+      className="absolute top-2 end-2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center active:scale-90 transition-transform"
     >
       <Heart
-        className={`w-4 h-4 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-white"}`}
+        className={`w-[18px] h-[18px] transition-colors ${fav ? "fill-red-500 text-red-500" : "text-gray-700"}`}
         strokeWidth={fav ? 0 : 2}
       />
     </button>
+  );
+
+  const photoBadge =
+    photoCount > 1 ? (
+      <div className="absolute bottom-2 end-2 bg-black/55 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+        <Camera className="w-3 h-3" />
+        {photoCount}
+      </div>
+    ) : null;
+
+  const metaRow = (
+    <div className="flex items-center gap-1 text-muted-foreground min-w-0">
+      <MapPin className="w-3 h-3 flex-shrink-0" />
+      <span className="text-[11px] truncate">
+        {wilaya}
+        {wilaya && when ? " · " : ""}
+        {when}
+      </span>
+    </div>
   );
 
   const jobRow = isJob && (
     <div className="flex items-center gap-1.5 mt-1 min-w-0">
       <span
         className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-          isSeeking ? "bg-accent/20 text-foreground" : "bg-primary/10 text-primary"
+          isSeeking ? "bg-accent/25 text-foreground" : "bg-primary/10 text-primary"
         }`}
       >
         {isSeeking ? tr("Cherche un emploi", "يبحث عن عمل") : tr("Recrute", "يوظّف")}
@@ -132,62 +174,70 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     return (
       <div
         onClick={() => navigate(`/listing/${listing.id}`)}
-        className="flex-none w-[78%] snap-start bg-card rounded-3xl overflow-hidden cursor-pointer border border-accent/70 shadow-md active:scale-[0.98] transition-transform"
+        className="flex-none w-[88%] snap-start bg-card rounded-[26px] overflow-hidden cursor-pointer shadow-md ring-1 ring-accent/60 active:scale-[0.98] transition-transform"
       >
-        <div className="relative h-44 bg-muted">
+        <div className="relative aspect-[4/3] bg-muted">
           {renderImage(false)}
           {badges}
           {heartOverlay}
+          {photoBadge}
         </div>
-        <div className="p-3.5">
-          <p className="font-display text-xl font-bold text-primary leading-tight">{priceText}</p>
-          <p className="text-[15px] font-semibold text-foreground truncate mt-0.5">{title}</p>
-          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="text-xs">{wilaya}</span>
-          </div>
+        <div className="p-4">
+          <p className="font-display text-[22px] font-extrabold text-primary leading-tight">{priceText}</p>
+          <p className="text-[15px] font-semibold text-foreground line-clamp-1 mt-0.5">{title}</p>
+          <div className="mt-1.5">{metaRow}</div>
         </div>
       </div>
     );
   }
 
-  // ─── Carte en liste (accueil, mes annonces) ───
+  // ─── Carte en liste (recherche, favoris, mes annonces) ───
   if (variant === "list") {
     return (
       <div
         onClick={() => navigate(`/listing/${listing.id}`)}
-        className="bg-card rounded-3xl p-3 flex gap-3 cursor-pointer border border-border shadow-sm active:scale-[0.98] transition-transform"
+        className="bg-card rounded-3xl p-2.5 flex gap-3 cursor-pointer shadow-sm ring-1 ring-border/60 active:scale-[0.98] transition-transform"
       >
-        <div className="relative w-24 h-24 flex-shrink-0 rounded-2xl overflow-hidden bg-muted">
+        <div className="relative w-28 h-28 flex-shrink-0 rounded-2xl overflow-hidden bg-muted">
           {renderImage(true)}
-          {isUrgent && (
-            <div className="absolute top-1 start-1 bg-destructive text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-              {t("urgent")}
+          {isBoosted && (
+            <div className="absolute top-1.5 start-1.5 bg-accent text-accent-foreground rounded-full p-1 shadow">
+              <Zap className="w-3 h-3 fill-current" />
             </div>
           )}
+          {photoBadge}
         </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
           <div>
-            <p className="text-[15px] font-semibold text-foreground truncate leading-tight">{title}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="font-display text-lg font-bold text-primary">{priceText}</span>
-              {isNegotiable && <span className="text-[10px] text-muted-foreground">• {t("negotiable")}</span>}
+            <p className="text-[14px] font-semibold text-foreground line-clamp-2 leading-snug">{title}</p>
+            <p className="font-display text-[17px] font-extrabold text-primary mt-1 leading-tight">{priceText}</p>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              {isUrgent && (
+                <span className="text-[10px] font-bold text-white bg-destructive px-1.5 py-0.5 rounded-full">
+                  {t("urgent")}
+                </span>
+              )}
+              {isNegotiable && (
+                <span className="text-[10px] font-medium text-foreground bg-accent/25 px-1.5 py-0.5 rounded-full">
+                  {t("negotiable")}
+                </span>
+              )}
             </div>
             {jobRow}
           </div>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="text-xs">{wilaya}</span>
-          </div>
+          {metaRow}
         </div>
         <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(listing.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(listing.id);
+          }}
           aria-label="Favori"
           className="self-start p-1.5 active:scale-90 transition-transform"
         >
           <Heart
             className={`w-5 h-5 transition-colors ${fav ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
-            strokeWidth={fav ? 0 : 1.6}
+            strokeWidth={fav ? 0 : 1.7}
           />
         </button>
       </div>
@@ -198,39 +248,37 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   return (
     <div
       onClick={() => navigate(`/listing/${listing.id}`)}
-      className={`bg-card rounded-3xl overflow-hidden cursor-pointer border shadow-sm active:scale-[0.97] transition-transform ${
-        isBoosted ? "border-accent/70" : "border-border"
+      className={`bg-card rounded-[22px] overflow-hidden cursor-pointer shadow-sm ring-1 active:scale-[0.97] transition-transform ${
+        isBoosted ? "ring-accent/60" : "ring-border/60"
       }`}
     >
-      <div className="relative aspect-[4/3] bg-muted">
+      <div className="relative aspect-square bg-muted">
         {renderImage(false)}
         {badges}
         {heartOverlay}
-        {!isJob && condition === "new" && (
-          <div className="absolute bottom-2 start-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
-            {t("conditionNew")}
-          </div>
-        )}
-        {isJob && jobSector && (
-          <div className="absolute bottom-2 start-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full max-w-[90%] truncate">
-            {jobSector}
-          </div>
-        )}
+        {photoBadge}
       </div>
       <div className="p-3">
-        <p className="font-display text-base font-bold text-primary leading-tight">{priceText}</p>
-        <p className="text-[13px] font-semibold text-foreground truncate mt-0.5">{title}</p>
-        <div className="flex items-center justify-between mt-1.5">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <MapPin className="w-3 h-3" />
-            <span className="text-[11px]">{wilaya}</span>
-          </div>
+        <p className="font-display text-[17px] font-extrabold text-primary leading-tight">{priceText}</p>
+        <p className="text-[13px] font-medium text-foreground line-clamp-2 leading-snug mt-1 min-h-[2.4em]">{title}</p>
+        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          {!isJob && condition === "new" && (
+            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+              {t("conditionNew")}
+            </span>
+          )}
           {isNegotiable && (
-            <span className="text-[10px] text-foreground font-medium bg-accent/25 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-medium text-foreground bg-accent/25 px-1.5 py-0.5 rounded-full">
               {t("negotiable")}
             </span>
           )}
+          {isJob && jobSector && (
+            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full truncate max-w-full">
+              {jobSector}
+            </span>
+          )}
         </div>
+        <div className="mt-1.5">{metaRow}</div>
       </div>
     </div>
   );
