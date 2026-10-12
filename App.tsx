@@ -57,7 +57,7 @@ function AppShell() {
 
   return (
     // On utilise la variable --vh pour forcer la hauteur exacte de l'écran visible
-    <div className="max-w-[430px] mx-auto relative bg-[#F4F6F5] h-[calc(var(--vh,1vh)*100)] shadow-2xl overflow-hidden flex flex-col">
+    <div className="max-w-[430px] mx-auto relative bg-background h-[calc(var(--vh,1vh)*100)] shadow-2xl overflow-hidden flex flex-col">
       
       {/* Contenu scrollable */}
       <div className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
@@ -80,8 +80,8 @@ function AppShell() {
         </Switch>
       </div>
 
-      {/* Barre de navigation fixée avec gestion du safe area iOS */}
-      <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[430px] z-[9999] bg-[#F4F6F5] pb-[env(safe-area-inset-bottom)] border-t border-gray-200">
+      {/* Barre de navigation flottante (le conteneur est transparent et laisse passer les clics) */}
+      <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[430px] z-[9999] pb-[env(safe-area-inset-bottom)] pointer-events-none">
         <Switch>
           <Route path="/auth" component={() => null} />
           <Route path="/admin" component={() => null} />
