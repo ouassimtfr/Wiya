@@ -93,7 +93,7 @@ export default function SellerProfilePage() {
 
   if (loading) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen flex items-center justify-center">
+      <div className="bg-[#F4F6F5] min-h-[100dvh] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -101,7 +101,7 @@ export default function SellerProfilePage() {
 
   if (!profile) {
     return (
-      <div className="bg-[#F4F6F5] min-h-screen flex items-center justify-center px-4">
+      <div className="bg-[#F4F6F5] min-h-[100dvh] flex items-center justify-center px-4">
         <p className="text-sm text-gray-400 text-center">{tr("Vendeur introuvable", "البائع غير موجود")}</p>
       </div>
     );
@@ -118,9 +118,9 @@ export default function SellerProfilePage() {
   const n = listings.length;
 
   return (
-    <div className="bg-[#F4F6F5] min-h-screen pb-20">
+    <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {/* Header pro */}
-      <div className="bg-gradient-to-br from-[#1B6B3A] to-[#0F4526] pt-12 pb-8 px-4 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#1B6B3A] to-[#0F4526] pt-[calc(3rem+env(safe-area-inset-top))] pb-8 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.07]" style={{
           backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
           backgroundSize: "16px 16px",
@@ -169,7 +169,7 @@ export default function SellerProfilePage() {
           <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute top-14 end-4 bg-white text-[#1B6B3A] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg"
+            className="absolute top-[calc(3.5rem+env(safe-area-inset-top))] end-4 bg-white text-[#1B6B3A] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg"
           >
             {tr("Lien copié !", "تم نسخ الرابط!")}
           </motion.div>
