@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw, HardDrive } from "lucide-react";
+import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw, HardDrive, Hourglass } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
-type Tab = "pending" | "active" | "refused";
+type Tab = "pending" | "active" | "ended" | "refused";
 type OrphanFile = { name: string; size_mb: number };
+
+const DAY = 86400000;
+
+// Un boost dure `days` jours à partir de son activation (à défaut : de la date de la demande)
+const endsAt = (r: any) => new Date(r.activated_at ?? r.submitted_at).getTime() + Number(r.days || 0) * DAY;
+const isEnded = (r: any) => r.status === "active" && endsAt(r) < Date.now();
 
 export default function AdminPage() {
   const [, navigate] = useLocation();
@@ -53,8 +59,14 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (authed) fetchRequests();
+    if (authed) init();
   }, [authed]);
+
+  // À l'ouverture : on retire le badge « À la une » des boosts terminés, puis on charge la liste
+  const init = async () => {
+    await supabase.rpc("expire_boosts");
+    fetchRequests();
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -74,11 +86,13 @@ export default function AdminPage() {
     setActionError("");
     setBusyId(req.id);
     const listingId = String(req.listing_id).trim();
+    const now = new Date();
+    const until = new Date(now.getTime() + Number(req.days || 0) * DAY).toISOString();
 
-    // 1. On boost l'annonce et on vérifie que la ligne a vraiment changé
+    // 1. On boost l'annonce (avec sa date de fin) et on vérifie que la ligne a vraiment changé
     const { data: listingRows, error: listingError } = await supabase
       .from("listings")
-      .update({ is_boosted: true })
+      .update({ is_boosted: true, boost_until: until })
       .eq("id", listingId)
       .select("id, is_boosted");
 
@@ -96,10 +110,10 @@ export default function AdminPage() {
       return;
     }
 
-    // 2. On passe la demande en "active" et on vérifie aussi
+    // 2. On passe la demande en "active" et on garde la date d'activation
     const { data: reqRows, error: reqError } = await supabase
       .from("boost_requests")
-      .update({ status: "active" })
+      .update({ status: "active", activated_at: now.toISOString() })
       .eq("id", req.id)
       .select("id, status");
 
@@ -203,9 +217,14 @@ export default function AdminPage() {
   };
 
   const pending = requests.filter((r) => r.status === "pending");
-  const active  = requests.filter((r) => r.status === "active");
+  const active  = requests.filter((r) => r.status === "active" && !isEnded(r));
+  const ended   = requests.filter((r) => isEnded(r));
   const refused = requests.filter((r) => r.status === "refused");
-  const current = tab === "pending" ? pending : tab === "active" ? active : refused;
+  const current =
+    tab === "pending" ? pending : tab === "active" ? active : tab === "ended" ? ended : refused;
+
+  const daysLeft = (r: any) => Math.max(1, Math.ceil((endsAt(r) - Date.now()) / DAY));
+  const fmtDate = (ts: number) => new Date(ts).toLocaleDateString("fr-FR");
 
   if (checkingAccess) {
     return (
@@ -239,6 +258,13 @@ export default function AdminPage() {
     );
   }
 
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: "pending", label: "En attente", count: pending.length },
+    { id: "active", label: "En cours", count: active.length },
+    { id: "ended", label: "Terminés", count: ended.length },
+    { id: "refused", label: "Refusés", count: refused.length },
+  ];
+
   return (
     <div className="bg-[#0a150f] min-h-[100dvh] pb-8">
       <div className="bg-[#1B6B3A] pt-[calc(3.5rem+env(safe-area-inset-top))] pb-5 px-4">
@@ -250,17 +276,18 @@ export default function AdminPage() {
             <Shield className="w-5 h-5 text-[#E8C84A]" />
             <h1 className="text-white font-black text-lg">Panel Admin</h1>
           </div>
-          <button onClick={fetchRequests} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+          <button onClick={init} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
             <RefreshCw className={`w-4 h-4 text-white ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {[
             { label: "En attente", count: pending.length, color: "bg-amber-400/20 text-amber-300", icon: Clock },
-            { label: "Activés",    count: active.length,  color: "bg-green-400/20 text-green-300",  icon: Zap },
+            { label: "En cours",   count: active.length,  color: "bg-green-400/20 text-green-300",  icon: Zap },
+            { label: "Terminés",   count: ended.length,   color: "bg-sky-400/20 text-sky-300",      icon: Hourglass },
             { label: "Refusés",    count: refused.length, color: "bg-red-400/20 text-red-300",      icon: X },
           ].map((s) => (
-            <div key={s.label} className={`${s.color} rounded-2xl p-3 text-center`}>
+            <div key={s.label} className={`${s.color} rounded-2xl p-2.5 text-center`}>
               <s.icon className="w-4 h-4 mx-auto mb-1 opacity-80" />
               <p className="text-xl font-black">{s.count}</p>
               <p className="text-[10px] font-semibold opacity-80">{s.label}</p>
@@ -321,17 +348,13 @@ export default function AdminPage() {
       </div>
 
       <div className="flex bg-[#0f1f14] border-b border-white/5 mt-3">
-        {(["pending", "active", "refused"] as Tab[]).map((t) => {
-          const counts = { pending: pending.length, active: active.length, refused: refused.length };
-          const labels = { pending: "En attente", active: "Activés", refused: "Refusés" };
-          return (
-            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 text-xs font-bold transition-all relative ${tab === t ? "text-[#E8C84A]" : "text-white/40"}`}>
-              {labels[t]}
-              {counts[t] > 0 && <span className={`ms-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${tab === t ? "bg-[#C8972B] text-white" : "bg-white/10 text-white/50"}`}>{counts[t]}</span>}
-              {tab === t && <motion.div layoutId="tab-indicator" className="absolute bottom-0 start-0 end-0 h-0.5 bg-[#C8972B] rounded-full" />}
-            </button>
-          );
-        })}
+        {tabs.map((tb) => (
+          <button key={tb.id} onClick={() => setTab(tb.id)} className={`flex-1 py-3 text-[11px] font-bold transition-all relative ${tab === tb.id ? "text-[#E8C84A]" : "text-white/40"}`}>
+            {tb.label}
+            {tb.count > 0 && <span className={`ms-1 px-1.5 py-0.5 rounded-full text-[9px] font-black ${tab === tb.id ? "bg-[#C8972B] text-white" : "bg-white/10 text-white/50"}`}>{tb.count}</span>}
+            {tab === tb.id && <motion.div layoutId="tab-indicator" className="absolute bottom-0 start-0 end-0 h-0.5 bg-[#C8972B] rounded-full" />}
+          </button>
+        ))}
       </div>
 
       <div className="px-4 pt-4 space-y-3">
@@ -357,7 +380,9 @@ export default function AdminPage() {
                       <span className="text-[10px] text-white/30">{new Date(req.submitted_at).toLocaleDateString("fr-FR")}</span>
                     </div>
                   </div>
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${req.status === "pending" ? "bg-amber-400" : req.status === "active" ? "bg-green-400" : "bg-red-400"}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                    req.status === "pending" ? "bg-amber-400" : req.status === "refused" ? "bg-red-400" : isEnded(req) ? "bg-sky-400" : "bg-green-400"
+                  }`} />
                 </div>
 
                 <div className="px-4 py-3">
@@ -384,10 +409,23 @@ export default function AdminPage() {
                     </button>
                   </div>
                 )}
-                {req.status === "active" && (
+                {req.status === "active" && !isEnded(req) && (
                   <div className="px-4 pb-4">
                     <div className="py-3 bg-green-900/30 border border-green-500/20 rounded-2xl text-center">
-                      <p className="text-green-300 text-xs font-bold flex items-center justify-center gap-1.5"><Zap className="w-3.5 h-3.5 fill-green-300" /> Boost activé</p>
+                      <p className="text-green-300 text-xs font-bold flex items-center justify-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 fill-green-300" />
+                        Boost actif · encore {daysLeft(req)} j (fin le {fmtDate(endsAt(req))})
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {isEnded(req) && (
+                  <div className="px-4 pb-4">
+                    <div className="py-3 bg-sky-900/20 border border-sky-500/20 rounded-2xl text-center">
+                      <p className="text-sky-300 text-xs font-bold flex items-center justify-center gap-1.5">
+                        <Hourglass className="w-3.5 h-3.5" />
+                        Boost terminé le {fmtDate(endsAt(req))}
+                      </p>
                     </div>
                   </div>
                 )}
