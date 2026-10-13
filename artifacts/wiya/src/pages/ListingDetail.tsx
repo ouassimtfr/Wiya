@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
+import { deleteListingMedia } from "@/lib/storageCleanup";
 import ListingCard from "@/components/ListingCard";
 import ImageLightbox from "@/components/ImageLightbox";
 
@@ -101,9 +102,12 @@ export default function ListingDetail() {
     } catch {}
   };
 
+  // Supprime l'annonce ET libère l'espace : photos et vidéo effacées du stockage
   const handleDelete = async () => {
-    if (!confirm(tr("Supprimer cette annonce ?", "حذف هذا الإعلان؟"))) return;
+    if (!confirm(tr("Supprimer cette annonce ? Ses photos seront aussi supprimées.", "حذف هذا الإعلان؟ سيتم حذف صوره أيضا."))) return;
     setDeleting(true);
+
+    const media = { images: listing.images, video_url: listing.video_url };
 
     const { error, count } = await supabase
       .from("listings")
@@ -124,19 +128,39 @@ export default function ListingDetail() {
       return;
     }
 
+    // On efface les fichiers seulement après la suppression réussie de l'annonce
+    await deleteListingMedia(media);
     navigate("/");
   };
 
+  // « Vendu » : l'annonce disparaît des listes et ses photos/vidéo sont supprimées pour libérer l'espace
   const handleMarkSold = async () => {
-    const confirmed = confirm(tr("Êtes-vous sûr de vouloir marquer cette annonce comme vendue ?", "هل أنت متأكد أنك تريد وضع علامة «مباع» على هذا الإعلان؟"));
+    const confirmed = confirm(
+      tr(
+        "Marquer cette annonce comme vendue ? Elle disparaîtra et ses photos seront supprimées.",
+        "وضع علامة «مباع» على هذا الإعلان؟ سيختفي وسيتم حذف صوره."
+      )
+    );
     if (!confirmed) return;
 
     setMarking(true);
-    const { error } = await supabase.from("listings").update({ is_active: false }).eq("id", params.id);
+    const media = { images: listing.images, video_url: listing.video_url };
+
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        is_active: false,
+        images: [],
+        ...(listing.video_url ? { video_url: null } : {}),
+      })
+      .eq("id", params.id);
+
     if (!error) {
+      await deleteListingMedia(media);
       alert(tr("Annonce marquée comme vendue !", "تم وضع علامة «مباع» على الإعلان!"));
       navigate("/");
     } else {
+      console.error("Erreur marquage vendu:", error);
       alert(tr("Erreur, réessaie.", "خطأ، حاول مرة أخرى."));
       setMarking(false);
     }
