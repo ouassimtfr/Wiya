@@ -1,13 +1,11 @@
-import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
-import { StoreProvider, useStore } from "@/lib/store";
+import { StoreProvider } from "@/lib/store";
 import { NotificationsProvider } from "@/lib/notifications";
 import { ThemeProvider } from "@/lib/theme";
-import { supabase } from "@/lib/supabase";
 import NotificationToast from "@/components/NotificationToast";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
@@ -25,70 +23,40 @@ import MapPage from "@/pages/MapPage";
 import NotificationsPage from "@/pages/Notifications";
 import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
-
+import installbanner from "@/components/installbanner";
 const queryClient = new QueryClient();
 
 function AppShell() {
-  const { logout } = useStore();
-
-  useEffect(() => {
-    // Correction de la hauteur dynamique pour mobile
-    const handleResize = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) logout();
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) logout();
-    });
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      subscription.unsubscribe();
-    };
-  }, [logout]);
-
   return (
-    // On utilise la variable --vh pour forcer la hauteur exacte de l'écran visible
-    <div className="max-w-[430px] mx-auto relative bg-background h-[calc(var(--vh,1vh)*100)] shadow-2xl overflow-hidden flex flex-col">
-      
-      {/* Contenu scrollable */}
-      <div className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/search" component={SearchPage} />
-          <Route path="/listing/:id" component={ListingDetail} />
-          <Route path="/messages" component={MessagesPage} />
-          <Route path="/messages/:id" component={ChatPage} />
-          <Route path="/favorites" component={FavoritesPage} />
-          <Route path="/profile" component={ProfilePage} />
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/post" component={PostListingPage} />
-          <Route path="/seller/:id" component={SellerProfilePage} />
-          <Route path="/boost/:id" component={BoostPage} />
-          <Route path="/map" component={MapPage} />
-          <Route path="/notifications" component={NotificationsPage} />
-          <Route path="/admin" component={AdminPage} />
-          <Route component={NotFound} />
-        </Switch>
-      </div>
+    <div className="max-w-[430px] mx-auto relative bg-background min-h-[100dvh] shadow-2xl overflow-x-hidden">
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/search" component={SearchPage} />
+        <Route path="/listing/:id" component={ListingDetail} />
+        <Route path="/messages" component={MessagesPage} />
+        <Route path="/messages/:id" component={ChatPage} />
+        <Route path="/favorites" component={FavoritesPage} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/post" component={PostListingPage} />
+        <Route path="/seller/:id" component={SellerProfilePage} />
+        <Route path="/boost/:id" component={BoostPage} />
+        <Route path="/map" component={MapPage} />
+        <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/admin" component={AdminPage} />
+        <Route component={NotFound} />
+      </Switch>
 
-      {/* Barre de navigation flottante (le conteneur est transparent et laisse passer les clics) */}
-      <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[430px] z-[9999] pb-[env(safe-area-inset-bottom)] pointer-events-none">
-        <Switch>
-          <Route path="/auth" component={() => null} />
-          <Route path="/admin" component={() => null} />
-          <Route path="/messages/:id" component={() => null} />
-          <Route component={BottomNav} />
-        </Switch>
-      </div>
+      {/* Barre du bas cachée sur : connexion, chat, carte, admin et page d'une annonce
+          (la page d'annonce a sa propre barre Appeler / WhatsApp / Message) */}
+      <Switch>
+        <Route path="/auth" component={() => null} />
+        <Route path="/messages/:id" component={() => null} />
+        <Route path="/listing/:id" component={() => null} />
+        <Route path="/map" component={() => null} />
+        <Route path="/admin" component={() => null} />
+        <Route component={BottomNav} />
+      </Switch>
 
       <NotificationToast />
     </div>
@@ -99,18 +67,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <I18nProvider>
-          <StoreProvider>
-            <NotificationsProvider>
-              <TooltipProvider>
-                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                  <AppShell />
-                </WouterRouter>
-                <Toaster />
-              </TooltipProvider>
-            </NotificationsProvider>
-          </StoreProvider>
-        </I18nProvider>
+      <I18nProvider>
+        <StoreProvider>
+          <NotificationsProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <AppShell />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </NotificationsProvider>
+        </StoreProvider>
+      </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
