@@ -322,7 +322,7 @@ export default function ListingDetail() {
           {listing.video_url && (
             <button
               onClick={() => setVideoOpen(true)}
-              className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-bold ps-3 pe-3.5 py-1.5 rounded-full active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 bg-black/75 backdrop-blur-sm text-white text-xs font-bold ps-3 pe-3.5 py-1.5 rounded-full active:scale-95 transition-transform"
             >
               <Play className="w-3.5 h-3.5 fill-white" />
               {tr("Vidéo", "فيديو")}
@@ -350,6 +350,27 @@ export default function ListingDetail() {
           </div>
           <h1 className="text-[20px] font-bold text-foreground leading-snug mt-2">{listing.title}</h1>
         </div>
+
+        {/* Annonce avec vidéo : bouton bien visible */}
+        {listing.video_url && (
+          <button
+            onClick={() => setVideoOpen(true)}
+            className="w-full flex items-center gap-3 bg-primary text-primary-foreground rounded-2xl p-3.5 text-start shadow-md active:scale-[0.99] transition-transform"
+          >
+            <span className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Play className="w-5 h-5 fill-current" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[15px] font-bold">
+                {tr("Cette annonce a une vidéo", "هذا الإعلان يحتوي على فيديو")}
+              </span>
+              <span className="block text-[12px] opacity-85">
+                {tr("Touchez pour la regarder", "اضغط للمشاهدة")}
+              </span>
+            </span>
+            <ChevronRight className={`w-5 h-5 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
+          </button>
+        )}
 
         {/* Infos */}
         <div className="flex flex-wrap gap-2">
