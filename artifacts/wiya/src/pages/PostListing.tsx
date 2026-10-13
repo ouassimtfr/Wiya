@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, Camera, X, Loader2, Briefcase } from "lucide-react";
+import { ChevronLeft, Camera, X, Loader2, Briefcase, Sparkles, Video } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
-import { compressImages } from "@/lib/imageCompress";
+import { compressImages, enhanceImage } from "@/lib/imageCompress";
+
+const MAX_VIDEO_MB = 45; // le plan gratuit Supabase refuse les fichiers de plus de 50 Mo
+const MAX_VIDEO_SEC = 30;
 
 const JOB_SECTORS = [
   "Informatique",
@@ -55,6 +58,12 @@ export default function PostListingPage() {
   const [isUrgent, setIsUrgent] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  // Photo d'origine gardée quand on a amélioré la photo (null = pas améliorée)
+  const [originals, setOriginals] = useState<(File | null)[]>([]);
+  const [enhancingIndex, setEnhancingIndex] = useState<number | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState("");
   const [compressing, setCompressing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -81,10 +90,11 @@ export default function PostListingPage() {
     if (picked.length === 0) return;
 
     setCompressing(true);
-    const compressed = await compressImages(picked, 1280, 0.8);
+    const compressed = await compressImages(picked, 1280, 0.82);
     setCompressing(false);
 
     setImages((prev) => [...prev, ...compressed].slice(0, 6));
+    setOriginals((prev) => [...prev, ...compressed.map(() => null)].slice(0, 6));
     setPreviews((prev) =>
       [...prev, ...compressed.map((f) => URL.createObjectURL(f))].slice(0, 6)
     );
@@ -92,13 +102,92 @@ export default function PostListingPage() {
 
   const handleRemoveImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
+    setOriginals((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => {
+      if (prev[index]) URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const replaceImage = (index: number, file: File, original: File | null) => {
+    setImages((prev) => prev.map((f, i) => (i === index ? file : f)));
+    setOriginals((prev) => prev.map((f, i) => (i === index ? original : f)));
+    setPreviews((prev) =>
+      prev.map((src, i) => {
+        if (i !== index) return src;
+        URL.revokeObjectURL(src);
+        return URL.createObjectURL(file);
+      })
+    );
+  };
+
+  // Améliore la photo (lumière, couleurs, netteté) ; un deuxième appui revient à l'original
+  const toggleEnhance = async (index: number) => {
+    if (enhancingIndex !== null) return;
+    const original = originals[index];
+    if (original) {
+      replaceImage(index, original, null);
+      return;
+    }
+    setEnhancingIndex(index);
+    const current = images[index];
+    const better = await enhanceImage(current);
+    replaceImage(index, better, current);
+    setEnhancingIndex(null);
+  };
+
+  const handleAddVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setVideoError("");
+
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setVideoError(
+        tr(
+          `Vidéo trop lourde (${MAX_VIDEO_MB} Mo maximum). Filmez plus court ou en qualité HD 720p.`,
+          `الفيديو ثقيل جدا (الحد الأقصى ${MAX_VIDEO_MB} ميغا). صوّر فيديو أقصر أو بجودة 720p.`
+        )
+      );
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const duration = await new Promise<number>((resolve) => {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => resolve(v.duration);
+      v.onerror = () => resolve(0);
+      v.src = url;
+    });
+
+    if (duration && duration > MAX_VIDEO_SEC + 0.5) {
+      URL.revokeObjectURL(url);
+      setVideoError(
+        tr(
+          `Vidéo trop longue (${MAX_VIDEO_SEC} secondes maximum).`,
+          `الفيديو طويل جدا (${MAX_VIDEO_SEC} ثانية كحد أقصى).`
+        )
+      );
+      return;
+    }
+
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideo(file);
+    setVideoPreview(url);
+  };
+
+  const handleRemoveVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideo(null);
+    setVideoPreview(null);
+    setVideoError("");
   };
 
   const handleSubmit = async () => {
     setErrorMsg("");
 
-    if (compressing) return;
+    if (compressing || enhancingIndex !== null) return;
     if (!category) return setErrorMsg(tr("Choisis une catégorie.", "اختر فئة."));
     if (!title.trim()) return setErrorMsg(tr("Le titre est obligatoire.", "العنوان إجباري."));
 
@@ -128,6 +217,7 @@ export default function PostListingPage() {
         isNegotiable,
         isUrgent,
         images,
+        video,
         ...(isJobs ? { jobKind: "seeking" as const, jobSector } : {}),
       },
       setProgress
@@ -146,10 +236,11 @@ export default function PostListingPage() {
   };
 
   const labelClass = "text-xs font-bold text-gray-500 uppercase mb-1.5";
+  const busy = compressing || enhancingIndex !== null;
 
   return (
-    <div className="bg-white min-h-screen pb-40">
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+    <div className="bg-white min-h-[100dvh] pb-[calc(11rem+env(safe-area-inset-bottom))]">
+      <div className="flex items-center gap-3 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-gray-100 sticky top-0 bg-white z-10">
         <button onClick={() => navigate("/")} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
           <ChevronLeft className={`w-5 h-5 text-gray-700 ${isRTL ? "rotate-180" : ""}`} />
         </button>
@@ -202,37 +293,115 @@ export default function PostListingPage() {
           </div>
         )}
 
-        <div>
-          <p className={`${labelClass} mb-2`}>
+        {/* ─── Photos et vidéo ─── */}
+        <div className="rounded-2xl border border-gray-200 p-3.5">
+          <p className="text-[15px] font-bold text-gray-900">
+            {isJobs ? tr("Photo", "الصورة") : tr("Photos et vidéo", "الصور والفيديو")}
+          </p>
+          <p className="text-[13px] text-gray-500 leading-snug mt-1">
             {isJobs
-              ? `${tr("Photo (facultatif)", "صورة (اختياري)")} (${images.length}/6)`
-              : `${tr("Photos", "الصور")} (${images.length}/6)`}
+              ? tr("Vous pouvez ajouter une photo (facultatif).", "يمكنك إضافة صورة (اختياري).")
+              : tr(
+                  `Ajoutez jusqu'à 6 photos et 1 vidéo de ${MAX_VIDEO_SEC} secondes. De belles photos et une vidéo rassurent l'acheteur.`,
+                  `أضف حتى 6 صور وفيديو واحد مدته ${MAX_VIDEO_SEC} ثانية. الصور الجميلة والفيديو يطمئنان المشتري.`
+                )}
+          </p>
+
+          <p className={`${labelClass} mt-3`}>
+            {tr("Photos", "الصور")} ({images.length}/6)
           </p>
           <div className="flex gap-2 flex-wrap">
             {previews.map((src, i) => (
-              <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+              <div key={src} className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
                 <img src={src} className="w-full h-full object-cover" alt="" />
                 <button
                   onClick={() => handleRemoveImage(i)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"
+                  aria-label={tr("Retirer la photo", "إزالة الصورة")}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center"
                 >
-                  <X className="w-3 h-3 text-white" />
+                  <X className="w-3.5 h-3.5 text-white" />
+                </button>
+                <button
+                  onClick={() => toggleEnhance(i)}
+                  disabled={busy}
+                  aria-label={
+                    originals[i]
+                      ? tr("Revenir à la photo d'origine", "العودة إلى الصورة الأصلية")
+                      : tr("Améliorer la photo", "تحسين الصورة")
+                  }
+                  className={`absolute bottom-1 left-1 right-1 h-7 rounded-lg flex items-center justify-center gap-1 text-[11px] font-bold disabled:opacity-60 ${
+                    originals[i] ? "bg-[#C8972B] text-white" : "bg-black/60 text-white"
+                  }`}
+                >
+                  {enhancingIndex === i ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {originals[i] ? tr("Original", "الأصلية") : tr("Améliorer", "تحسين")}
+                    </>
+                  )}
                 </button>
               </div>
             ))}
             {compressing && (
-              <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center animate-pulse">
+              <div className="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center animate-pulse">
                 <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
               </div>
             )}
             {images.length < 6 && !compressing && (
-              <label className="w-20 h-20 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
+              <label className="w-24 h-24 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
                 <Camera className="w-5 h-5 text-gray-400" />
-                <span className="text-[10px] text-gray-400 mt-1">{tr("Ajouter", "إضافة")}</span>
+                <span className="text-[11px] text-gray-400 mt-1">{tr("Ajouter", "إضافة")}</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
               </label>
             )}
           </div>
+          {images.length > 0 && (
+            <p className="text-[12px] text-gray-400 mt-2">
+              {tr(
+                "Touchez « Améliorer » pour corriger automatiquement la lumière et les couleurs d'une photo.",
+                "اضغط على «تحسين» لتصحيح الإضاءة والألوان تلقائيا."
+              )}
+            </p>
+          )}
+
+          {/* Vidéo */}
+          {!isJobs && (
+            <>
+              <p className={`${labelClass} mt-4`}>
+                {tr(`Vidéo (facultatif, ${MAX_VIDEO_SEC} s max)`, `فيديو (اختياري، ${MAX_VIDEO_SEC} ثانية كحد أقصى)`)}
+              </p>
+              {videoPreview ? (
+                <div className="relative rounded-2xl overflow-hidden bg-black">
+                  <video src={videoPreview} controls playsInline muted className="w-full max-h-56" />
+                  <button
+                    onClick={handleRemoveVideo}
+                    aria-label={tr("Retirer la vidéo", "إزالة الفيديو")}
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/65 flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Choisir une vidéo déjà enregistrée sur le téléphone */}
+                  <label className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 text-[13px] font-semibold text-gray-600 cursor-pointer text-center">
+                    <Video className="w-5 h-5" />
+                    {tr("Choisir une vidéo", "اختيار فيديو")}
+                    <input type="file" accept="video/*" className="hidden" onChange={handleAddVideo} />
+                  </label>
+                  {/* Filmer directement avec la caméra */}
+                  <label className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-[#1B6B3A]/5 border-2 border-dashed border-[#1B6B3A]/30 text-[13px] font-semibold text-[#1B6B3A] cursor-pointer text-center">
+                    <Camera className="w-5 h-5" />
+                    {tr("Filmer maintenant", "صوّر الآن")}
+                    <input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleAddVideo} />
+                  </label>
+                </div>
+              )}
+              {videoError && <p className="text-xs text-red-500 font-medium mt-2">{videoError}</p>}
+            </>
+          )}
         </div>
 
         <div>
@@ -359,7 +528,7 @@ export default function PostListingPage() {
         {errorMsg && <p className="text-sm text-red-500 font-medium">{errorMsg}</p>}
       </div>
 
-      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 py-3 z-[30]">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-0 max-w-[430px] mx-auto bg-white border-t border-gray-100 px-4 py-3 z-[30]">
         {submitting && (
           <div className="mb-2">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -369,20 +538,24 @@ export default function PostListingPage() {
               />
             </div>
             <p className="text-[11px] text-gray-400 mt-1 text-center">
-              {progress < 90 && images.length > 0
-                ? tr("Envoi des photos...", "جاري إرسال الصور...")
+              {progress < 90 && (images.length > 0 || video)
+                ? video
+                  ? tr("Envoi des photos et de la vidéo...", "جاري إرسال الصور والفيديو...")
+                  : tr("Envoi des photos...", "جاري إرسال الصور...")
                 : tr("Publication de l'annonce...", "جاري نشر الإعلان...")}
             </p>
           </div>
         )}
         <button
           onClick={handleSubmit}
-          disabled={submitting || compressing}
+          disabled={submitting || busy}
           className="w-full py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {submitting || compressing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {submitting || busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           {compressing
             ? tr("Préparation des photos...", "جاري تجهيز الصور...")
+            : enhancingIndex !== null
+            ? tr("Amélioration de la photo...", "جاري تحسين الصورة...")
             : submitting
             ? tr("Publication...", "جاري النشر...")
             : isJobs
