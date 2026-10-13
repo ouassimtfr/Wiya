@@ -169,23 +169,23 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     </div>
   );
 
-  // ─── Grande carte "À la une" (annonces boostées) ───
+  // ─── Carte "À la une" (annonces boostées) : compacte, on voit la suivante dépasser ───
   if (variant === "featured") {
     return (
       <div
         onClick={() => navigate(`/listing/${listing.id}`)}
-        className="flex-none w-[88%] snap-start bg-card rounded-[26px] overflow-hidden cursor-pointer shadow-md ring-1 ring-accent/60 active:scale-[0.98] transition-transform"
+        className="flex-none w-[62%] snap-start bg-card rounded-[24px] overflow-hidden cursor-pointer shadow-md ring-1 ring-accent/60 active:scale-[0.98] transition-transform"
       >
-        <div className="relative aspect-[4/3] bg-muted">
+        <div className="relative aspect-[5/4] bg-muted">
           {renderImage(false)}
           {badges}
           {heartOverlay}
           {photoBadge}
         </div>
-        <div className="p-4">
-          <p className="font-display text-[22px] font-extrabold text-primary leading-tight">{priceText}</p>
-          <p className="text-[15px] font-semibold text-foreground line-clamp-1 mt-0.5">{title}</p>
-          <div className="mt-1.5">{metaRow}</div>
+        <div className="p-3">
+          <p className="font-display text-[19px] font-extrabold text-primary leading-tight">{priceText}</p>
+          <p className="text-[14px] font-semibold text-foreground line-clamp-1 mt-0.5">{title}</p>
+          <div className="mt-1">{metaRow}</div>
         </div>
       </div>
     );
