@@ -137,19 +137,20 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
     </button>
   );
 
-  // Compteur de photos + icône vidéo, en bas à gauche de l'image
-  const mediaBadges =
+  // Badge « Vidéo » bien lisible + compteur de photos, en bas à gauche de l'image
+  const renderMedia = (endClass: string) =>
     photoCount > 1 || hasVideo ? (
-      <div className="absolute bottom-2 start-2 flex items-center gap-1">
-        {photoCount > 1 && (
-          <div className="bg-black/55 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
-            <Camera className="w-3 h-3" />
-            {photoCount}
+      <div className={`absolute bottom-2 start-2 ${endClass} flex items-center gap-1 flex-wrap`}>
+        {hasVideo && (
+          <div className="bg-black/75 text-white text-[10px] font-bold ps-1.5 pe-2 py-1 rounded-full flex items-center gap-1">
+            <Play className="w-3 h-3 fill-white" />
+            {tr("Vidéo", "فيديو")}
           </div>
         )}
-        {hasVideo && (
-          <div className="bg-black/55 text-white rounded-full w-6 h-6 flex items-center justify-center">
-            <Play className="w-3 h-3 fill-white" />
+        {photoCount > 1 && (
+          <div className="bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+            <Camera className="w-3 h-3" />
+            {photoCount}
           </div>
         )}
       </div>
@@ -193,7 +194,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
               <Zap className="w-3 h-3 fill-current" />
             </div>
           )}
-          {mediaBadges}
+          {renderMedia("end-1.5")}
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
           <div>
@@ -242,7 +243,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         {renderImage(false)}
         {badges}
         {heartOverlay}
-        {mediaBadges}
+        {renderMedia("end-12")}
       </div>
       <p className="font-display text-[18px] font-extrabold text-foreground leading-tight mt-2">{priceText}</p>
       <p className="text-[14px] text-foreground line-clamp-1 mt-0.5">{title}</p>
