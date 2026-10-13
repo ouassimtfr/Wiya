@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { MapPin, Search, X, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { MapPin, Search, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -10,8 +10,6 @@ import { supabase } from "@/lib/supabase";
 import ListingCard from "@/components/ListingCard";
 
 const WILAYA_LIST = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
-
-type Quick = "all" | "urgent" | "new";
 
 function normalize(str: string) {
   return str
@@ -47,13 +45,11 @@ function useVisualViewport() {
 // Carte "fantôme" affichée pendant le chargement des annonces
 function ListingSkeleton() {
   return (
-    <div className="bg-card rounded-[22px] overflow-hidden ring-1 ring-border/60 animate-pulse">
-      <div className="aspect-square bg-muted" />
-      <div className="p-3 space-y-2">
-        <div className="h-4 bg-muted rounded w-1/2" />
-        <div className="h-3 bg-muted rounded w-5/6" />
-        <div className="h-3 bg-muted rounded w-1/3" />
-      </div>
+    <div className="animate-pulse">
+      <div className="aspect-square rounded-[18px] bg-muted" />
+      <div className="h-4 bg-muted rounded w-1/2 mt-3" />
+      <div className="h-3 bg-muted rounded w-5/6 mt-2" />
+      <div className="h-3 bg-muted rounded w-1/3 mt-2" />
     </div>
   );
 }
@@ -65,7 +61,6 @@ export default function Home() {
   const [, navigate] = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
-  const [quick, setQuick] = useState<Quick>("all");
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
@@ -104,16 +99,16 @@ export default function Home() {
   const filteredListings = listings.filter(
     (l) =>
       (!activeCategory || l.category === activeCategory) &&
-      (!activeWilaya || l.wilaya === activeWilaya) &&
-      (quick === "all" ||
-        (quick === "urgent" && l.is_urgent) ||
-        (quick === "new" && l.condition === "new"))
+      (!activeWilaya || l.wilaya === activeWilaya)
   );
-  const featured = filteredListings.filter((l) => l.is_boosted);
-  const others = filteredListings.filter((l) => !l.is_boosted);
-  const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
+  // Les annonces mises à la une passent en premier (le tri garde l'ordre par date)
+  const sorted = [...filteredListings].sort(
+    (a, b) => Number(!!b.is_boosted) - Number(!!a.is_boosted)
+  );
 
-  const searchPlaceholder = isRTL ? "ابحث عن إعلان (مثال: كليو 5 2020)" : "Rechercher (ex: Clio 5 2020)";
+  const searchPlaceholder = isRTL
+    ? "سيارة، هاتف، شقة..."
+    : "Une voiture, un téléphone, un appartement...";
   const wilayaPlaceholder = isRTL ? "ابحث عن ولاية..." : "Rechercher une wilaya...";
 
   const closeWilayaPicker = () => {
@@ -121,155 +116,94 @@ export default function Home() {
     setWilayaSearch("");
   };
 
-  const quickChips: { id: Quick; label: string }[] = [
-    { id: "all", label: tr("Tout", "الكل") },
-    { id: "urgent", label: t("urgent") },
-    { id: "new", label: t("conditionNew") },
-  ];
+  const chipClass = (active: boolean) =>
+    `flex-none px-4 py-2.5 rounded-full text-[14px] whitespace-nowrap transition-colors ${
+      active
+        ? "bg-foreground text-background font-bold"
+        : "bg-card ring-1 ring-border text-foreground font-medium"
+    }`;
 
   return (
-    <div className="bg-background min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
-      {/* ─── Barre du haut : reste collée en haut, le contenu ne passe plus sous l'heure ─── */}
-      <div className="sticky top-0 z-30 bg-[#0A7C59] dark:bg-[#0E3B2D] text-white pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center justify-between px-4 h-14">
-          <span dir="ltr" className="font-display text-[28px] font-extrabold tracking-tight leading-none">
-            Wiya<span className="text-accent">.</span>
+    <div className="bg-white min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      {/* ─── En-tête : logo, wilaya, langue ─── */}
+      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+        <div className="flex items-center justify-between px-5 h-16">
+          <span dir="ltr" className="font-display text-[30px] font-extrabold tracking-tight leading-none text-foreground">
+            Wiya<span className="text-primary">.</span>
           </span>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowWilayaPicker(true)}
-              className="flex items-center gap-1.5 bg-white/15 ps-2.5 pe-2 py-2 rounded-full text-[13px] font-semibold active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 bg-card ring-1 ring-border rounded-full px-3.5 py-2 text-[14px] font-bold text-foreground active:scale-95 transition-transform"
             >
-              <MapPin className="w-4 h-4" />
+              <MapPin className="w-4 h-4 text-primary" />
               {wilayaLabel(activeWilaya ?? user?.wilaya ?? "Alger")}
-              <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
             <button
               onClick={() => setLang(lang === "fr" ? "ar" : "fr")}
-              className="bg-white/15 text-[13px] font-bold px-3 py-2 rounded-full active:scale-95 transition-transform"
+              aria-label="Langue"
+              className="w-10 h-10 rounded-full bg-card ring-1 ring-border text-[14px] font-bold text-foreground flex items-center justify-center active:scale-95 transition-transform"
             >
-              {lang === "fr" ? "العربية" : "FR"}
+              {lang === "fr" ? "ع" : "FR"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* ─── Bandeau slogan (défile normalement) ─── */}
-      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-4 pt-1 pb-11 rounded-b-[28px] overflow-hidden">
-        <div className="absolute -top-14 -end-14 w-52 h-52 rounded-full border-[30px] border-white/[0.07] pointer-events-none" />
-        <p className="relative z-10 text-[19px] font-bold leading-snug max-w-[18ch]">
-          {tr("Achetez et vendez près de chez vous", "اشترِ وبع بالقرب منك")}
-        </p>
+      {/* ─── Recherche ─── */}
+      <div className="px-5 pt-1">
+        <button
+          onClick={() => navigate("/search")}
+          className="w-full flex items-center gap-2.5 bg-muted rounded-2xl px-4 py-3.5 text-start active:scale-[0.99] transition-transform"
+        >
+          <Search className="w-5 h-5 text-foreground flex-shrink-0" />
+          <span className="flex-1 text-[15px] text-muted-foreground truncate">{searchPlaceholder}</span>
+        </button>
       </div>
-
-      {/* ─── Barre de recherche (chevauche le bandeau) ─── */}
-      <button
-        onClick={() => navigate("/search")}
-        className="relative z-20 -mt-6 mx-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-card ring-1 ring-border/70 rounded-2xl px-4 py-3.5 shadow-lg text-start active:scale-[0.99] transition-transform"
-      >
-        <Search className="w-5 h-5 text-primary flex-shrink-0" />
-        <span className="flex-1 text-[15px] text-muted-foreground truncate">{searchPlaceholder}</span>
-        <SlidersHorizontal className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-      </button>
 
       {/* ─── Catégories ─── */}
-      <div className="flex gap-3 overflow-x-auto scrollbar-none px-4 pt-5 pb-1">
-        {CATEGORIES.map((cat) => {
-          const active = activeCategory === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(active ? null : cat.id)}
-              className="flex-none flex flex-col items-center gap-1.5 w-[68px] active:scale-95 transition-transform"
-            >
-              <div
-                className={`w-[60px] h-[60px] rounded-full flex items-center justify-center text-[26px] transition-all ${
-                  active
-                    ? "bg-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
-                    : "bg-card ring-1 ring-border/70 shadow-sm"
-                }`}
-              >
-                {cat.icon}
-              </div>
-              <span
-                className={`text-[11px] font-semibold text-center leading-tight line-clamp-2 ${
-                  active ? "text-primary" : "text-foreground/80"
-                }`}
-              >
-                {t(cat.id as any)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ─── Filtres rapides ─── */}
-      <div className="flex gap-2 px-4 pt-4">
-        {quickChips.map((c) => (
+      <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 pt-4 pb-1">
+        <button onClick={() => setActiveCategory(null)} className={chipClass(activeCategory === null)}>
+          {tr("Tout", "الكل")}
+        </button>
+        {CATEGORIES.map((cat) => (
           <button
-            key={c.id}
-            onClick={() => setQuick(c.id)}
-            className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
-              quick === c.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-card ring-1 ring-border/70 text-foreground/80"
-            }`}
+            key={cat.id}
+            onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+            className={chipClass(activeCategory === cat.id)}
           >
-            {c.label}
+            {t(cat.id as any)}
           </button>
         ))}
       </div>
 
-      {/* ─── Filtres actifs ─── */}
-      {(activeWilaya || activeCategoryData) && (
-        <div className="flex items-center gap-2 flex-wrap px-4 pt-3">
-          {activeWilaya && (
-            <button
-              onClick={() => setActiveWilaya(null)}
-              className="flex items-center gap-1.5 ps-3 pe-2 py-1.5 bg-primary/10 rounded-full text-xs font-semibold text-primary"
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              {wilayaLabel(activeWilaya)}
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {activeCategoryData && (
-            <button
-              onClick={() => setActiveCategory(null)}
-              className="flex items-center gap-1.5 ps-3 pe-2 py-1.5 bg-primary/10 rounded-full text-xs font-semibold text-primary"
-            >
-              <span>{activeCategoryData.icon}</span>
-              {t(activeCategoryData.id as any)}
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {/* ─── Wilaya choisie ─── */}
+      {activeWilaya && (
+        <div className="px-5 pt-3">
+          <button
+            onClick={() => setActiveWilaya(null)}
+            className="inline-flex items-center gap-1.5 ps-3 pe-2 py-1.5 bg-primary/10 rounded-full text-xs font-semibold text-primary"
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            {wilayaLabel(activeWilaya)}
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
-      {/* ─── À la une (annonces boostées) ─── */}
-      {!loading && featured.length > 0 && (
-        <>
-          <div className="px-5 pt-6 pb-3">
-            <h2 className="text-xl font-extrabold text-foreground">{tr("À la une", "مميّز")}</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory px-4 pb-2">
-            {featured.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} variant="featured" />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ─── Nouvelles annonces (grille 2 colonnes) ─── */}
+      {/* ─── Annonces ─── */}
       <div className="px-5 pt-6 pb-3 flex items-baseline justify-between">
-        <h2 className="text-xl font-extrabold text-foreground">{tr("Nouvelles annonces", "أحدث الإعلانات")}</h2>
-        {!loading && others.length > 0 && (
-          <span className="text-xs font-semibold text-muted-foreground">{others.length}</span>
-        )}
+        <h2 className="font-display text-[22px] font-extrabold text-foreground">
+          {tr("Nouvelles annonces", "أحدث الإعلانات")}
+        </h2>
+        <button onClick={() => navigate("/search")} className="text-[14px] font-bold text-primary">
+          {tr("Voir tout", "عرض الكل")}
+        </button>
       </div>
 
-      {!loading && filteredListings.length === 0 && (
+      {!loading && sorted.length === 0 && (
         <div className="text-center py-12 px-8">
           <p className="text-sm font-semibold text-foreground">{t("noResults")}</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -278,10 +212,10 @@ export default function Home() {
         </div>
       )}
 
-      <div className="px-4 grid grid-cols-2 gap-3">
+      <div className="px-5 grid grid-cols-2 gap-x-3 gap-y-5">
         {loading
           ? Array.from({ length: 6 }).map((_, i) => <ListingSkeleton key={i} />)
-          : others.map((listing) => <ListingCard key={listing.id} listing={listing} variant="grid" />)}
+          : sorted.map((listing) => <ListingCard key={listing.id} listing={listing} variant="grid" />)}
       </div>
 
       {/* ─── Choix de la wilaya ─── */}
