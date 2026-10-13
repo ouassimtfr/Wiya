@@ -67,10 +67,13 @@ export default function BottomNav() {
     { label: t("profile"), icon: User, path: "/profile", active: !!onProfile },
   ];
 
-  // Barre fixée en bas (56 px + 8 px de marge : la hauteur attendue par les autres pages)
+  // Barre fixée en bas, avec un fond qui s'estompe pour que le contenu ne passe plus dessous
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
-      <div className="max-w-[430px] mx-auto px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <div
+        className="max-w-[430px] mx-auto px-3 pt-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+        style={{ background: "linear-gradient(to top, hsl(var(--card)) 60%, transparent)" }}
+      >
         <nav className="pointer-events-auto h-14 rounded-[24px] bg-card ring-1 ring-border/60 shadow-[0_8px_28px_rgba(20,32,26,0.18)]">
           <div className="flex items-center justify-around h-full px-1.5">
             {items.map((item) =>
