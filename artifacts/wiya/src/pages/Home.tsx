@@ -124,9 +124,9 @@ export default function Home() {
     }`;
 
   return (
-    <div className="bg-white min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
-      {/* ─── En-tête : logo, wilaya, langue ─── */}
-      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+    <div className="bg-card min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      {/* ─── En-tête : logo, wilaya, langue (couleurs du thème : clair ET sombre) ─── */}
+      <div className="sticky top-0 z-30 bg-card pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-5 h-16">
           <span dir="ltr" className="font-display text-[30px] font-extrabold tracking-tight leading-none text-foreground">
             Wiya<span className="text-primary">.</span>
