@@ -32,12 +32,18 @@ export async function compressImage(
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
+
+    // Fond blanc : sans ça, les parties transparentes d'un PNG deviennent noires en JPEG
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
 
     const blob: Blob | null = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", quality)
     );
-    if (!blob || blob.size >= file.size) return file;
+    if (!blob) return file;
+    // On garde l'original seulement s'il est déjà un JPEG plus léger
+    if (file.type === "image/jpeg" && blob.size >= file.size) return file;
 
     const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
     return new File([blob], `${baseName}.jpg`, {
