@@ -11,6 +11,8 @@ import ListingCard from "@/components/ListingCard";
 
 const WILAYA_LIST = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
 
+type Quick = "all" | "urgent" | "new";
+
 function normalize(str: string) {
   return str
     .normalize("NFD")
@@ -63,6 +65,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeWilaya, setActiveWilaya] = useState<string | null>(null);
+  const [quick, setQuick] = useState<Quick>("all");
   const [showWilayaPicker, setShowWilayaPicker] = useState(false);
   const [wilayaSearch, setWilayaSearch] = useState("");
   const [listings, setListings] = useState<any[]>([]);
@@ -101,7 +104,10 @@ export default function Home() {
   const filteredListings = listings.filter(
     (l) =>
       (!activeCategory || l.category === activeCategory) &&
-      (!activeWilaya || l.wilaya === activeWilaya)
+      (!activeWilaya || l.wilaya === activeWilaya) &&
+      (quick === "all" ||
+        (quick === "urgent" && l.is_urgent) ||
+        (quick === "new" && l.condition === "new"))
   );
   const featured = filteredListings.filter((l) => l.is_boosted);
   const others = filteredListings.filter((l) => !l.is_boosted);
@@ -115,13 +121,17 @@ export default function Home() {
     setWilayaSearch("");
   };
 
+  const quickChips: { id: Quick; label: string }[] = [
+    { id: "all", label: tr("Tout", "الكل") },
+    { id: "urgent", label: t("urgent") },
+    { id: "new", label: t("conditionNew") },
+  ];
+
   return (
     <div className="bg-background min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
-      {/* ─── En-tête émeraude compact ─── */}
-      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-12 rounded-b-[28px] overflow-hidden">
-        <div className="absolute -top-14 -end-14 w-52 h-52 rounded-full border-[30px] border-white/[0.07] pointer-events-none" />
-
-        <div className="relative z-10 flex items-center justify-between">
+      {/* ─── Barre du haut : reste collée en haut, le contenu ne passe plus sous l'heure ─── */}
+      <div className="sticky top-0 z-30 bg-[#0A7C59] dark:bg-[#0E3B2D] text-white pt-[env(safe-area-inset-top)]">
+        <div className="flex items-center justify-between px-4 h-14">
           <span dir="ltr" className="font-display text-[28px] font-extrabold tracking-tight leading-none">
             Wiya<span className="text-accent">.</span>
           </span>
@@ -143,13 +153,17 @@ export default function Home() {
             </button>
           </div>
         </div>
+      </div>
 
-        <p className="relative z-10 mt-4 text-[15px] text-white/85 font-medium">
+      {/* ─── Bandeau slogan (défile normalement) ─── */}
+      <div className="relative bg-[#0A7C59] dark:bg-[#0E3B2D] text-white px-4 pt-1 pb-11 rounded-b-[28px] overflow-hidden">
+        <div className="absolute -top-14 -end-14 w-52 h-52 rounded-full border-[30px] border-white/[0.07] pointer-events-none" />
+        <p className="relative z-10 text-[19px] font-bold leading-snug max-w-[18ch]">
           {tr("Achetez et vendez près de chez vous", "اشترِ وبع بالقرب منك")}
         </p>
       </div>
 
-      {/* ─── Barre de recherche (chevauche l'en-tête) ─── */}
+      {/* ─── Barre de recherche (chevauche le bandeau) ─── */}
       <button
         onClick={() => navigate("/search")}
         className="relative z-20 -mt-6 mx-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-card ring-1 ring-border/70 rounded-2xl px-4 py-3.5 shadow-lg text-start active:scale-[0.99] transition-transform"
@@ -188,6 +202,23 @@ export default function Home() {
             </button>
           );
         })}
+      </div>
+
+      {/* ─── Filtres rapides ─── */}
+      <div className="flex gap-2 px-4 pt-4">
+        {quickChips.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setQuick(c.id)}
+            className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
+              quick === c.id
+                ? "bg-primary text-primary-foreground"
+                : "bg-card ring-1 ring-border/70 text-foreground/80"
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       {/* ─── Filtres actifs ─── */}
