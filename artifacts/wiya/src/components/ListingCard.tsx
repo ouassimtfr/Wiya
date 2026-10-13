@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, MapPin, Zap, Briefcase, Camera, Package } from "lucide-react";
+import { Heart, MapPin, Zap, Briefcase, Camera, Package, Play } from "lucide-react";
 import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -40,6 +40,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const images: string[] = Array.isArray(listing.images) ? listing.images : [];
   const image = images[0] ?? "";
   const photoCount = images.length;
+  const hasVideo = !!listing.video_url;
   const price = listing.price ?? 0;
   const wilayaRaw = listing.wilaya ?? "";
   const wilaya = isRTL ? WILAYAS_DATA.find((w) => w.name === wilayaRaw)?.nameAr ?? wilayaRaw : wilayaRaw;
@@ -145,6 +146,12 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
       </div>
     ) : null;
 
+  const videoBadge = hasVideo ? (
+    <div className="absolute bottom-2 start-2 bg-black/55 text-white rounded-full w-6 h-6 flex items-center justify-center">
+      <Play className="w-3 h-3 fill-white" />
+    </div>
+  ) : null;
+
   const metaRow = (
     <div className="flex items-center gap-1 text-muted-foreground min-w-0">
       <MapPin className="w-3 h-3 flex-shrink-0" />
@@ -181,6 +188,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
           {badges}
           {heartOverlay}
           {photoBadge}
+          {videoBadge}
         </div>
         <div className="p-3">
           <p className="font-display text-[19px] font-extrabold text-primary leading-tight">{priceText}</p>
@@ -206,6 +214,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             </div>
           )}
           {photoBadge}
+          {videoBadge}
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
           <div>
@@ -257,6 +266,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
         {badges}
         {heartOverlay}
         {photoBadge}
+        {videoBadge}
       </div>
       <div className="p-3">
         <p className="font-display text-[17px] font-extrabold text-primary leading-tight">{priceText}</p>
