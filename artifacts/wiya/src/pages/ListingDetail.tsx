@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import {
   Heart, MapPin, ChevronLeft, ChevronRight, Phone, MessageCircle, Zap, Clock,
-  Trash2, CheckCircle, Share2, Play, X, ShieldCheck,
+  Trash2, CheckCircle, Share2, Play, X, ShieldCheck, Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -166,14 +166,14 @@ export default function ListingDetail() {
 
   if (loading) {
     return (
-      <div className="bg-background min-h-[100dvh] flex items-center justify-center">
+      <div className="bg-white min-h-[100dvh] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
   if (!listing) {
     return (
-      <div className="bg-background min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-8 text-center">
+      <div className="bg-white min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-8 text-center">
         <p className="text-muted-foreground">{tr("Annonce introuvable", "الإعلان غير موجود")}</p>
         <button onClick={() => navigate("/")} className="px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-semibold text-sm">
           {tr("Retour à l'accueil", "العودة إلى الرئيسية")}
@@ -221,10 +221,12 @@ export default function ListingDetail() {
   );
   const waHref = displayPhone ? `https://wa.me/${waNumber(displayPhone)}?text=${waText}` : "#";
 
-  const chip = "flex items-center gap-1.5 bg-card ring-1 ring-border/60 rounded-xl px-3 py-2";
+  const chip = "flex items-center gap-1.5 bg-muted rounded-xl px-3 py-2";
+  const roundBtn =
+    "pointer-events-auto w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center active:scale-95 transition-transform";
 
   return (
-    <div className="bg-background min-h-[100dvh] pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+    <div className="bg-white min-h-[100dvh] pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       {/* ─── Galerie ─── */}
       <div
         className="relative bg-muted aspect-[4/3] select-none"
@@ -259,80 +261,70 @@ export default function ListingDetail() {
         )}
 
         {/* Boutons du haut */}
-        <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] inset-x-3 flex items-center justify-between pointer-events-none">
-          <button onClick={handleBack} aria-label="Retour" className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform">
-            <ChevronLeft className={`w-5 h-5 text-white ${isRTL ? "rotate-180" : ""}`} />
+        <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] inset-x-4 flex items-center justify-between pointer-events-none">
+          <button onClick={handleBack} aria-label="Retour" className={roundBtn}>
+            <ChevronLeft className={`w-5 h-5 text-gray-900 ${isRTL ? "rotate-180" : ""}`} strokeWidth={2.4} />
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={handleShare} aria-label="Partager" className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform">
-              <Share2 className="w-[18px] h-[18px] text-white" />
+            <button onClick={handleShare} aria-label="Partager" className={roundBtn}>
+              <Share2 className="w-[18px] h-[18px] text-gray-900" strokeWidth={2.2} />
             </button>
-            <button onClick={() => toggleFavorite(listing.id)} aria-label="Favori" className="pointer-events-auto w-10 h-10 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform">
-              <Heart className={`w-[18px] h-[18px] ${fav ? "fill-red-500 text-red-500" : "text-white"}`} strokeWidth={fav ? 0 : 2} />
+            <button onClick={() => toggleFavorite(listing.id)} aria-label="Favori" className={roundBtn}>
+              <Heart className={`w-[18px] h-[18px] ${fav ? "fill-red-500 text-red-500" : "text-gray-900"}`} strokeWidth={fav ? 0 : 2.2} />
             </button>
           </div>
         </div>
 
         {copied && (
-          <div className="absolute top-[calc(4rem+env(safe-area-inset-top))] end-3 bg-white text-gray-900 text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg">
+          <div className="absolute top-[calc(4.25rem+env(safe-area-inset-top))] end-4 bg-white text-gray-900 text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg">
             {tr("Lien copié !", "تم نسخ الرابط!")}
           </div>
         )}
 
-        {/* Flèches (utiles sur ordinateur) */}
-        {images.length > 1 && (
-          <>
-            <button onClick={() => goTo(-1)} aria-label={tr("Photo précédente", "الصورة السابقة")} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
-              <ChevronLeft className="w-5 h-5 text-white" />
-            </button>
-            <button onClick={() => goTo(1)} aria-label={tr("Photo suivante", "الصورة التالية")} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
-              <ChevronRight className="w-5 h-5 text-white" />
-            </button>
-            <div className="absolute bottom-3 end-3 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1 text-white text-[11px] font-semibold pointer-events-none">
-              {imgIndex + 1}/{images.length}
-            </div>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
-              {images.map((_, i) => (
-                <span key={i} className={`h-1.5 rounded-full transition-all ${i === imgIndex ? "w-4 bg-white" : "w-1.5 bg-white/55"}`} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Vidéo */}
-        {listing.video_url && (
-          <button
-            onClick={() => setVideoOpen(true)}
-            className="absolute bottom-12 end-3 flex items-center gap-1.5 bg-black/65 backdrop-blur-sm text-white text-xs font-bold ps-2.5 pe-3 py-1.5 rounded-full active:scale-95 transition-transform"
-          >
-            <Play className="w-3.5 h-3.5 fill-white" />
-            {tr("Vidéo", "فيديو")}
-          </button>
-        )}
-
-        {/* Badges */}
-        <div className="absolute bottom-3 start-3 flex gap-1.5">
+        {/* Badges en bas à gauche */}
+        <div className="absolute bottom-3 start-4 flex gap-1.5">
           {listing.is_boosted && (
-            <span className="bg-accent text-accent-foreground text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 shadow">
-              <Zap className="w-3 h-3 fill-current" /> {tr("À la une", "مميز")}
+            <span className="bg-accent text-accent-foreground text-[12px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow">
+              <Zap className="w-3.5 h-3.5 fill-current" /> {tr("À la une", "مميز")}
             </span>
           )}
           {listing.is_urgent && (
-            <span className="bg-destructive text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow">{t("urgent")}</span>
+            <span className="bg-destructive text-white text-[12px] font-bold px-3 py-1.5 rounded-full shadow">{t("urgent")}</span>
+          )}
+        </div>
+
+        {/* Vidéo et compteur en bas à droite */}
+        <div className="absolute bottom-3 end-4 flex items-center gap-2">
+          {listing.video_url && (
+            <button
+              onClick={() => setVideoOpen(true)}
+              className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-bold ps-3 pe-3.5 py-1.5 rounded-full active:scale-95 transition-transform"
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              {tr("Vidéo", "فيديو")}
+            </button>
+          )}
+          {images.length > 1 && (
+            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full pointer-events-none">
+              <Camera className="w-3.5 h-3.5" />
+              {imgIndex + 1}/{images.length}
+            </div>
           )}
         </div>
       </div>
 
-      <div className="px-4 pt-5 space-y-4">
-        {/* Titre + prix */}
+      <div className="px-5 pt-5 space-y-4">
+        {/* Prix + titre */}
         <div>
-          <p className="font-display text-[30px] font-extrabold text-primary leading-none">{priceText}</p>
-          {listing.is_negotiable && (
-            <span className="inline-block mt-2 text-[11px] font-semibold text-foreground bg-accent/25 px-2.5 py-1 rounded-full">
-              {t("negotiable")}
-            </span>
-          )}
-          <h1 className="text-[19px] font-bold text-foreground leading-snug mt-3">{listing.title}</h1>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <p className="font-display text-[32px] font-extrabold text-primary leading-none">{priceText}</p>
+            {listing.is_negotiable && (
+              <span className="text-[12px] font-bold text-foreground bg-accent/25 px-2.5 py-1 rounded-full">
+                {t("negotiable")}
+              </span>
+            )}
+          </div>
+          <h1 className="text-[20px] font-bold text-foreground leading-snug mt-2">{listing.title}</h1>
         </div>
 
         {/* Infos */}
@@ -340,68 +332,70 @@ export default function ListingDetail() {
           {category && (
             <div className={chip}>
               <span className="text-base">{category.icon}</span>
-              <span className="text-xs font-medium text-foreground/80">{t(listing.category as any)}</span>
+              <span className="text-[13px] text-foreground">{t(listing.category as any)}</span>
             </div>
           )}
           {place && (
             <div className={chip}>
               <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground/80">{place}</span>
+              <span className="text-[13px] text-foreground">{place}</span>
             </div>
           )}
           {!isJob && listing.condition && (
             <div className={chip}>
               <span className={`w-2 h-2 rounded-full ${listing.condition === "new" ? "bg-primary" : "bg-orange-400"}`} />
-              <span className="text-xs font-medium text-foreground/80">
+              <span className="text-[13px] text-foreground">
                 {listing.condition === "new" ? t("conditionNew") : t("conditionUsed")}
               </span>
             </div>
           )}
           <div className={chip}>
             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-foreground/80">{timeAgo(listing.created_at)}</span>
+            <span className="text-[13px] text-foreground">{timeAgo(listing.created_at)}</span>
           </div>
         </div>
-
-        {/* Description */}
-        {listing.description && (
-          <div className="bg-card ring-1 ring-border/60 rounded-2xl p-4">
-            <h3 className="text-sm font-bold text-foreground mb-2">{t("description")}</h3>
-            <p dir="auto" className="text-[14px] text-foreground/75 leading-relaxed whitespace-pre-wrap break-words">
-              {listing.description}
-            </p>
-          </div>
-        )}
 
         {/* Vendeur */}
         {sellerProfile && !isMyListing && (
           <button
             onClick={() => navigate(`/seller/${listing.user_id}`)}
-            className="w-full bg-card ring-1 ring-border/60 rounded-2xl p-4 flex items-center gap-3 text-start active:scale-[0.99] transition-transform"
+            className="w-full border border-border rounded-2xl p-3.5 flex items-center gap-3 text-start active:scale-[0.99] transition-transform"
           >
-            <div className="w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {sellerProfile.avatar_url ? (
-                <img src={sellerProfile.avatar_url} className="w-12 h-12 rounded-full object-cover" alt="" />
+                <img src={sellerProfile.avatar_url} className="w-11 h-11 rounded-full object-cover" alt="" />
               ) : (
-                <span className="text-xl">👤</span>
+                <span className="text-primary font-extrabold text-lg">
+                  {(sellerProfile.username ?? "?").charAt(0).toUpperCase()}
+                </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground truncate">{sellerProfile.username ?? tr("Vendeur", "البائع")}</p>
-              <p className="text-xs text-primary font-semibold mt-0.5">{tr("Voir toutes ses annonces", "عرض كل إعلاناته")}</p>
+              <p className="text-[15px] font-bold text-foreground truncate">{sellerProfile.username ?? tr("Vendeur", "البائع")}</p>
+              <p className="text-[13px] text-primary font-bold mt-0.5">{tr("Voir toutes ses annonces", "عرض كل إعلاناته")}</p>
             </div>
             <ChevronRight className={`w-4 h-4 text-muted-foreground flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
           </button>
+        )}
+
+        {/* Description */}
+        {listing.description && (
+          <div>
+            <h3 className="text-[15px] font-bold text-foreground">{t("description")}</h3>
+            <p dir="auto" className="text-[14px] text-foreground/75 leading-relaxed whitespace-pre-wrap break-words mt-1">
+              {listing.description}
+            </p>
+          </div>
         )}
 
         {/* Conseil sécurité */}
         {!isMyListing && (
           <div className="flex items-start gap-3 bg-primary/10 rounded-2xl p-3.5">
             <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-            <p className="text-[12.5px] text-foreground/80 leading-snug">
+            <p className="text-[13px] text-foreground leading-snug">
               {tr(
-                "Conseil sécurité : rencontrez le vendeur dans un lieu public et ne payez jamais à l'avance.",
-                "نصيحة أمان: قابل البائع في مكان عام ولا تدفع مسبقا."
+                "Rencontrez le vendeur dans un lieu public et ne payez jamais à l'avance.",
+                "قابل البائع في مكان عام ولا تدفع مسبقا."
               )}
             </p>
           </div>
@@ -427,9 +421,9 @@ export default function ListingDetail() {
 
         {/* Annonces similaires */}
         {similar.length > 0 && (
-          <div className="pt-2">
-            <h3 className="text-base font-extrabold text-foreground mb-3">{t("similarListings")}</h3>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="pt-3">
+            <h3 className="font-display text-[20px] font-extrabold text-foreground mb-3">{t("similarListings")}</h3>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-5">
               {similar.map((l) => <ListingCard key={l.id} listing={l} />)}
             </div>
           </div>
@@ -521,11 +515,11 @@ export default function ListingDetail() {
 
       {/* ─── Barre d'actions fixe en bas ─── */}
       {!isMyListing && (
-        <div className="fixed bottom-0 inset-x-0 max-w-[430px] mx-auto bg-card/95 backdrop-blur-md border-t border-border px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-2 z-[30]">
+        <div className="fixed bottom-0 inset-x-0 max-w-[430px] mx-auto bg-white border-t border-border px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-2 z-[30]">
           {displayPhone && (
             <a
               href={`tel:${displayPhone}`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-2xl bg-muted font-semibold text-foreground text-[13px] active:scale-[0.98] transition-transform"
+              className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-2xl border border-border font-bold text-foreground text-[14px] active:scale-[0.98] transition-transform"
             >
               <Phone className="w-4 h-4" />{t("call")}
             </a>
@@ -535,7 +529,7 @@ export default function ListingDetail() {
               href={waHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-2xl bg-[#25D366] font-bold text-white text-[13px] active:scale-[0.98] transition-transform"
+              className="flex-1 flex items-center justify-center py-3.5 rounded-2xl bg-[#25D366] font-bold text-[#0B3D1F] text-[14px] active:scale-[0.98] transition-transform"
             >
               WhatsApp
             </a>
@@ -545,7 +539,7 @@ export default function ListingDetail() {
               if (!user) { navigate("/auth"); return; }
               setShowMsgBox(true);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-2xl bg-primary font-semibold text-primary-foreground text-[13px] shadow-md active:scale-[0.98] transition-transform"
+            className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-2xl bg-primary font-bold text-primary-foreground text-[14px] active:scale-[0.98] transition-transform"
           >
             <MessageCircle className="w-4 h-4" />{tr("Message", "رسالة")}
           </button>
