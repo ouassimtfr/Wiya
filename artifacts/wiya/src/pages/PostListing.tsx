@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, Camera, X, Loader2, Briefcase, Sparkles, Video } from "lucide-react";
+import { ChevronLeft, ChevronDown, Camera, X, Loader2, Briefcase, Sparkles, Video } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/data";
@@ -49,6 +49,7 @@ export default function PostListingPage() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
+  const [showCategories, setShowCategories] = useState(false);
   const [wilaya, setWilaya] = useState("");
   const [city, setCity] = useState("");
   const [condition, setCondition] = useState<"new" | "used">("used");
@@ -71,6 +72,7 @@ export default function PostListingPage() {
   const [jobSector, setJobSector] = useState("");
 
   const isJobs = category === "jobs";
+  const selectedCategory = CATEGORIES.find((c) => c.id === category);
 
   useEffect(() => {
     if (!user) navigate("/auth");
@@ -250,22 +252,26 @@ export default function PostListingPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+        {/* ─── Catégorie : grand sélecteur ─── */}
         <div>
           <p className={labelClass}>{tr("Catégorie", "الفئة")}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setCategory(c.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs font-medium border ${
-                  category === c.id ? "bg-[#1B6B3A] text-white border-[#1B6B3A]" : "bg-gray-50 text-gray-600 border-gray-200"
-                }`}
-              >
-                <span>{c.icon}</span>
-                <span>{t(c.id as any)}</span>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowCategories(true)}
+            className="w-full flex items-center gap-3 bg-card ring-1 ring-border rounded-2xl px-4 py-3.5 text-start active:scale-[0.99] transition-transform"
+          >
+            {selectedCategory ? (
+              <>
+                <span className="text-[28px] leading-none">{selectedCategory.icon}</span>
+                <span className="flex-1 text-[17px] font-bold text-foreground">{t(selectedCategory.id as any)}</span>
+              </>
+            ) : (
+              <span className="flex-1 text-[16px] text-muted-foreground">
+                {tr("Choisir une catégorie", "اختر الفئة")}
+              </span>
+            )}
+            <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          </button>
         </div>
 
         {isJobs && (
@@ -563,6 +569,51 @@ export default function PostListingPage() {
             : tr("Publier l'annonce", "نشر الإعلان")}
         </button>
       </div>
+
+      {/* ─── Fenêtre des catégories : grandes tuiles bien visibles ─── */}
+      {showCategories && (
+        <div
+          className="fixed inset-0 z-[10000] bg-black/50 flex items-end"
+          onClick={() => setShowCategories(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card w-full max-w-[430px] mx-auto rounded-t-3xl max-h-[88dvh] flex flex-col"
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+              <h2 className="font-display text-[20px] font-extrabold text-foreground">
+                {tr("Choisissez une catégorie", "اختر الفئة")}
+              </h2>
+              <button
+                onClick={() => setShowCategories(false)}
+                aria-label={tr("Fermer", "إغلاق")}
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center"
+              >
+                <X className="w-5 h-5 text-foreground" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] grid grid-cols-3 gap-2.5">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setCategory(c.id);
+                    setShowCategories(false);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl py-4 px-1 text-center transition-colors active:scale-95 ${
+                    category === c.id
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  <span className="text-[30px] leading-none">{c.icon}</span>
+                  <span className="text-[13px] font-bold leading-tight">{t(c.id as any)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
