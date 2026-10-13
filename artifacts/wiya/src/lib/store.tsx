@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 import { Conversation, CONVERSATIONS } from "./data";
+import { compressImage } from "./imageCompress";
 
 const FAV_KEY = "wiya_favorites";
 
@@ -10,27 +11,6 @@ function loadLocalFavorites(): string[] {
     return Array.isArray(raw) ? raw.map(String) : [];
   } catch {
     return [];
-  }
-}
-
-async function compressImage(file: File, maxSize = 1280, quality = 0.8): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", quality));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
-  } catch {
-    return file;
   }
 }
 
@@ -58,6 +38,7 @@ export interface NewListingInput {
   isNegotiable: boolean;
   isUrgent: boolean;
   images: File[];
+  video?: File | null;
   jobKind?: "offer" | "seeking";
   jobType?: string;
   jobSector?: string;
@@ -609,12 +590,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   ): Promise<{ id: string | null; error: string | null }> => {
     if (!user) return { id: null, error: "Non connecté" };
 
-    const total = input.images.length;
+    // Étapes d'envoi : chaque photo + la vidéo (si elle existe)
+    const total = input.images.length + (input.video ? 1 : 0);
     let completed = 0;
     onProgress?.(0);
 
-    const uploadOne = async (rawFile: File): Promise<string | null> => {
-      const file = await compressImage(rawFile);
+    const tick = () => {
+      completed += 1;
+      onProgress?.(Math.round((completed / Math.max(total, 1)) * 90));
+    };
+
+    // Les photos sont déjà réduites (et éventuellement améliorées) par la page de publication :
+    // on ne les recompresse pas une deuxième fois pour garder leur qualité.
+    const uploadOne = async (file: File): Promise<string | null> => {
       const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
@@ -622,8 +610,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .from("listings")
         .upload(filePath, file);
 
-      completed += 1;
-      onProgress?.(Math.round((completed / total) * 90));
+      tick();
 
       if (uploadError) {
         console.error("Erreur upload photo annonce:", uploadError);
@@ -634,10 +621,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return data.publicUrl;
     };
 
-    const results = await Promise.all(input.images.map(uploadOne));
+    const uploadVideo = async (file: File): Promise<string | null> => {
+      const fileExt = (file.name.split(".").pop() || "mp4").toLowerCase();
+      const filePath = `${user.id}/${Date.now()}-video.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("listings")
+        .upload(filePath, file, { contentType: file.type || "video/mp4" });
+
+      tick();
+
+      if (uploadError) {
+        console.error("Erreur upload vidéo annonce:", uploadError);
+        return null;
+      }
+
+      const { data } = supabase.storage.from("listings").getPublicUrl(filePath);
+      return data.publicUrl;
+    };
+
+    const [results, videoUrl] = await Promise.all([
+      Promise.all(input.images.map(uploadOne)),
+      input.video ? uploadVideo(input.video) : Promise.resolve(null),
+    ]);
 
     if (results.some((url) => url === null)) {
       return { id: null, error: "Échec de l'upload d'une ou plusieurs photos." };
+    }
+    if (input.video && !videoUrl) {
+      return { id: null, error: "Échec de l'upload de la vidéo (50 Mo maximum)." };
     }
 
     const imageUrls = results as string[];
@@ -667,6 +679,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         is_active: true,
         is_boosted: false,
         images: imageUrls,
+        ...(videoUrl ? { video_url: videoUrl } : {}),
         user_id: user.id,
         ...jobFields,
       })
