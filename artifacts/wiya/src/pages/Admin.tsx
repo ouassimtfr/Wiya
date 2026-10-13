@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw } from "lucide-react";
+import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw, HardDrive } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
 type Tab = "pending" | "active" | "refused";
+type OrphanFile = { name: string; size_mb: number };
 
 export default function AdminPage() {
   const [, navigate] = useLocation();
@@ -19,6 +20,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Nettoyage du stockage
+  const [orphans, setOrphans] = useState<OrphanFile[] | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanMsg, setCleanMsg] = useState("");
 
   useEffect(() => {
     checkAdminAccess();
@@ -140,6 +147,61 @@ export default function AdminPage() {
     fetchRequests();
   };
 
+  // ─── Nettoyage du stockage : fichiers que plus aucune annonce n'utilise ───
+  const scanOrphans = async () => {
+    setScanning(true);
+    setCleanMsg("");
+    const { data, error } = await supabase.rpc("orphan_listing_files");
+    if (error) {
+      console.error("Erreur recherche fichiers inutiles:", error);
+      setCleanMsg(`Recherche impossible : ${error.message}`);
+      setOrphans(null);
+    } else {
+      setOrphans((data ?? []) as OrphanFile[]);
+    }
+    setScanning(false);
+  };
+
+  const orphansTotalMb = orphans
+    ? Math.round(orphans.reduce((sum, o) => sum + Number(o.size_mb || 0), 0) * 100) / 100
+    : 0;
+
+  const cleanOrphans = async () => {
+    if (!orphans || orphans.length === 0) return;
+    if (
+      !confirm(
+        `Supprimer définitivement ${orphans.length} fichier(s) (${orphansTotalMb} Mo) ? Cette action est irréversible.`
+      )
+    )
+      return;
+
+    setCleaning(true);
+    setCleanMsg("");
+    let deleted = 0;
+    let failure = "";
+
+    for (let i = 0; i < orphans.length; i += 50) {
+      const chunk = orphans.slice(i, i + 50).map((o) => o.name);
+      const { data, error } = await supabase.storage.from("listings").remove(chunk);
+      if (error) {
+        console.error("Erreur suppression fichiers:", error);
+        failure = error.message;
+        break;
+      }
+      deleted += data?.length ?? 0;
+    }
+
+    setCleaning(false);
+    setOrphans(null);
+    setCleanMsg(
+      failure
+        ? `Erreur : ${failure} (${deleted} fichier(s) supprimé(s) avant l'erreur).`
+        : deleted === 0
+        ? "Aucun fichier supprimé : les droits admin du SQL ne sont probablement pas actifs."
+        : `${deleted} fichier(s) supprimé(s) sur ${orphans.length}. L'espace est libéré.`
+    );
+  };
+
   const pending = requests.filter((r) => r.status === "pending");
   const active  = requests.filter((r) => r.status === "active");
   const refused = requests.filter((r) => r.status === "refused");
@@ -147,7 +209,7 @@ export default function AdminPage() {
 
   if (checkingAccess) {
     return (
-      <div className="min-h-screen bg-[#0a150f] flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-[#0a150f] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -155,7 +217,7 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen bg-[#0a150f] flex flex-col items-center justify-center px-6">
+      <div className="min-h-[100dvh] bg-[#0a150f] flex flex-col items-center justify-center px-6">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-6 text-center">
           <div className="w-16 h-16 bg-red-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-red-400" />
@@ -178,8 +240,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="bg-[#0a150f] min-h-screen pb-8">
-      <div className="bg-[#1B6B3A] pt-14 pb-5 px-4">
+    <div className="bg-[#0a150f] min-h-[100dvh] pb-8">
+      <div className="bg-[#1B6B3A] pt-[calc(3.5rem+env(safe-area-inset-top))] pb-5 px-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate("/")} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
             <ChevronLeft className="w-4 h-4 text-white" />
@@ -213,6 +275,50 @@ export default function AdminPage() {
           <button onClick={() => setActionError("")}><X className="w-4 h-4 text-red-300" /></button>
         </div>
       )}
+
+      {/* ─── Stockage : libérer l'espace des fichiers inutilisés ─── */}
+      <div className="mx-4 mt-3 bg-[#0f2818] border border-white/5 rounded-3xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
+            <HardDrive className="w-5 h-5 text-[#E8C84A]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-sm">Stockage</p>
+            <p className="text-white/40 text-xs">Fichiers d'annonces supprimées</p>
+          </div>
+          <button
+            onClick={scanOrphans}
+            disabled={scanning || cleaning}
+            className="px-3.5 py-2 bg-white/10 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+          >
+            {scanning ? "..." : "Chercher"}
+          </button>
+        </div>
+
+        {orphans !== null && (
+          <div className="mt-3">
+            {orphans.length === 0 ? (
+              <p className="text-green-300 text-xs font-semibold">Rien à nettoyer, tout est propre.</p>
+            ) : (
+              <>
+                <p className="text-white text-sm font-bold">
+                  {orphans.length} fichier{orphans.length > 1 ? "s" : ""} inutile{orphans.length > 1 ? "s" : ""}
+                  <span className="text-[#E8C84A]"> · {orphansTotalMb} Mo</span>
+                </p>
+                <button
+                  onClick={cleanOrphans}
+                  disabled={cleaning}
+                  className="mt-3 w-full py-3 bg-red-900/50 text-red-300 border border-red-500/20 rounded-2xl font-bold text-sm disabled:opacity-50"
+                >
+                  {cleaning ? "Suppression en cours..." : `Supprimer pour libérer ${orphansTotalMb} Mo`}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {cleanMsg && <p className="mt-3 text-xs font-semibold text-white/80 leading-snug">{cleanMsg}</p>}
+      </div>
 
       <div className="flex bg-[#0f1f14] border-b border-white/5 mt-3">
         {(["pending", "active", "refused"] as Tab[]).map((t) => {
