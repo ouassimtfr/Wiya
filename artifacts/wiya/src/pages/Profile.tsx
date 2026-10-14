@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight, Package, Heart, Settings, Languages,
-  LogOut, Bell, Sun, Moon, X, ArrowLeft, Camera, Trash2,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -10,55 +10,27 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { WILAYAS_DATA } from "@/lib/wilayas";
-import { compressImage } from "@/lib/imageCompress";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
 const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
 
-function UserAvatar({
-  name, avatarUrl, size = 92, uploading = false, onPick, onRemove,
-}: {
-  name: string; avatarUrl?: string; size?: number; uploading?: boolean;
-  onPick?: (file: File) => void; onRemove?: () => void;
-}) {
-  const initials = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-  const inputId = "avatar-upload-input";
-  const hasCustomAvatar = !!avatarUrl && !avatarUrl.includes("dicebear");
-
+// Pas de photo de profil : un simple rond avec les initiales (aucun fichier envoyé, aucun espace utilisé)
+function InitialsAvatar({ name, size = 92 }: { name: string; size?: number }) {
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "?";
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      {hasCustomAvatar ? (
-        <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full object-cover ring-4 ring-card shadow-md" decoding="async" />
-      ) : (
-        <div style={{ width: size, height: size }} className="rounded-full bg-primary/15 ring-4 ring-card shadow-md flex items-center justify-center">
-          <span className="text-primary font-black text-3xl">{initials}</span>
-        </div>
-      )}
-      {uploading && (
-        <div style={{ width: size, height: size }} className="absolute inset-0 rounded-full bg-black/45 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-      {hasCustomAvatar && onRemove && !uploading && (
-        <button onClick={onRemove} aria-label="Supprimer la photo" className="absolute top-0 end-0 w-7 h-7 rounded-full bg-destructive flex items-center justify-center shadow-md">
-          <Trash2 className="w-3.5 h-3.5 text-white" />
-        </button>
-      )}
-      <label htmlFor={inputId} className="absolute bottom-0 end-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-md cursor-pointer ring-2 ring-card">
-        <Camera className="w-4 h-4 text-primary-foreground" />
-      </label>
-      <input
-        id={inputId}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && onPick) onPick(file);
-          e.target.value = "";
-        }}
-      />
+    <div
+      style={{ width: size, height: size }}
+      className="rounded-full bg-primary/15 ring-4 ring-card shadow-md flex items-center justify-center"
+    >
+      <span className="text-primary font-black text-3xl">{initials}</span>
     </div>
   );
 }
@@ -67,7 +39,7 @@ export default function ProfilePage() {
   const [, navigate] = useLocation();
   const { t, isRTL, lang, setLang } = useI18n();
   const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
-  const { user, logout, favorites, updateAvatar, removeAvatar } = useStore();
+  const { user, logout, favorites } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
   const [myListings, setMyListings] = useState<any[]>([]);
@@ -76,8 +48,6 @@ export default function ProfilePage() {
   const [editPhone, setEditPhone] = useState(user?.phone ?? "");
   const [editWilaya, setEditWilaya] = useState(user?.wilaya ?? "");
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState("");
 
   useEffect(() => {
     if (showSettings) {
@@ -101,24 +71,6 @@ export default function ProfilePage() {
       };
     }
   }, [showSettings]);
-
-  // La photo de profil est réduite (512 px max) avant l'envoi : upload beaucoup plus rapide.
-  const handleAvatarPick = async (file: File) => {
-    setUploadingAvatar(true);
-    setAvatarError("");
-    const small = await compressImage(file, 512, 0.85);
-    const { error } = await updateAvatar(small);
-    if (error) setAvatarError(error);
-    setUploadingAvatar(false);
-  };
-
-  const handleAvatarRemove = async () => {
-    setUploadingAvatar(true);
-    setAvatarError("");
-    const { error } = await removeAvatar();
-    if (error) setAvatarError(error);
-    setUploadingAvatar(false);
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -180,16 +132,9 @@ export default function ProfilePage() {
         <>
           {/* ─── Carte d'identité ─── */}
           <div className="flex flex-col items-center text-center px-5 pt-[calc(2rem+env(safe-area-inset-top))] pb-6">
-            <UserAvatar
-              name={user.name}
-              avatarUrl={user.avatar}
-              uploading={uploadingAvatar}
-              onPick={handleAvatarPick}
-              onRemove={handleAvatarRemove}
-            />
+            <InitialsAvatar name={user.name} />
             <h1 className="font-display text-[24px] font-extrabold text-foreground mt-4 leading-tight">{user.name}</h1>
             {user.email && <p className="text-[13px] text-muted-foreground mt-0.5" dir="ltr">{user.email}</p>}
-            {avatarError && <p className="text-destructive text-xs mt-2">{avatarError}</p>}
 
             <div className="flex gap-3 mt-5 w-full max-w-xs">
               <button onClick={() => setTab("listings")} className="flex-1 bg-muted rounded-2xl py-3 active:scale-95 transition-transform">
