@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
-import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
@@ -37,52 +36,42 @@ export default function FavoritesPage() {
   const n = favListings.length;
 
   return (
-    <div className="bg-[#F4F6F5] min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div className="bg-card min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <AppHeader title={t("favorites")} showBack />
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-4 border-[#1B6B3A] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : favListings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center gap-4">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center"
-          >
-            <Heart className="w-8 h-8 text-red-400" />
-          </motion.div>
-          <h2 className="text-base font-bold text-gray-900">{t("noFavorites")}</h2>
-          <p className="text-sm text-gray-500">{t("noFavoritesDesc")}</p>
+        <div className="flex flex-col items-center justify-center h-[65vh] px-8 text-center gap-4">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <Heart className="w-9 h-9 text-primary" />
+          </div>
+          <h2 className="font-display text-[20px] font-extrabold text-foreground">{t("noFavorites")}</h2>
+          <p className="text-sm text-muted-foreground">{t("noFavoritesDesc")}</p>
           <button
             onClick={() => navigate("/")}
-            className="px-8 py-3 bg-[#1B6B3A] text-white rounded-2xl font-semibold text-sm"
+            className="px-8 py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold text-sm shadow-md active:scale-95 transition-transform"
           >
             {tr("Parcourir les annonces", "تصفح الإعلانات")}
           </button>
         </div>
       ) : (
-        <div className="px-4 pt-4 space-y-2.5">
-          <p className="text-xs text-gray-500 font-medium">
+        <div className="px-4 pt-3">
+          <p className="text-[13px] text-muted-foreground font-semibold px-1 mb-3">
             {tr(
               `${n} annonce${n > 1 ? "s" : ""} sauvegardée${n > 1 ? "s" : ""}`,
               `${n} إعلان محفوظ`
             )}
           </p>
-          {favListings.map((listing, i) => (
-            <motion.div
-              key={listing.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <ListingCard listing={listing} variant="list" />
-            </motion.div>
-          ))}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+            {favListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} variant="grid" />
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
-// maj
