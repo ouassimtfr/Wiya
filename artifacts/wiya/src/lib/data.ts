@@ -39,6 +39,7 @@ export interface Conversation {
 export const CATEGORIES = [
   { id: "real_estate", icon: "🏠", color: "#16a34a" },
   { id: "vehicles", icon: "🚗", color: "#dc2626" },
+  { id: "motorcycles", icon: "🏍️", color: "#ef4444" },
   { id: "electronics", icon: "📱", color: "#2563eb" },
   { id: "clothing", icon: "👕", color: "#9333ea" },
   { id: "home_garden", icon: "🛋️", color: "#ea580c" },
