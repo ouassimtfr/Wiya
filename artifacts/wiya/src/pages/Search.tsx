@@ -243,16 +243,25 @@ export default function SearchPage() {
     ? tr(filtered.length > 1 ? "demandes" : "demande", "طلب")
     : tr(filtered.length > 1 ? "annonces" : "annonce", "إعلان");
 
+  const chipClass = (active: boolean) =>
+    `flex-shrink-0 px-4 py-2 rounded-full text-[14px] whitespace-nowrap transition-colors ${
+      active
+        ? "bg-foreground text-background font-bold"
+        : "bg-card ring-1 ring-border text-foreground font-medium"
+    }`;
+
+  const fieldClass = "w-full bg-muted rounded-xl px-3.5 py-3 text-base text-foreground focus:outline-none";
+
   return (
-    <div className="bg-[#F4F6F5] min-h-full pb-6">
+    <div className="bg-card min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {/* Barre de recherche */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 pt-[calc(env(safe-area-inset-top)+10px)]">
-        <form onSubmit={submit} className="px-3 pb-3 flex items-center gap-2">
-          <button type="button" onClick={() => navigate("/")} className="p-2 -ms-1 rounded-full active:bg-gray-100">
-            <ArrowLeft className={`w-5 h-5 text-gray-800 ${isRTL ? "rotate-180" : ""}`} />
+      <div className="sticky top-0 z-20 bg-card pt-[calc(env(safe-area-inset-top)+10px)]">
+        <form onSubmit={submit} className="px-4 pb-3 flex items-center gap-2">
+          <button type="button" onClick={() => navigate("/")} aria-label="Retour" className="p-2 -ms-1 rounded-full active:bg-muted">
+            <ArrowLeft className={`w-5 h-5 text-foreground ${isRTL ? "rotate-180" : ""}`} />
           </button>
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-3.5 py-2.5 min-w-0">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex-1 flex items-center gap-2 bg-muted rounded-2xl px-3.5 py-3 min-w-0">
+            <Search className="w-5 h-5 text-foreground flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
@@ -263,24 +272,25 @@ export default function SearchPage() {
               placeholder={
                 isJobs
                   ? tr("Métier, compétence...", "مهنة، مهارة...")
-                  : tr("Rechercher (ex: Clio 5 2020)", "ابحث (مثال: كليو 5 2020)")
+                  : tr("Une voiture, un téléphone...", "سيارة، هاتف...")
               }
-              className="flex-1 bg-transparent text-base text-gray-800 focus:outline-none placeholder:text-gray-400 min-w-0"
+              className="flex-1 bg-transparent text-base text-foreground focus:outline-none placeholder:text-muted-foreground min-w-0"
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} className="p-0.5">
-                <X className="w-4 h-4 text-gray-400" />
+              <button type="button" onClick={() => setQuery("")} aria-label="Effacer" className="p-0.5">
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </div>
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="relative p-2.5 rounded-2xl bg-gray-100 active:bg-gray-200 flex-shrink-0"
+            aria-label={tr("Filtres", "المرشحات")}
+            className="relative w-11 h-11 rounded-2xl bg-muted flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
           >
-            <SlidersHorizontal className="w-5 h-5 text-gray-700" />
+            <SlidersHorizontal className="w-5 h-5 text-foreground" />
             {activeFilters > 0 && (
-              <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-[#1B6B3A] text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                 {activeFilters}
               </span>
             )}
@@ -290,26 +300,19 @@ export default function SearchPage() {
         {/* Catégories des résultats */}
         {hasSearch && visibleCategories.length > 0 && (
           <div
-            className="flex gap-2 overflow-x-auto px-3 pb-3 [&::-webkit-scrollbar]:hidden"
+            className="flex gap-2 overflow-x-auto px-4 pb-3 [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: "none" }}
           >
-            <button
-              onClick={() => setCategory("")}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
-                category === "" ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
-              }`}
-            >
+            <button onClick={() => setCategory("")} className={chipClass(category === "")}>
               {tr("Tout", "الكل")} ({matching.length})
             </button>
             {visibleCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setCategory(category === cat.id ? "" : cat.id)}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-colors whitespace-nowrap ${
-                  category === cat.id ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
-                }`}
+                className={chipClass(category === cat.id)}
               >
-                {cat.icon} {t(cat.id as any)} ({categoryCounts.get(cat.id) || 0})
+                {t(cat.id as any)} ({categoryCounts.get(cat.id) || 0})
               </button>
             ))}
           </div>
@@ -317,10 +320,10 @@ export default function SearchPage() {
 
         {/* Emplois : uniquement des demandes d'emploi */}
         {isJobs && (
-          <div className="border-t border-gray-100 px-3 py-3">
-            <div className="flex items-center justify-between bg-gray-100 rounded-2xl px-4 py-2.5">
-              <span className="text-[13px] font-bold text-[#1B6B3A]">{tr("Demandes d'emploi", "طلبات العمل")}</span>
-              <span className="text-[13px] font-bold text-gray-500">{jobCount}</span>
+          <div className="px-4 pb-3">
+            <div className="flex items-center justify-between bg-primary/10 rounded-2xl px-4 py-2.5">
+              <span className="text-[13px] font-bold text-primary">{tr("Demandes d'emploi", "طلبات العمل")}</span>
+              <span className="text-[13px] font-bold text-muted-foreground">{jobCount}</span>
             </div>
           </div>
         )}
@@ -328,46 +331,48 @@ export default function SearchPage() {
 
       {/* Accueil de la recherche : emploi, récentes, catégories */}
       {!hasSearch && (
-        <div className="px-4 pt-5 space-y-6">
+        <div className="px-4 pt-3 space-y-6">
           <button
             onClick={() => setCategory("jobs")}
-            className="w-full flex items-center gap-3 bg-gradient-to-br from-[#0B1F16] to-[#1B6B3A] rounded-3xl px-5 py-4 text-start shadow-md active:scale-[0.99] transition-transform"
+            className="w-full flex items-center gap-3 bg-primary text-primary-foreground rounded-3xl px-5 py-4 text-start shadow-md active:scale-[0.99] transition-transform"
           >
-            <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
-              <Briefcase className="w-6 h-6 text-[#F2D27A]" />
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Briefcase className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-base font-extrabold">{tr("Demandes d'emploi", "طلبات العمل")}</p>
-              <p className="text-white/70 text-xs mt-0.5">
+              <p className="text-base font-extrabold">{tr("Demandes d'emploi", "طلبات العمل")}</p>
+              <p className="text-xs opacity-85 mt-0.5">
                 {tr("Des chercheurs d'emploi partout en Algérie", "باحثون عن عمل في كل أنحاء الجزائر")}
               </p>
             </div>
-            <ChevronRight className={`w-5 h-5 text-white/70 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
+            <ChevronRight className={`w-5 h-5 opacity-80 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
           </button>
 
           {recent.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-gray-800">{tr("Recherches récentes", "عمليات البحث الأخيرة")}</p>
+                <p className="font-display text-[17px] font-extrabold text-foreground">
+                  {tr("Recherches récentes", "عمليات البحث الأخيرة")}
+                </p>
                 <button
                   onClick={() => {
                     clearRecent();
                     setRecent([]);
                   }}
-                  className="text-xs font-semibold text-[#1B6B3A]"
+                  className="text-[13px] font-bold text-primary"
                 >
                   {tr("Effacer", "مسح")}
                 </button>
               </div>
-              <ul className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <ul className="rounded-2xl ring-1 ring-border overflow-hidden">
                 {recent.map((r) => (
                   <li key={r}>
                     <button
                       onClick={() => setQuery(r)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-start active:bg-gray-50 border-b border-gray-50 last:border-0"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-start active:bg-muted border-b border-border last:border-0"
                     >
-                      <Clock className="w-4 h-4 text-gray-300" />
-                      <span className="text-sm text-gray-700">{r}</span>
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-[15px] text-foreground">{r}</span>
                     </button>
                   </li>
                 ))}
@@ -376,16 +381,18 @@ export default function SearchPage() {
           )}
 
           <div>
-            <p className="text-sm font-bold text-gray-800 mb-3">{tr("Parcourir par catégorie", "تصفح حسب الفئة")}</p>
-            <div className="grid grid-cols-4 gap-2.5">
+            <p className="font-display text-[17px] font-extrabold text-foreground mb-3">
+              {tr("Parcourir par catégorie", "تصفح حسب الفئة")}
+            </p>
+            <div className="grid grid-cols-3 gap-2.5">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setCategory(cat.id)}
-                  className="bg-white rounded-2xl shadow-sm p-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                  className="bg-muted rounded-2xl py-4 px-1 flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
                 >
-                  <span className="text-2xl">{cat.icon}</span>
-                  <span className="text-[10px] font-bold text-gray-700 text-center leading-tight">
+                  <span className="text-[30px] leading-none">{cat.icon}</span>
+                  <span className="text-[13px] font-bold text-foreground text-center leading-tight">
                     {t(cat.id as any)}
                   </span>
                 </button>
@@ -397,27 +404,27 @@ export default function SearchPage() {
 
       {/* Résultats */}
       {hasSearch && (
-        <div className="px-4 pt-3">
-          {loading && <p className="text-center text-sm text-gray-400 py-10">{tr("Chargement...", "جاري التحميل...")}</p>}
-          {error && <p className="text-center text-sm text-red-500 py-10">{error}</p>}
+        <div className="px-4 pt-1">
+          {loading && <p className="text-center text-sm text-muted-foreground py-10">{tr("Chargement...", "جاري التحميل...")}</p>}
+          {error && <p className="text-center text-sm text-destructive py-10">{error}</p>}
 
           {!loading && !error && (
             <>
-              <p className="text-xs font-semibold text-gray-500 px-1 mb-2.5">
+              <p className="text-[13px] font-semibold text-muted-foreground px-1 mb-3">
                 {filtered.length} {countWord}
               </p>
 
               {filtered.length === 0 ? (
-                <div className="flex flex-col items-center text-center pt-14 px-8">
-                  <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
-                    {isJobs ? <Briefcase className="w-7 h-7 text-gray-300" /> : <Search className="w-7 h-7 text-gray-300" />}
+                <div className="flex flex-col items-center text-center pt-12 px-8">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    {isJobs ? <Briefcase className="w-7 h-7 text-muted-foreground" /> : <Search className="w-7 h-7 text-muted-foreground" />}
                   </div>
-                  <p className="text-sm font-bold text-gray-700">
+                  <p className="text-sm font-bold text-foreground">
                     {isJobs
                       ? tr("Aucune demande trouvée", "لم يتم العثور على طلبات")
                       : tr("Aucune annonce trouvée", "لم يتم العثور على إعلانات")}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {tr("Essayez un autre mot ou retirez des filtres.", "جرّب كلمة أخرى أو احذف بعض المرشحات.")}
                   </p>
                   {(activeFilters > 0 || category) && (
@@ -426,7 +433,7 @@ export default function SearchPage() {
                         resetFilters();
                         setCategory("");
                       }}
-                      className="mt-4 text-sm font-semibold text-[#1B6B3A]"
+                      className="mt-4 text-sm font-bold text-primary"
                     >
                       {tr("Réinitialiser les filtres", "إعادة ضبط المرشحات")}
                     </button>
@@ -434,13 +441,13 @@ export default function SearchPage() {
                 </div>
               ) : (
                 <div
-                  className="space-y-3"
+                  className={isJobs ? "space-y-3" : "grid grid-cols-2 gap-x-3 gap-y-5"}
                   onClickCapture={() => {
                     saveRecent(query);
                   }}
                 >
                   {filtered.map((x) => (
-                    <ListingCard key={x.l.id} listing={x.l} variant="list" />
+                    <ListingCard key={x.l.id} listing={x.l} variant={isJobs ? "list" : "grid"} />
                   ))}
                 </div>
               )}
@@ -452,21 +459,17 @@ export default function SearchPage() {
       {/* Filtres */}
       {sheetOpen && (
         <div className="fixed inset-0 z-[10000] flex items-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSheetOpen(false)} />
-          <div className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-3xl px-5 pt-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[85dvh] overflow-y-auto">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
+          <div className="relative w-full max-w-[430px] mx-auto bg-card rounded-t-3xl px-5 pt-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[85dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-extrabold text-gray-900">{tr("Filtres", "المرشحات")}</h2>
-              <button onClick={() => setSheetOpen(false)} className="p-1.5 rounded-full bg-gray-100">
-                <X className="w-5 h-5 text-gray-600" />
+              <h2 className="font-display text-[20px] font-extrabold text-foreground">{tr("Filtres", "المرشحات")}</h2>
+              <button onClick={() => setSheetOpen(false)} aria-label="Fermer" className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                <X className="w-5 h-5 text-foreground" />
               </button>
             </div>
 
-            <p className="text-sm font-bold text-gray-800 mb-2">{tr("Wilaya", "الولاية")}</p>
-            <select
-              value={wilaya}
-              onChange={(e) => setWilaya(e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-3.5 py-3 text-base mb-5 focus:outline-none text-gray-800"
-            >
+            <p className="text-sm font-bold text-foreground mb-2">{tr("Wilaya", "الولاية")}</p>
+            <select value={wilaya} onChange={(e) => setWilaya(e.target.value)} className={`${fieldClass} mb-5`}>
               <option value="">{tr("Toute l'Algérie", "كل الجزائر")}</option>
               {WILAYA_OPTIONS.map((w) => (
                 <option key={w.code} value={w.name}>
@@ -477,12 +480,8 @@ export default function SearchPage() {
 
             {isJobs && (
               <>
-                <p className="text-sm font-bold text-gray-800 mb-2">{tr("Secteur", "القطاع")}</p>
-                <select
-                  value={jobSector}
-                  onChange={(e) => setJobSector(e.target.value)}
-                  className="w-full bg-gray-100 rounded-xl px-3.5 py-3 text-base mb-5 focus:outline-none text-gray-800"
-                >
+                <p className="text-sm font-bold text-foreground mb-2">{tr("Secteur", "القطاع")}</p>
+                <select value={jobSector} onChange={(e) => setJobSector(e.target.value)} className={`${fieldClass} mb-5`}>
                   <option value="">{tr("Tous les secteurs", "كل القطاعات")}</option>
                   {JOB_SECTORS.map((s) => (
                     <option key={s} value={s}>
@@ -493,7 +492,7 @@ export default function SearchPage() {
               </>
             )}
 
-            <p className="text-sm font-bold text-gray-800 mb-2">{priceLabel}</p>
+            <p className="text-sm font-bold text-foreground mb-2">{priceLabel}</p>
             <div className="flex gap-3 mb-5">
               <input
                 type="number"
@@ -501,7 +500,7 @@ export default function SearchPage() {
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)}
                 placeholder={tr("Min", "الأدنى")}
-                className="flex-1 min-w-0 bg-gray-100 rounded-xl px-3.5 py-3 text-base focus:outline-none text-gray-800"
+                className={`${fieldClass} flex-1 min-w-0`}
               />
               <input
                 type="number"
@@ -509,11 +508,11 @@ export default function SearchPage() {
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
                 placeholder={tr("Max", "الأقصى")}
-                className="flex-1 min-w-0 bg-gray-100 rounded-xl px-3.5 py-3 text-base focus:outline-none text-gray-800"
+                className={`${fieldClass} flex-1 min-w-0`}
               />
             </div>
 
-            <p className="text-sm font-bold text-gray-800 mb-2">{tr("Trier par", "ترتيب حسب")}</p>
+            <p className="text-sm font-bold text-foreground mb-2">{tr("Trier par", "ترتيب حسب")}</p>
             <div className="flex flex-wrap gap-2 mb-6">
               {[
                 { id: "relevance" as const, label: tr("Pertinence", "الأكثر صلة") },
@@ -521,28 +520,19 @@ export default function SearchPage() {
                 { id: "price_asc" as const, label: sortAsc },
                 { id: "price_desc" as const, label: sortDesc },
               ].map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSort(s.id)}
-                  className={`px-3.5 py-2 rounded-full text-[13px] font-semibold ${
-                    sort === s.id ? "bg-[#1B6B3A] text-white" : "bg-gray-100 text-gray-600"
-                  }`}
-                >
+                <button key={s.id} onClick={() => setSort(s.id)} className={chipClass(sort === s.id)}>
                   {s.label}
                 </button>
               ))}
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={resetFilters}
-                className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm"
-              >
+              <button onClick={resetFilters} className="flex-1 py-3.5 rounded-2xl bg-muted text-foreground font-semibold text-sm">
                 {tr("Réinitialiser", "إعادة ضبط")}
               </button>
               <button
                 onClick={() => setSheetOpen(false)}
-                className="flex-1 py-3.5 rounded-2xl bg-[#1B6B3A] text-white font-semibold text-sm shadow-md"
+                className="flex-1 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-md"
               >
                 {tr(
                   `Voir ${filtered.length} résultat${filtered.length > 1 ? "s" : ""}`,
