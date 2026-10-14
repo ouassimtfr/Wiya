@@ -56,16 +56,16 @@ export default function MessagesPage() {
 
   if (!user) {
     return (
-      <div className="min-h-[100dvh] bg-white flex flex-col items-center justify-center p-6 pb-28">
-        <div className="w-16 h-16 rounded-full bg-[#1B6B3A]/10 flex items-center justify-center mb-4">
-          <MessageCircle className="w-7 h-7 text-[#1B6B3A]" />
+      <div className="min-h-[100dvh] bg-card flex flex-col items-center justify-center p-6 pb-28">
+        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <MessageCircle className="w-9 h-9 text-primary" />
         </div>
-        <p className="text-gray-600 text-center text-sm">
+        <p className="text-foreground font-semibold text-center text-[15px]">
           {tr("Connectez-vous pour voir vos messages.", "سجّل دخولك لعرض رسائلك.")}
         </p>
         <button
           onClick={() => navigate("/auth")}
-          className="mt-4 px-6 py-3 bg-[#1B6B3A] text-white rounded-2xl text-sm font-semibold shadow-md active:scale-95 transition-transform"
+          className="mt-5 px-8 py-3.5 bg-primary text-primary-foreground rounded-2xl text-sm font-bold shadow-md active:scale-95 transition-transform"
         >
           {tr("Se connecter", "تسجيل الدخول")}
         </button>
@@ -74,14 +74,14 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-white pb-28">
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md pt-[calc(env(safe-area-inset-top)+14px)]">
+    <div className="min-h-[100dvh] bg-card pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      <div className="sticky top-0 z-10 bg-card pt-[calc(env(safe-area-inset-top)+14px)]">
         <div className="px-5 flex items-end justify-between">
-          <h1 className="text-[28px] leading-none font-extrabold tracking-tight text-gray-900">
+          <h1 className="font-display text-[30px] leading-none font-extrabold tracking-tight text-foreground">
             {tr("Messages", "الرسائل")}
           </h1>
           {totalUnread > 0 && (
-            <span className="text-xs font-semibold text-[#1B6B3A] bg-[#1B6B3A]/10 px-2.5 py-1 rounded-full">
+            <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">
               {isRTL
                 ? `${totalUnread} غير مقروءة`
                 : `${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`}
@@ -90,24 +90,24 @@ export default function MessagesPage() {
         </div>
 
         <div className="px-5 mt-4">
-          <div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-3.5 py-2.5">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2.5 bg-muted rounded-2xl px-4 py-3">
+            <Search className="w-5 h-5 text-foreground flex-shrink-0" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={tr("Rechercher une annonce ou une personne", "ابحث عن إعلان أو شخص")}
-              className="flex-1 bg-transparent text-base focus:outline-none placeholder:text-gray-400"
+              className="flex-1 bg-transparent text-base text-foreground focus:outline-none placeholder:text-muted-foreground min-w-0"
             />
             {query && (
-              <button onClick={() => setQuery("")} className="p-0.5">
-                <X className="w-4 h-4 text-gray-400" />
+              <button onClick={() => setQuery("")} aria-label="Effacer" className="p-0.5">
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </div>
         </div>
 
-        <div className="px-5 mt-3 flex gap-6 border-b border-gray-100">
+        <div className="px-5 mt-3 flex gap-2">
           {[
             { id: "all" as const, label: tr("Tous", "الكل") },
             { id: "unread" as const, label: tr("Non lus", "غير مقروءة") },
@@ -115,8 +115,10 @@ export default function MessagesPage() {
             <button
               key={tb.id}
               onClick={() => setTab(tb.id)}
-              className={`pb-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                tab === tb.id ? "border-[#1B6B3A] text-[#1B6B3A]" : "border-transparent text-gray-400"
+              className={`px-4 py-2 rounded-full text-[14px] transition-colors ${
+                tab === tb.id
+                  ? "bg-foreground text-background font-bold"
+                  : "bg-card ring-1 ring-border text-foreground font-medium"
               }`}
             >
               {tb.label}
@@ -126,14 +128,14 @@ export default function MessagesPage() {
       </div>
 
       {list.length === 0 ? (
-        <div className="flex flex-col items-center text-center px-10 pt-24">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#1B6B3A]/12 to-[#C8972B]/15 flex items-center justify-center mb-5">
-            <MessageCircle className="w-9 h-9 text-[#1B6B3A]" />
+        <div className="flex flex-col items-center text-center px-10 pt-20">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+            <MessageCircle className="w-9 h-9 text-primary" />
           </div>
-          <p className="text-base font-bold text-gray-800">
+          <p className="font-display text-[19px] font-extrabold text-foreground">
             {all.length === 0 ? tr("Aucune conversation", "لا توجد محادثات") : tr("Aucun résultat", "لا توجد نتائج")}
           </p>
-          <p className="text-sm text-gray-400 mt-1.5 leading-relaxed">
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
             {all.length === 0
               ? tr(
                   "Ouvrez une annonce et contactez le vendeur pour démarrer une discussion.",
@@ -143,7 +145,7 @@ export default function MessagesPage() {
           </p>
         </div>
       ) : (
-        <ul>
+        <ul className="mt-2">
           {list.map((c) => {
             const last = c.messages[c.messages.length - 1];
             const isAudio = last?.type === "audio";
@@ -156,40 +158,40 @@ export default function MessagesPage() {
               <li key={c.id}>
                 <button
                   onClick={() => navigate(`/messages/${c.id}`)}
-                  className="w-full flex items-center gap-3.5 px-5 py-3.5 text-start active:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3.5 px-5 py-3.5 text-start active:bg-muted transition-colors"
                 >
                   <div className="relative flex-shrink-0">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1B6B3A]/20 to-[#C8972B]/20 overflow-hidden flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden flex items-center justify-center">
                       {c.listingImage ? (
                         <img src={c.listingImage} alt="" className="w-14 h-14 object-cover" />
                       ) : (
-                        <MessageCircle className="w-6 h-6 text-[#1B6B3A]" />
+                        <MessageCircle className="w-6 h-6 text-primary" />
                       )}
                     </div>
-                    <span className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-[#1B6B3A] text-white text-[11px] font-bold ring-2 ring-white flex items-center justify-center">
+                    <span className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-primary text-primary-foreground text-[11px] font-bold ring-2 ring-card flex items-center justify-center">
                       {name.charAt(0).toUpperCase()}
                     </span>
                   </div>
 
-                  <div className="flex-1 min-w-0 border-b border-gray-100 pb-3.5 -mb-3.5">
+                  <div className="flex-1 min-w-0 border-b border-border pb-3.5 -mb-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={`text-[15px] truncate ${hasUnread ? "font-extrabold text-gray-900" : "font-semibold text-gray-800"}`}>
+                      <p className={`text-[15px] truncate text-foreground ${hasUnread ? "font-extrabold" : "font-semibold"}`}>
                         {name}
                       </p>
-                      <span className={`text-[11px] flex-shrink-0 ${hasUnread ? "text-[#1B6B3A] font-bold" : "text-gray-400"}`}>
+                      <span className={`text-[11px] flex-shrink-0 ${hasUnread ? "text-primary font-bold" : "text-muted-foreground"}`}>
                         {formatListTime(last?.createdAt)}
                       </span>
                     </div>
 
-                    <p className="text-[11px] font-medium text-[#8A6414] bg-[#C8972B]/12 rounded-md px-1.5 py-0.5 mt-0.5 inline-block max-w-full truncate align-top">
+                    <p className="text-[11px] font-semibold text-foreground bg-accent/25 rounded-md px-1.5 py-0.5 mt-0.5 inline-block max-w-full truncate align-top">
                       {c.listingTitle}
                     </p>
 
                     <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className={`text-sm truncate flex items-center gap-1 min-w-0 ${hasUnread ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                      <p className={`text-sm truncate flex items-center gap-1 min-w-0 ${hasUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                         {isMine &&
                           (last?.isRead ? (
-                            <CheckCheck className="w-4 h-4 text-[#1B6B3A] flex-shrink-0" />
+                            <CheckCheck className="w-4 h-4 text-primary flex-shrink-0" />
                           ) : (
                             <Check className="w-4 h-4 flex-shrink-0" />
                           ))}
@@ -197,7 +199,7 @@ export default function MessagesPage() {
                         <span className="truncate">{preview}</span>
                       </p>
                       {hasUnread && (
-                        <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#1B6B3A] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                        <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center flex-shrink-0">
                           {c.unread}
                         </span>
                       )}
