@@ -72,6 +72,11 @@ export default function Home() {
   }, []);
 
   const fetchListings = async () => {
+    // Retire d'abord les annonces expirées (60 jours) pour qu'elles n'apparaissent plus
+    try {
+      await supabase.rpc("expire_listings");
+    } catch {}
+
     const { data } = await supabase
       .from("listings")
       .select("*")
