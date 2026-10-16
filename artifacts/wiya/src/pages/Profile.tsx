@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight, Package, Heart, Settings, Languages,
-  LogOut, Bell, Sun, Moon, X, ArrowLeft,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft, RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -14,6 +14,10 @@ import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
 
 const WILAYA_OPTIONS = WILAYAS_DATA.slice().sort((a, b) => a.code - b.code);
+
+const DAY = 86400000;
+const RENEW_DAYS = 60; // durée d'une annonce
+const GRACE_DAYS = 30; // après expiration, le vendeur peut encore renouveler pendant 30 jours
 
 // Pas de photo de profil : un simple rond avec les initiales (aucun fichier envoyé, aucun espace utilisé)
 function InitialsAvatar({ name, size = 92 }: { name: string; size?: number }) {
@@ -42,7 +46,8 @@ export default function ProfilePage() {
   const { user, logout, favorites } = useStore();
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
-  const [myListings, setMyListings] = useState<any[]>([]);
+  const [allListings, setAllListings] = useState<any[]>([]);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editPhone, setEditPhone] = useState(user?.phone ?? "");
@@ -82,8 +87,15 @@ export default function ProfilePage() {
 
   const fetchMyListings = async () => {
     if (!user) return;
-    const { data } = await supabase.from("listings").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false });
-    if (data) setMyListings(data);
+    try {
+      await supabase.rpc("expire_listings");
+    } catch {}
+    const { data } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (data) setAllListings(data);
   };
 
   const handleSaveProfile = async () => {
@@ -100,6 +112,22 @@ export default function ProfilePage() {
     if (!profileError && !authError) setShowSettings(false);
   };
 
+  const renew = async (id: string) => {
+    setRenewingId(id);
+    const until = new Date(Date.now() + RENEW_DAYS * DAY).toISOString();
+    const { error } = await supabase
+      .from("listings")
+      .update({ is_active: true, expires_at: until })
+      .eq("id", id);
+    setRenewingId(null);
+    if (error) {
+      console.error("Erreur renouvellement:", error);
+      alert(tr("Erreur, réessaie.", "خطأ، حاول مرة أخرى."));
+      return;
+    }
+    fetchMyListings();
+  };
+
   if (!user) {
     return (
       <div className="bg-card min-h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]">
@@ -114,13 +142,27 @@ export default function ProfilePage() {
     );
   }
 
+  const now = Date.now();
+  const activeListings = allListings.filter((l) => l.is_active);
+  // Expirées depuis moins de 30 jours (jamais vendues) : le vendeur peut encore les renouveler
+  const expiredListings = allListings.filter((l) => {
+    if (l.is_active || l.sold_at || !l.expires_at) return false;
+    const since = now - new Date(l.expires_at).getTime();
+    return since > 0 && since < GRACE_DAYS * DAY;
+  });
+
+  const daysLeft = (l: any): number | null =>
+    l.expires_at ? Math.ceil((new Date(l.expires_at).getTime() - now) / DAY) : null;
+  const graceLeft = (l: any): number =>
+    Math.max(1, GRACE_DAYS - Math.floor((now - new Date(l.expires_at).getTime()) / DAY));
+
   const row = "w-full flex items-center gap-3 px-4 py-3.5 text-start active:bg-muted transition-colors";
   const iconBox = "w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0";
   const fieldClass =
     "w-full bg-muted rounded-2xl px-4 py-3 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/40";
 
   const menuItems = [
-    { icon: Package, label: t("myListings"), action: () => setTab("listings"), badge: myListings.length },
+    { icon: Package, label: t("myListings"), action: () => setTab("listings"), badge: activeListings.length },
     { icon: Heart, label: t("favorites"), action: () => navigate("/favorites"), badge: favorites.length },
     { icon: Bell, label: t("notifications"), action: () => navigate("/notifications"), badge: 0 },
     { icon: Settings, label: t("settings"), action: () => { setEditName(user.name); setEditPhone(user.phone); setEditWilaya(user.wilaya ?? ""); setShowSettings(true); }, badge: 0 },
@@ -138,7 +180,7 @@ export default function ProfilePage() {
 
             <div className="flex gap-3 mt-5 w-full max-w-xs">
               <button onClick={() => setTab("listings")} className="flex-1 bg-muted rounded-2xl py-3 active:scale-95 transition-transform">
-                <p className="font-display text-[22px] font-extrabold text-foreground leading-none">{myListings.length}</p>
+                <p className="font-display text-[22px] font-extrabold text-foreground leading-none">{activeListings.length}</p>
                 <p className="text-[12px] text-muted-foreground mt-1">{t("myListings")}</p>
               </button>
               <button onClick={() => navigate("/favorites")} className="flex-1 bg-muted rounded-2xl py-3 active:scale-95 transition-transform">
@@ -146,6 +188,21 @@ export default function ProfilePage() {
                 <p className="text-[12px] text-muted-foreground mt-1">{t("favorites")}</p>
               </button>
             </div>
+
+            {expiredListings.length > 0 && (
+              <button
+                onClick={() => setTab("listings")}
+                className="mt-4 w-full max-w-xs flex items-center gap-2 bg-accent/25 text-foreground rounded-2xl px-4 py-3 text-start text-[13px] font-semibold active:scale-[0.99] transition-transform"
+              >
+                <RefreshCw className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">
+                  {tr(
+                    `${expiredListings.length} annonce${expiredListings.length > 1 ? "s ont expiré" : " a expiré"} : à renouveler`,
+                    `${expiredListings.length} إعلان انتهت صلاحيته: جدّده`
+                  )}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="px-4 space-y-3">
@@ -195,21 +252,85 @@ export default function ProfilePage() {
             <h1 className="font-display text-[22px] font-extrabold text-foreground">{t("myListings")}</h1>
           </div>
 
-          <div className="px-4 pt-1">
-            {myListings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-4xl">📦</div>
-                <p className="font-display text-[18px] font-extrabold text-foreground">{t("noListingsYet")}</p>
-                <p className="text-sm text-muted-foreground">{t("postFirst")}</p>
-                <button onClick={() => navigate("/post")} className="mt-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold text-sm shadow-md active:scale-95 transition-transform">
-                  {tr("Vendre", "بيع")}
-                </button>
+          <div className="px-4 pt-1 space-y-6">
+            {/* Annonces expirées : à renouveler */}
+            {expiredListings.length > 0 && (
+              <div>
+                <h2 className="font-display text-[18px] font-extrabold text-foreground mb-1">
+                  {tr("Expirées", "المنتهية")} ({expiredListings.length})
+                </h2>
+                <p className="text-[13px] text-muted-foreground mb-3 leading-snug">
+                  {tr(
+                    "Ces annonces ne sont plus visibles. Renouvelez-les pour les remettre en ligne.",
+                    "هذه الإعلانات لم تعد ظاهرة. جدّدها لإعادتها."
+                  )}
+                </p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+                  {expiredListings.map((l) => (
+                    <div key={l.id} className="opacity-90">
+                      <ListingCard listing={l} variant="grid" />
+                      <p className="text-[12px] text-destructive font-semibold mt-1.5">
+                        {tr(`Supprimée dans ${graceLeft(l)} j`, `ستُحذف خلال ${graceLeft(l)} يوم`)}
+                      </p>
+                      <button
+                        onClick={() => renew(l.id)}
+                        disabled={renewingId === l.id}
+                        className="mt-1.5 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-60 active:scale-95 transition-transform"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${renewingId === l.id ? "animate-spin" : ""}`} />
+                        {tr(`Renouveler (${RENEW_DAYS} j)`, `تجديد (${RENEW_DAYS} يوم)`)}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Annonces en ligne */}
+            {activeListings.length === 0 ? (
+              expiredListings.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-4xl">📦</div>
+                  <p className="font-display text-[18px] font-extrabold text-foreground">{t("noListingsYet")}</p>
+                  <p className="text-sm text-muted-foreground">{t("postFirst")}</p>
+                  <button onClick={() => navigate("/post")} className="mt-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold text-sm shadow-md active:scale-95 transition-transform">
+                    {tr("Vendre", "بيع")}
+                  </button>
+                </div>
+              )
             ) : (
-              <div className="grid grid-cols-2 gap-x-3 gap-y-5">
-                {myListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} variant="grid" />
-                ))}
+              <div>
+                {expiredListings.length > 0 && (
+                  <h2 className="font-display text-[18px] font-extrabold text-foreground mb-3">
+                    {tr("En ligne", "المعروضة")} ({activeListings.length})
+                  </h2>
+                )}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+                  {activeListings.map((l) => {
+                    const left = daysLeft(l);
+                    const soon = left !== null && left <= 10;
+                    return (
+                      <div key={l.id}>
+                        <ListingCard listing={l} variant="grid" />
+                        {left !== null && (
+                          <p className={`text-[12px] mt-1.5 font-semibold ${soon ? "text-destructive" : "text-muted-foreground"}`}>
+                            {tr(`Expire dans ${Math.max(left, 0)} j`, `تنتهي خلال ${Math.max(left, 0)} يوم`)}
+                          </p>
+                        )}
+                        {soon && (
+                          <button
+                            onClick={() => renew(l.id)}
+                            disabled={renewingId === l.id}
+                            className="mt-1.5 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-accent/25 text-foreground text-[13px] font-bold disabled:opacity-60 active:scale-95 transition-transform"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${renewingId === l.id ? "animate-spin" : ""}`} />
+                            {tr(`Prolonger (+${RENEW_DAYS} j)`, `تمديد (+${RENEW_DAYS} يوم)`)}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
