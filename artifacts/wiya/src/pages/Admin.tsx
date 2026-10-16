@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw, HardDrive, Hourglass } from "lucide-react";
+import { Shield, Check, X, Clock, Zap, ChevronLeft, BarChart3, ImageIcon, RefreshCw, HardDrive, Hourglass, Flag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
 type Tab = "pending" | "active" | "ended" | "refused";
 type OrphanFile = { name: string; size_mb: number };
+type Report = { id: string; listing_id: string; reason: string; created_at: string };
 
 const DAY = 86400000;
 
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("pending");
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -62,10 +64,11 @@ export default function AdminPage() {
     if (authed) init();
   }, [authed]);
 
-  // À l'ouverture : on retire le badge « À la une » des boosts terminés, puis on charge la liste
+  // À l'ouverture : on retire les boosts et annonces expirés, puis on charge les listes
   const init = async () => {
-    await supabase.rpc("expire_boosts");
+    await Promise.all([supabase.rpc("expire_boosts"), supabase.rpc("expire_listings")]);
     fetchRequests();
+    fetchReports();
   };
 
   const fetchRequests = async () => {
@@ -80,6 +83,27 @@ export default function AdminPage() {
     }
     if (data) setRequests(data);
     setLoading(false);
+  };
+
+  const fetchReports = async () => {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Erreur chargement signalements:", error);
+      return;
+    }
+    setReports((data ?? []) as Report[]);
+  };
+
+  const dismissReport = async (id: string) => {
+    const { error } = await supabase.from("reports").delete().eq("id", id);
+    if (error) {
+      setActionError(`Suppression du signalement impossible : ${error.message}`);
+      return;
+    }
+    setReports((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleActivate = async (req: any) => {
@@ -110,10 +134,10 @@ export default function AdminPage() {
       return;
     }
 
-    // 2. On passe la demande en "active" et on garde la date d'activation
+    // 2. On passe la demande en "active", on garde la date d'activation et on efface le reçu (libère l'espace)
     const { data: reqRows, error: reqError } = await supabase
       .from("boost_requests")
-      .update({ status: "active", activated_at: now.toISOString() })
+      .update({ status: "active", activated_at: now.toISOString(), receipt_image: null })
       .eq("id", req.id)
       .select("id, status");
 
@@ -141,7 +165,7 @@ export default function AdminPage() {
 
     const { data: rows, error } = await supabase
       .from("boost_requests")
-      .update({ status: "refused" })
+      .update({ status: "refused", receipt_image: null })
       .eq("id", req.id)
       .select("id, status");
 
@@ -303,6 +327,43 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ─── Signalements des annonces ─── */}
+      {reports.length > 0 && (
+        <div className="mx-4 mt-3 bg-[#0f2818] border border-red-500/20 rounded-3xl p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-red-500/15 flex items-center justify-center flex-shrink-0">
+              <Flag className="w-5 h-5 text-red-300" />
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-bold text-sm">Signalements</p>
+              <p className="text-white/40 text-xs">{reports.length} annonce{reports.length > 1 ? "s" : ""} signalée{reports.length > 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {reports.map((r) => (
+              <div key={r.id} className="bg-white/5 rounded-2xl p-3">
+                <p className="text-white text-sm font-semibold">{r.reason}</p>
+                <p className="text-white/30 text-[11px] mt-0.5">{new Date(r.created_at).toLocaleDateString("fr-FR")}</p>
+                <div className="flex gap-2 mt-2.5">
+                  <button
+                    onClick={() => navigate(`/listing/${r.listing_id}`)}
+                    className="flex-1 py-2 bg-white/10 text-white rounded-xl text-xs font-bold"
+                  >
+                    Voir l'annonce
+                  </button>
+                  <button
+                    onClick={() => dismissReport(r.id)}
+                    className="flex-1 py-2 bg-green-900/40 text-green-300 rounded-xl text-xs font-bold"
+                  >
+                    Traité
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ─── Stockage : libérer l'espace des fichiers inutilisés ─── */}
       <div className="mx-4 mt-3 bg-[#0f2818] border border-white/5 rounded-3xl p-4">
         <div className="flex items-center gap-3">
@@ -311,7 +372,7 @@ export default function AdminPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm">Stockage</p>
-            <p className="text-white/40 text-xs">Fichiers d'annonces supprimées</p>
+            <p className="text-white/40 text-xs">Fichiers d'annonces supprimées ou expirées</p>
           </div>
           <button
             onClick={scanOrphans}
@@ -394,7 +455,9 @@ export default function AdminPage() {
                   ) : (
                     <div className="w-full h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center gap-2">
                       <ImageIcon className="w-4 h-4 text-white/20" />
-                      <p className="text-white/20 text-xs">Aucun reçu</p>
+                      <p className="text-white/20 text-xs">
+                        {req.status === "pending" ? "Aucun reçu" : "Reçu effacé pour libérer l'espace"}
+                      </p>
                     </div>
                   )}
                 </div>
