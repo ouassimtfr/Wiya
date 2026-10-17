@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { MessageCircle, Mic, Search, X, Check, CheckCheck } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/lib/supabase";
 
 export default function MessagesPage() {
   const [, navigate] = useLocation();
@@ -16,6 +17,30 @@ export default function MessagesPage() {
   useEffect(() => {
     if (user) fetchConversations();
   }, [user, fetchConversations]);
+
+  // MESSAGES EN DIRECT : la liste se met à jour dès qu'un message arrive
+  // (rafraîchissement toutes les 15 secondes en filet de sécurité)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("messages-list")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${user.id}` },
+        () => fetchConversations()
+      )
+      .subscribe();
+
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") fetchConversations();
+    }, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(timer);
+    };
+  }, [user?.id, fetchConversations]);
 
   const formatListTime = (iso?: string): string => {
     if (!iso) return "";
