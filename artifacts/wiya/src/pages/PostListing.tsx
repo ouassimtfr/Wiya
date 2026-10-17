@@ -3,9 +3,10 @@ import { useLocation } from "wouter";
 import { ChevronLeft, ChevronDown, Camera, X, Loader2, Briefcase, Sparkles, Video } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
-import { compressImages, enhanceImage } from "@/lib/imageCompress";
+import { compressImage, compressImages, enhanceImage } from "@/lib/imageCompress";
 
 const MAX_VIDEO_MB = 45; // le plan gratuit Supabase refuse les fichiers de plus de 50 Mo
 const MAX_VIDEO_SEC = 30;
@@ -225,15 +226,33 @@ export default function PostListingPage() {
       setProgress
     );
 
-    setSubmitting(false);
-
     if (error || !id) {
+      setSubmitting(false);
       setErrorMsg(
         `${tr("Erreur lors de la publication", "خطأ أثناء النشر")} : ${error ?? tr("inconnue", "غير معروف")}`
       );
       return;
     }
 
+    // Petite version de la première photo pour l'accueil : charge vite et économise les données.
+    // Si cette étape échoue, l'annonce fonctionne quand même avec la grande photo.
+    try {
+      if (images[0]) {
+        const thumb = await compressImage(images[0], 560, 0.72);
+        const path = `${user.id}/${Date.now()}-thumb.jpg`;
+        const { error: upErr } = await supabase.storage
+          .from("listings")
+          .upload(path, thumb, { contentType: "image/jpeg" });
+        if (!upErr) {
+          const { data } = supabase.storage.from("listings").getPublicUrl(path);
+          await supabase.from("listings").update({ thumb_url: data.publicUrl }).eq("id", id);
+        }
+      }
+    } catch (err) {
+      console.error("Petite photo non créée :", err);
+    }
+
+    setSubmitting(false);
     navigate(`/listing/${id}`);
   };
 
