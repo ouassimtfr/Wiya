@@ -34,11 +34,14 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   // Chargement progressif : fond animé tant que la photo n'est pas arrivée, puis fondu.
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Les cartes utilisent la petite version de la photo (plus rapide, moins de données) ;
+  // si elle n'existe pas ou ne charge pas, on retombe sur la grande photo.
+  const [thumbFailed, setThumbFailed] = useState(false);
 
   const isJob = listing.category === "jobs";
   const title = listing.title ?? tr("Sans titre", "بدون عنوان");
   const images: string[] = Array.isArray(listing.images) ? listing.images : [];
-  const image = images[0] ?? "";
+  const image = (!thumbFailed && listing.thumb_url) || images[0] || "";
   const photoCount = images.length;
   const hasVideo = !!listing.video_url;
   const price = listing.price ?? 0;
@@ -89,6 +92,7 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
       <>
         {!loaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
         <img
+          key={image}
           src={image}
           alt={title}
           loading="lazy"
@@ -98,7 +102,10 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
             if (el && !loaded && el.complete && el.naturalWidth > 0) setLoaded(true);
           }}
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onError={() => {
+            if (listing.thumb_url && !thumbFailed && images[0]) setThumbFailed(true);
+            else setFailed(true);
+          }}
           className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
         />
       </>
