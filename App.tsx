@@ -16,6 +16,8 @@ import ChatPage from "@/pages/Chat";
 import FavoritesPage from "@/pages/Favorites";
 import ProfilePage from "@/pages/Profile";
 import AuthPage from "@/pages/Auth";
+import ResetPasswordPage from "@/pages/ResetPassword";
+import LegalPage from "@/pages/Legal";
 import PostListingPage from "@/pages/PostListing";
 import SellerProfilePage from "@/pages/SellerProfile";
 import BoostPage from "@/pages/Boost";
@@ -38,6 +40,8 @@ function AppShell() {
         <Route path="/favorites" component={FavoritesPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/auth" component={AuthPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route path="/legal/:page" component={LegalPage} />
         <Route path="/post" component={PostListingPage} />
         <Route path="/seller/:id" component={SellerProfilePage} />
         <Route path="/boost/:id" component={BoostPage} />
@@ -47,10 +51,11 @@ function AppShell() {
         <Route component={NotFound} />
       </Switch>
 
-      {/* Barre du bas cachée sur : connexion, chat, carte, admin et page d'une annonce
+      {/* Barre du bas cachée sur : connexion, nouveau mot de passe, chat, carte, admin et page d'une annonce
           (la page d'annonce a sa propre barre Appeler / WhatsApp / Message) */}
       <Switch>
         <Route path="/auth" component={() => null} />
+        <Route path="/reset-password" component={() => null} />
         <Route path="/messages/:id" component={() => null} />
         <Route path="/listing/:id" component={() => null} />
         <Route path="/map" component={() => null} />
