@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Mic, Play, Pause, X, MessageCircle, Check, CheckCheck 
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/lib/supabase";
 import ImageLightbox from "@/components/ImageLightbox";
 
 const QUICK_REPLIES_FR = [
@@ -176,6 +177,34 @@ export default function ChatPage() {
     };
   }, [conversationId, fetchMessages]);
 
+  // MESSAGES EN DIRECT : un nouveau message de l'autre personne apparaît tout seul.
+  // Un rafraîchissement toutes les 10 secondes sert de filet de sécurité si la connexion directe coupe.
+  useEffect(() => {
+    if (!user || !conversationId) return;
+    const listingId = conversationId.split("__")[0];
+
+    const channel = supabase
+      .channel(`chat-${conversationId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${user.id}` },
+        (payload) => {
+          const m: any = payload.new;
+          if (String(m.listing_id) === listingId) fetchMessages(conversationId);
+        }
+      )
+      .subscribe();
+
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") fetchMessages(conversationId);
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(timer);
+    };
+  }, [user?.id, conversationId, fetchMessages]);
+
   // CORRECTIF CLAVIER iOS : on suit la vraie zone visible (visualViewport),
   // qui se réduit quand le clavier s'ouvre, contrairement à 100dvh sur iOS.
   useEffect(() => {
@@ -197,9 +226,11 @@ export default function ChatPage() {
   const conversation = conversations.find((c) => c.id === conversationId);
   const messages = (conversation?.messages ?? []) as any[];
 
+  // On descend en bas seulement quand le NOMBRE de messages change (nouveau message, envoi)
+  // ou quand le clavier s'ouvre. Les rafraîchissements automatiques ne déplacent plus la page.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages, viewport?.height]);
+  }, [messages.length, viewport?.height]);
 
   useEffect(() => {
     return () => {
