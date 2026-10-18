@@ -6,14 +6,29 @@ import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
 type Tab = "pending" | "active" | "ended" | "refused";
+type Section = "boosts" | "subs";
 type OrphanFile = { name: string; size_mb: number };
 type Report = { id: string; listing_id: string; reason: string; created_at: string };
 
 const DAY = 86400000;
 
-// Un boost dure `days` jours à partir de son activation (à défaut : de la date de la demande)
-const endsAt = (r: any) => new Date(r.activated_at ?? r.submitted_at).getTime() + Number(r.days || 0) * DAY;
+// Un boost dure `days` jours à partir de son activation (à défaut : de la date de la demande).
+// Un abonnement a directement sa date de fin (`_ends`).
+const endsAt = (r: any) =>
+  r._ends
+    ? new Date(r._ends).getTime()
+    : new Date(r.activated_at ?? r.submitted_at).getTime() + Number(r.days || 0) * DAY;
 const isEnded = (r: any) => r.status === "active" && endsAt(r) < Date.now();
+
+// Un abonnement est présenté avec la même carte qu'un boost
+const mapSub = (s: any) => ({
+  ...s,
+  _sub: true,
+  _ends: s.ends_at,
+  listing_title: `Abonnement · ${s.plan_label}`,
+  listing_image: null,
+  type: "premium",
+});
 
 export default function AdminPage() {
   const [, navigate] = useLocation();
@@ -21,9 +36,11 @@ export default function AdminPage() {
 
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [section, setSection] = useState<Section>("boosts");
   const [tab, setTab] = useState<Tab>("pending");
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
+  const [subs, setSubs] = useState<any[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -68,6 +85,7 @@ export default function AdminPage() {
   const init = async () => {
     await Promise.all([supabase.rpc("expire_boosts"), supabase.rpc("expire_listings")]);
     fetchRequests();
+    fetchSubs();
     fetchReports();
   };
 
@@ -83,6 +101,19 @@ export default function AdminPage() {
     }
     if (data) setRequests(data);
     setLoading(false);
+  };
+
+  const fetchSubs = async () => {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .order("submitted_at", { ascending: false });
+    if (error) {
+      console.error("Erreur chargement abonnements:", error);
+      setActionError(`Chargement des abonnements impossible : ${error.message}`);
+      return;
+    }
+    setSubs((data ?? []).map(mapSub));
   };
 
   const fetchReports = async () => {
@@ -106,7 +137,85 @@ export default function AdminPage() {
     setReports((prev) => prev.filter((r) => r.id !== id));
   };
 
+  // ─── Abonnements ───
+  const handleActivateSub = async (req: any) => {
+    setActionError("");
+    setBusyId(req.id);
+    const now = new Date();
+
+    // Si la personne a déjà un abonnement actif, la nouvelle durée s'ajoute à la fin de l'actuel
+    const { data: existing } = await supabase
+      .from("subscriptions")
+      .select("ends_at")
+      .eq("user_id", req.user_id)
+      .eq("status", "active");
+    let start = now.getTime();
+    (existing ?? []).forEach((r: any) => {
+      const e = r.ends_at ? new Date(r.ends_at).getTime() : 0;
+      if (e > start) start = e;
+    });
+    const ends = new Date(start + Number(req.days || 0) * DAY).toISOString();
+
+    const { data: rows, error } = await supabase
+      .from("subscriptions")
+      .update({ status: "active", activated_at: now.toISOString(), ends_at: ends, receipt_image: null })
+      .eq("id", req.id)
+      .select("id, status");
+
+    if (error) {
+      console.error("Erreur activation abonnement:", error);
+      setActionError(`Activation impossible : ${error.message}`);
+      setBusyId(null);
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      setActionError("L'abonnement n'a pas été modifié (droits insuffisants sur subscriptions).");
+      setBusyId(null);
+      return;
+    }
+
+    // Boost automatique sur toutes les annonces en ligne de cette personne
+    const { error: boostErr } = await supabase
+      .from("listings")
+      .update({ is_boosted: true, boost_until: ends })
+      .eq("user_id", req.user_id)
+      .eq("is_active", true);
+    if (boostErr) {
+      console.error("Erreur boost auto:", boostErr);
+      setActionError(`Abonnement activé, mais boost des annonces impossible : ${boostErr.message}`);
+    }
+
+    setBusyId(null);
+    fetchSubs();
+  };
+
+  const handleRefuseSub = async (req: any) => {
+    setActionError("");
+    setBusyId(req.id);
+    const { data: rows, error } = await supabase
+      .from("subscriptions")
+      .update({ status: "refused", receipt_image: null })
+      .eq("id", req.id)
+      .select("id, status");
+
+    if (error) {
+      setActionError(`Refus impossible : ${error.message}`);
+      setBusyId(null);
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      setActionError("La demande n'a pas été modifiée (droits insuffisants sur subscriptions).");
+      setBusyId(null);
+      return;
+    }
+    setBusyId(null);
+    fetchSubs();
+  };
+
+  // ─── Boosts ───
   const handleActivate = async (req: any) => {
+    if (req._sub) return handleActivateSub(req);
+
     setActionError("");
     setBusyId(req.id);
     const listingId = String(req.listing_id).trim();
@@ -160,6 +269,8 @@ export default function AdminPage() {
   };
 
   const handleRefuse = async (req: any) => {
+    if (req._sub) return handleRefuseSub(req);
+
     setActionError("");
     setBusyId(req.id);
 
@@ -240,12 +351,16 @@ export default function AdminPage() {
     );
   };
 
-  const pending = requests.filter((r) => r.status === "pending");
-  const active  = requests.filter((r) => r.status === "active" && !isEnded(r));
-  const ended   = requests.filter((r) => isEnded(r));
-  const refused = requests.filter((r) => r.status === "refused");
+  const source = section === "boosts" ? requests : subs;
+  const pending = source.filter((r) => r.status === "pending");
+  const active  = source.filter((r) => r.status === "active" && !isEnded(r));
+  const ended   = source.filter((r) => isEnded(r));
+  const refused = source.filter((r) => r.status === "refused");
   const current =
     tab === "pending" ? pending : tab === "active" ? active : tab === "ended" ? ended : refused;
+
+  const pendingBoosts = requests.filter((r) => r.status === "pending").length;
+  const pendingSubs = subs.filter((r) => r.status === "pending").length;
 
   const daysLeft = (r: any) => Math.max(1, Math.ceil((endsAt(r) - Date.now()) / DAY));
   const fmtDate = (ts: number) => new Date(ts).toLocaleDateString("fr-FR");
@@ -318,6 +433,27 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ─── Choix : Boosts ou Abonnements ─── */}
+      <div className="mx-4 mt-3 flex bg-[#0f2818] border border-white/5 rounded-2xl p-1">
+        {([
+          { id: "boosts" as Section, label: "Boosts", count: pendingBoosts },
+          { id: "subs" as Section, label: "Abonnements", count: pendingSubs },
+        ]).map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { setSection(s.id); setTab("pending"); }}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              section === s.id ? "bg-[#1B6B3A] text-white" : "text-white/40"
+            }`}
+          >
+            {s.label}
+            {s.count > 0 && (
+              <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[#C8972B] text-white">{s.count}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       {actionError && (
@@ -477,7 +613,7 @@ export default function AdminPage() {
                     <div className="py-3 bg-green-900/30 border border-green-500/20 rounded-2xl text-center">
                       <p className="text-green-300 text-xs font-bold flex items-center justify-center gap-1.5">
                         <Zap className="w-3.5 h-3.5 fill-green-300" />
-                        Boost actif · encore {daysLeft(req)} j (fin le {fmtDate(endsAt(req))})
+                        {req._sub ? "Abonnement actif" : "Boost actif"} · encore {daysLeft(req)} j (fin le {fmtDate(endsAt(req))})
                       </p>
                     </div>
                   </div>
@@ -487,7 +623,7 @@ export default function AdminPage() {
                     <div className="py-3 bg-sky-900/20 border border-sky-500/20 rounded-2xl text-center">
                       <p className="text-sky-300 text-xs font-bold flex items-center justify-center gap-1.5">
                         <Hourglass className="w-3.5 h-3.5" />
-                        Boost terminé le {fmtDate(endsAt(req))}
+                        {req._sub ? "Abonnement terminé" : "Boost terminé"} le {fmtDate(endsAt(req))}
                       </p>
                     </div>
                   </div>
