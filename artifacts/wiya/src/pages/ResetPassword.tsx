@@ -11,6 +11,7 @@ export default function ResetPasswordPage() {
 
   const [ready, setReady] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [linkError, setLinkError] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -18,20 +19,86 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Le lien reçu par email ouvre cette page : Supabase crée une session de récupération
+  // Le lien reçu par email ouvre cette page. Selon la configuration, il contient un « code »,
+  // un « token_hash » ou des jetons dans l'adresse : on gère les trois, puis on vérifie la session.
   useEffect(() => {
+    let cancelled = false;
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
+      if (event === "PASSWORD_RECOVERY" && !cancelled) {
+        setReady(true);
+        setChecked(true);
+      }
     });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-    const timer = setTimeout(() => setChecked(true), 2500);
+
+    const run = async () => {
+      const urlError = hashParams.get("error_description") || queryParams.get("error_description");
+      if (urlError) {
+        if (!cancelled) {
+          setLinkError(urlError.replace(/\+/g, " "));
+          setChecked(true);
+        }
+        return;
+      }
+
+      try {
+        const code = queryParams.get("code");
+        const tokenHash = queryParams.get("token_hash");
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+          if (error) throw error;
+        } else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        }
+      } catch (err: any) {
+        // Le client a peut-être déjà traité le lien tout seul : on vérifie la session juste après
+        console.error("Lien de récupération :", err);
+        if (!cancelled && err?.message) setLinkError(err.message);
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        setReady(true);
+        setLinkError("");
+      }
+      setChecked(true);
+      // Efface les jetons de la barre d'adresse
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {}
+    };
+
+    run();
+
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
+
+  const translateError = (message: string): string => {
+    const m = message.toLowerCase();
+    if (m.includes("different from the old"))
+      return tr("Choisissez un mot de passe différent de l'ancien.", "اختر كلمة مرور مختلفة عن القديمة.");
+    if (m.includes("at least"))
+      return tr("Le mot de passe doit contenir au moins 6 caractères.", "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.");
+    if (m.includes("session"))
+      return tr("Le lien a expiré. Demandez-en un nouveau.", "انتهت صلاحية الرابط. اطلب رابطا جديدا.");
+    return message;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +115,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(translateError(error.message));
       return;
     }
     setDone(true);
@@ -118,14 +185,20 @@ export default function ResetPasswordPage() {
           <p className="font-display text-[20px] font-extrabold text-foreground">
             {tr("Lien invalide ou expiré", "الرابط غير صالح أو منتهي")}
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {tr("Demandez un nouveau lien depuis la page de connexion.", "اطلب رابطا جديدا من صفحة تسجيل الدخول.")}
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            {tr(
+              "Un lien ne marche qu'une seule fois. Demandez-en un nouveau et ouvrez-le dans le même navigateur (Safari ou Chrome) que celui où vous avez fait la demande.",
+              "الرابط يعمل مرة واحدة فقط. اطلب رابطا جديدا وافتحه في نفس المتصفح (Safari أو Chrome) الذي طلبته منه."
+            )}
           </p>
+          {linkError && (
+            <p className="text-[11px] text-muted-foreground/70 mt-3 break-words" dir="ltr">{linkError}</p>
+          )}
           <button
             onClick={() => navigate("/auth")}
             className="mt-5 px-8 py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold text-sm"
           >
-            {tr("Retour à la connexion", "العودة إلى تسجيل الدخول")}
+            {tr("Demander un nouveau lien", "طلب رابط جديد")}
           </button>
         </div>
       ) : (
