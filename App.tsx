@@ -23,6 +23,7 @@ import LegalPage from "@/pages/Legal";
 import PostListingPage from "@/pages/PostListing";
 import SellerProfilePage from "@/pages/SellerProfile";
 import BoostPage from "@/pages/Boost";
+import SubscribePage from "@/pages/Subscribe";
 import MapPage from "@/pages/MapPage";
 import NotificationsPage from "@/pages/Notifications";
 import AdminPage from "@/pages/Admin";
@@ -47,6 +48,7 @@ function AppShell() {
         <Route path="/post" component={PostListingPage} />
         <Route path="/seller/:id" component={SellerProfilePage} />
         <Route path="/boost/:id" component={BoostPage} />
+        <Route path="/subscribe" component={SubscribePage} />
         <Route path="/map" component={MapPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/admin" component={AdminPage} />
