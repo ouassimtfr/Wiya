@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +7,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
 import { NotificationsProvider } from "@/lib/notifications";
 import { ThemeProvider } from "@/lib/theme";
+import { supabase } from "@/lib/supabase";
 import NotificationToast from "@/components/NotificationToast";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
@@ -69,6 +71,24 @@ function AppShell() {
 }
 
 function App() {
+  // Un lien « mot de passe oublié » qui arrive sur une autre page (ex. l'accueil) est redirigé
+  // vers la page du nouveau mot de passe, avec ses jetons.
+  useEffect(() => {
+    const { hash, search, pathname } = window.location;
+    const isRecovery = hash.includes("type=recovery") || search.includes("type=recovery");
+    if (isRecovery && !pathname.endsWith("/reset-password")) {
+      window.location.replace(`/reset-password${search}${hash}`);
+      return;
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" && !window.location.pathname.endsWith("/reset-password")) {
+        window.location.replace("/reset-password");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
