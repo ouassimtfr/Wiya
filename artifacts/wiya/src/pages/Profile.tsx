@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight, Package, Heart, Settings, Languages,
-  LogOut, Bell, Sun, Moon, X, ArrowLeft, RefreshCw,
+  LogOut, Bell, Sun, Moon, X, ArrowLeft, RefreshCw, Crown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
+import { useSubscription } from "@/lib/subscription";
 import { WILAYAS_DATA } from "@/lib/wilayas";
 import ListingCard from "@/components/ListingCard";
 import AppHeader from "@/components/AppHeader";
@@ -44,6 +45,7 @@ export default function ProfilePage() {
   const { t, isRTL, lang, setLang } = useI18n();
   const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { user, logout, favorites } = useStore();
+  const sub = useSubscription(user?.id);
   const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"profile" | "listings">("profile");
   const [allListings, setAllListings] = useState<any[]>([]);
@@ -168,6 +170,16 @@ export default function ProfilePage() {
     { icon: Settings, label: t("settings"), action: () => { setEditName(user.name); setEditPhone(user.phone); setEditWilaya(user.wilaya ?? ""); setShowSettings(true); }, badge: 0 },
   ];
 
+  const subSubtitle =
+    sub.active && sub.endsAt
+      ? tr(
+          `Actif jusqu'au ${new Date(sub.endsAt).toLocaleDateString("fr-FR")}`,
+          `فعّال حتى ${new Date(sub.endsAt).toLocaleDateString("fr-FR")}`
+        )
+      : sub.pending
+      ? tr("Demande en cours de vérification", "الطلب قيد التحقق")
+      : tr("Vidéo, Boost automatique, 12 photos et plus", "فيديو وتعزيز تلقائي و12 صورة والمزيد");
+
   return (
     <div className="bg-card min-h-[100dvh] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {tab === "profile" ? (
@@ -177,6 +189,12 @@ export default function ProfilePage() {
             <InitialsAvatar name={user.name} />
             <h1 className="font-display text-[24px] font-extrabold text-foreground mt-4 leading-tight">{user.name}</h1>
             {user.email && <p className="text-[13px] text-muted-foreground mt-0.5" dir="ltr">{user.email}</p>}
+            {sub.active && (
+              <span className="mt-2 inline-flex items-center gap-1 bg-[#C8972B]/15 text-[#C8972B] text-[12px] font-bold px-3 py-1 rounded-full">
+                <Crown className="w-3.5 h-3.5" />
+                {tr("Vendeur Pro", "بائع محترف")}
+              </span>
+            )}
 
             <div className="flex gap-3 mt-5 w-full max-w-xs">
               <button onClick={() => setTab("listings")} className="flex-1 bg-muted rounded-2xl py-3 active:scale-95 transition-transform">
@@ -206,6 +224,23 @@ export default function ProfilePage() {
           </div>
 
           <div className="px-4 space-y-3">
+            {/* ─── Mon abonnement ─── */}
+            <button
+              onClick={() => navigate("/subscribe")}
+              className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 text-start active:scale-[0.99] transition-transform ${
+                sub.active ? "bg-[#C8972B]/15 ring-1 ring-[#C8972B]/40" : "bg-primary/10 ring-1 ring-primary/20"
+              }`}
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#C8972B]/20 flex items-center justify-center flex-shrink-0">
+                <Crown className="w-[18px] h-[18px] text-[#C8972B]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-bold text-foreground">{tr("Mon abonnement", "اشتراكي")}</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5">{subSubtitle}</p>
+              </div>
+              <ChevronRight className={`w-4 h-4 text-muted-foreground ${isRTL ? "rotate-180" : ""}`} />
+            </button>
+
             <div className="rounded-2xl ring-1 ring-border overflow-hidden divide-y divide-border">
               {menuItems.map((item) => (
                 <button key={item.label} onClick={item.action} className={row}>
