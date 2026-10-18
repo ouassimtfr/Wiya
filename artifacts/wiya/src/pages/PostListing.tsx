@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronDown, Camera, X, Loader2, Briefcase, Sparkles, Video } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Camera, X, Loader2, Briefcase, Sparkles, Video, Crown } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { useSubscription } from "@/lib/subscription";
 import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
 import { compressImage, compressImages, enhanceImage } from "@/lib/imageCompress";
 
 const MAX_VIDEO_MB = 45; // le plan gratuit Supabase refuse les fichiers de plus de 50 Mo
 const MAX_VIDEO_SEC = 30;
+const FREE_PHOTOS = 6;
+const PRO_PHOTOS = 12;
 
 const JOB_SECTORS = [
   "Informatique",
@@ -46,6 +49,8 @@ export default function PostListingPage() {
   const { t, isRTL } = useI18n();
   const tr = (fr: string, ar: string) => (isRTL ? ar : fr);
   const { user, createListing } = useStore();
+  const sub = useSubscription(user?.id);
+  const MAX_PHOTOS = sub.active ? PRO_PHOTOS : FREE_PHOTOS;
 
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -88,7 +93,7 @@ export default function PostListingPage() {
     e.target.value = "";
     if (files.length === 0) return;
 
-    const room = Math.max(0, 6 - images.length);
+    const room = Math.max(0, MAX_PHOTOS - images.length);
     const picked = files.slice(0, room);
     if (picked.length === 0) return;
 
@@ -96,10 +101,10 @@ export default function PostListingPage() {
     const compressed = await compressImages(picked, 1280, 0.82);
     setCompressing(false);
 
-    setImages((prev) => [...prev, ...compressed].slice(0, 6));
-    setOriginals((prev) => [...prev, ...compressed.map(() => null)].slice(0, 6));
+    setImages((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS));
+    setOriginals((prev) => [...prev, ...compressed.map(() => null)].slice(0, MAX_PHOTOS));
     setPreviews((prev) =>
-      [...prev, ...compressed.map((f) => URL.createObjectURL(f))].slice(0, 6)
+      [...prev, ...compressed.map((f) => URL.createObjectURL(f))].slice(0, MAX_PHOTOS)
     );
   };
 
@@ -204,6 +209,13 @@ export default function PostListingPage() {
     if (!wilaya) return setErrorMsg(tr("Choisis une wilaya.", "اختر الولاية."));
     if (!description.trim()) return setErrorMsg(tr("La description est obligatoire.", "الوصف إجباري."));
 
+    // La vidéo est réservée aux abonnés
+    if (video && !sub.active) {
+      return setErrorMsg(
+        tr("La vidéo est réservée aux abonnés.", "الفيديو مخصص للمشتركين فقط.")
+      );
+    }
+
     setSubmitting(true);
     setProgress(0);
 
@@ -219,8 +231,8 @@ export default function PostListingPage() {
         contactPhone: phone.trim(),
         isNegotiable,
         isUrgent,
-        images,
-        video,
+        images: images.slice(0, MAX_PHOTOS),
+        video: sub.active ? video : null,
         ...(isJobs ? { jobKind: "seeking" as const, jobSector } : {}),
       },
       setProgress
@@ -232,6 +244,19 @@ export default function PostListingPage() {
         `${tr("Erreur lors de la publication", "خطأ أثناء النشر")} : ${error ?? tr("inconnue", "غير معروف")}`
       );
       return;
+    }
+
+    // Abonné : l'annonce est boostée automatiquement jusqu'à la fin de l'abonnement
+    if (sub.active && sub.endsAt) {
+      try {
+        const { error: boostErr } = await supabase
+          .from("listings")
+          .update({ is_boosted: true, boost_until: sub.endsAt })
+          .eq("id", id);
+        if (boostErr) console.error("Boost automatique non appliqué :", boostErr);
+      } catch (err) {
+        console.error("Boost automatique non appliqué :", err);
+      }
     }
 
     // Petite version de la première photo pour l'accueil : charge vite et économise les données.
@@ -271,6 +296,15 @@ export default function PostListingPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+        {sub.active && (
+          <div className="flex items-center gap-2 rounded-2xl bg-[#C8972B]/10 border border-[#C8972B]/30 px-3.5 py-2.5">
+            <Crown className="w-4 h-4 text-[#C8972B] flex-shrink-0" />
+            <p className="text-[13px] font-bold text-[#C8972B]">
+              {tr("Abonné : vidéo, 12 photos et Boost automatique", "مشترك: فيديو و12 صورة وتعزيز تلقائي")}
+            </p>
+          </div>
+        )}
+
         {/* ─── Catégorie : grand sélecteur ─── */}
         <div>
           <p className={labelClass}>{tr("Catégorie", "الفئة")}</p>
@@ -327,13 +361,13 @@ export default function PostListingPage() {
             {isJobs
               ? tr("Vous pouvez ajouter une photo (facultatif).", "يمكنك إضافة صورة (اختياري).")
               : tr(
-                  `Ajoutez jusqu'à 6 photos et 1 vidéo de ${MAX_VIDEO_SEC} secondes. De belles photos et une vidéo rassurent l'acheteur.`,
-                  `أضف حتى 6 صور وفيديو واحد مدته ${MAX_VIDEO_SEC} ثانية. الصور الجميلة والفيديو يطمئنان المشتري.`
+                  `Ajoutez jusqu'à ${MAX_PHOTOS} photos. De belles photos rassurent l'acheteur.`,
+                  `أضف حتى ${MAX_PHOTOS} صورة. الصور الجميلة تطمئن المشتري.`
                 )}
           </p>
 
           <p className={`${labelClass} mt-3`}>
-            {tr("Photos", "الصور")} ({images.length}/6)
+            {tr("Photos", "الصور")} ({images.length}/{MAX_PHOTOS})
           </p>
           <div className="flex gap-2 flex-wrap">
             {previews.map((src, i) => (
@@ -374,7 +408,7 @@ export default function PostListingPage() {
                 <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
               </div>
             )}
-            {images.length < 6 && !compressing && (
+            {images.length < MAX_PHOTOS && !compressing && (
               <label className="w-24 h-24 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
                 <Camera className="w-5 h-5 text-gray-400" />
                 <span className="text-[11px] text-gray-400 mt-1">{tr("Ajouter", "إضافة")}</span>
@@ -390,12 +424,21 @@ export default function PostListingPage() {
               )}
             </p>
           )}
+          {!sub.active && !sub.loading && !isJobs && images.length >= FREE_PHOTOS && (
+            <button
+              type="button"
+              onClick={() => navigate("/subscribe")}
+              className="mt-2 text-[12px] font-bold text-[#C8972B]"
+            >
+              {tr("👑 Abonnés : jusqu'à 12 photos", "👑 للمشتركين: حتى 12 صورة")}
+            </button>
+          )}
 
-          {/* Vidéo */}
+          {/* Vidéo : réservée aux abonnés */}
           {!isJobs && (
             <>
               <p className={`${labelClass} mt-4`}>
-                {tr(`Vidéo (facultatif, ${MAX_VIDEO_SEC} s max)`, `فيديو (اختياري، ${MAX_VIDEO_SEC} ثانية كحد أقصى)`)}
+                {tr(`Vidéo (abonnés, ${MAX_VIDEO_SEC} s max)`, `فيديو (للمشتركين، ${MAX_VIDEO_SEC} ثانية كحد أقصى)`)}
               </p>
               {videoPreview ? (
                 <div className="relative rounded-2xl overflow-hidden bg-black">
@@ -408,7 +451,9 @@ export default function PostListingPage() {
                     <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
-              ) : (
+              ) : sub.loading ? (
+                <div className="h-16 rounded-2xl bg-gray-50 animate-pulse" />
+              ) : sub.active ? (
                 <div className="grid grid-cols-2 gap-2">
                   {/* Choisir une vidéo déjà enregistrée sur le téléphone */}
                   <label className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 text-[13px] font-semibold text-gray-600 cursor-pointer text-center">
@@ -423,6 +468,28 @@ export default function PostListingPage() {
                     <input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleAddVideo} />
                   </label>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate("/subscribe")}
+                  className="w-full flex items-center gap-3 rounded-2xl bg-[#C8972B]/10 border border-[#C8972B]/30 p-3.5 text-start active:scale-[0.99] transition-transform"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-[#C8972B]/20 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-5 h-5 text-[#C8972B]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-bold text-gray-900">
+                      {tr("Vidéo réservée aux abonnés", "الفيديو مخصص للمشتركين")}
+                    </p>
+                    <p className="text-[12px] text-gray-500 leading-snug mt-0.5">
+                      {tr(
+                        "Abonnez-vous : vidéo de 30 s, 12 photos et Boost automatique.",
+                        "اشترك: فيديو 30 ثانية و12 صورة وتعزيز تلقائي."
+                      )}
+                    </p>
+                  </div>
+                  <ChevronRight className={`w-5 h-5 text-[#C8972B] flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
+                </button>
               )}
               {videoError && <p className="text-xs text-red-500 font-medium mt-2">{videoError}</p>}
             </>
