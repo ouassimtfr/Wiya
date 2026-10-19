@@ -1,35 +1,42 @@
-create table if not exists public.subscriptions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  seller_name text,
-  plan_id text not null,
-  plan_label text not null,
-  price integer not null,
-  days integer not null,
-  receipt_image text,
-  status text not null default 'pending',
-  submitted_at timestamptz not null default now(),
-  activated_at timestamptz,
-  ends_at timestamptz
-);
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "./supabase";
 
-alter table public.subscriptions enable row level security;
+// Dit si l'utilisateur a un abonnement actif (et jusqu'à quand)
+export function useSubscription(userId?: string) {
+  const [loading, setLoading] = useState(true);
+  const [endsAt, setEndsAt] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-drop policy if exists "sub_select" on public.subscriptions;
-drop policy if exists "sub_insert" on public.subscriptions;
-drop policy if exists "sub_update" on public.subscriptions;
+  const refresh = useCallback(async () => {
+    if (!userId) {
+      setEndsAt(null);
+      setPending(false);
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("status, ends_at")
+      .eq("user_id", userId);
 
-create policy "sub_select" on public.subscriptions for select
-using (
-  auth.uid() = user_id
-  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-);
+    if (error) console.error("Erreur chargement abonnement:", error);
 
-create policy "sub_insert" on public.subscriptions for insert
-with check (auth.uid() = user_id and status = 'pending');
+    const rows = data ?? [];
+    const now = Date.now();
+    let best: string | null = null;
+    rows.forEach((r: any) => {
+      if (r.status === "active" && r.ends_at && new Date(r.ends_at).getTime() > now) {
+        if (!best || new Date(r.ends_at).getTime() > new Date(best).getTime()) best = r.ends_at;
+      }
+    });
+    setEndsAt(best);
+    setPending(rows.some((r: any) => r.status === "pending"));
+    setLoading(false);
+  }, [userId]);
 
-create policy "sub_update" on public.subscriptions for update
-using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true))
-with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true));
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-notify pgrst, 'reload schema';
+  return { loading, active: !!endsAt, endsAt, pending, refresh };
+}
