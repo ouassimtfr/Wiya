@@ -28,7 +28,7 @@ import MapPage from "@/pages/MapPage";
 import NotificationsPage from "@/pages/Notifications";
 import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
-import installbanner from "@/components/installbanner";
+
 const queryClient = new QueryClient();
 
 function AppShell() {
@@ -49,6 +49,11 @@ function AppShell() {
         <Route path="/seller/:id" component={SellerProfilePage} />
         <Route path="/boost/:id" component={BoostPage} />
         <Route path="/subscribe" component={SubscribePage} />
+        <Route path="/subscription" component={SubscribePage} />
+        <Route path="/subscriptions" component={SubscribePage} />
+        <Route path="/abonnement" component={SubscribePage} />
+        <Route path="/abonnements" component={SubscribePage} />
+        <Route path="/mes-abonnements" component={SubscribePage} />
         <Route path="/map" component={MapPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/admin" component={AdminPage} />
