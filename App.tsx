@@ -60,8 +60,6 @@ function AppShell() {
         <Route component={NotFound} />
       </Switch>
 
-      {/* Barre du bas cachée sur : connexion, nouveau mot de passe, chat, carte, admin et page d'une annonce
-          (la page d'annonce a sa propre barre Appeler / WhatsApp / Message) */}
       <Switch>
         <Route path="/auth" component={() => null} />
         <Route path="/reset-password" component={() => null} />
@@ -78,8 +76,6 @@ function AppShell() {
 }
 
 function App() {
-  // Un lien « mot de passe oublié » qui arrive sur une autre page (ex. l'accueil) est redirigé
-  // vers la page du nouveau mot de passe, avec ses jetons.
   useEffect(() => {
     const { hash, search, pathname } = window.location;
     const isRecovery = hash.includes("type=recovery") || search.includes("type=recovery");
