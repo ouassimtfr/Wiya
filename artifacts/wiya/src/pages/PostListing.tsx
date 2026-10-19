@@ -14,6 +14,15 @@ const MAX_VIDEO_SEC = 30;
 const FREE_PHOTOS = 6;
 const PRO_PHOTOS = 12;
 
+// Numéro mobile algérien : 05/06/07 + 8 chiffres (accepte aussi +213 et 00213)
+function isValidDzPhone(raw: string): boolean {
+  let d = raw.replace(/[\s.\-()]/g, "");
+  if (d.startsWith("+213")) d = "0" + d.slice(4);
+  else if (d.startsWith("00213")) d = "0" + d.slice(5);
+  else if (d.startsWith("213")) d = "0" + d.slice(3);
+  return /^0[567]\d{8}$/.test(d);
+}
+
 const JOB_SECTORS = [
   "Informatique",
   "Commerce et vente",
@@ -60,7 +69,7 @@ export default function PostListingPage() {
   const [city, setCity] = useState("");
   const [condition, setCondition] = useState<"new" | "used">("used");
   const [description, setDescription] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(user?.phone ?? "");
   const [isNegotiable, setIsNegotiable] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
   const [images, setImages] = useState<File[]>([]);
@@ -83,6 +92,11 @@ export default function PostListingPage() {
   useEffect(() => {
     if (!user) navigate("/auth");
   }, [user]);
+
+  // Si le profil a un numéro et que le champ est encore vide, on le pré-remplit
+  useEffect(() => {
+    if (user?.phone && !phone) setPhone(user.phone);
+  }, [user?.phone]);
 
   if (!user) return null;
 
@@ -207,6 +221,20 @@ export default function PostListingPage() {
     }
 
     if (!wilaya) return setErrorMsg(tr("Choisis une wilaya.", "اختر الولاية."));
+
+    // Le téléphone est obligatoire : les acheteurs doivent pouvoir appeler ou écrire sur WhatsApp
+    if (!phone.trim()) {
+      return setErrorMsg(tr("Le numéro de téléphone est obligatoire.", "رقم الهاتف إجباري."));
+    }
+    if (!isValidDzPhone(phone)) {
+      return setErrorMsg(
+        tr(
+          "Numéro invalide. Exemple : 0555 12 34 56 (commence par 05, 06 ou 07).",
+          "رقم غير صحيح. مثال: 0555 12 34 56 (يبدأ بـ 05 أو 06 أو 07)."
+        )
+      );
+    }
+
     if (!description.trim()) return setErrorMsg(tr("La description est obligatoire.", "الوصف إجباري."));
 
     // La vidéo est réservée aux abonnés
@@ -595,7 +623,9 @@ export default function PostListingPage() {
         </div>
 
         <div>
-          <p className={labelClass}>{tr("Téléphone de contact (optionnel)", "هاتف التواصل (اختياري)")}</p>
+          <p className={labelClass}>
+            {tr("Téléphone de contact", "هاتف التواصل")} <span className="text-red-500">*</span>
+          </p>
           <input
             className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-base outline-none"
             placeholder="0555 12 34 56"
@@ -604,6 +634,12 @@ export default function PostListingPage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
+          <p className="text-[12px] text-gray-400 mt-1.5 leading-snug">
+            {tr(
+              "Les acheteurs pourront vous appeler ou vous écrire sur WhatsApp.",
+              "سيتمكن المشترون من الاتصال بك أو مراسلتك عبر واتساب."
+            )}
+          </p>
         </div>
 
         <div className="flex gap-4">
