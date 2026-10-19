@@ -11,6 +11,7 @@ import { CATEGORIES } from "@/lib/data";
 import { WILAYAS_DATA } from "@/lib/wilayas";
 import { supabase } from "@/lib/supabase";
 import { deleteListingMedia } from "@/lib/storageCleanup";
+import { getCachedListing, rememberListing } from "@/lib/listingCache";
 import ListingCard from "@/components/ListingCard";
 import ImageLightbox from "@/components/ImageLightbox";
 
@@ -37,10 +38,10 @@ export default function ListingDetail() {
   const [videoOpen, setVideoOpen] = useState(false);
   const [showMsgBox, setShowMsgBox] = useState(false);
   const [msgText, setMsgText] = useState("");
-  const [listing, setListing] = useState<any>(null);
+  const [listing, setListing] = useState<any>(() => getCachedListing(params.id));
   const [similar, setSimilar] = useState<any[]>([]);
   const [sellerProfile, setSellerProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCachedListing(params.id));
   const [deleting, setDeleting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [renewing, setRenewing] = useState(false);
@@ -52,21 +53,59 @@ export default function ListingDetail() {
 
   const touchX = useRef<number | null>(null);
   const swiped = useRef(false);
+  const activeId = useRef<string | undefined>(undefined);
 
   useEffect(() => { fetchListing(); }, [params.id]);
 
   const fetchListing = async () => {
-    setLoading(true);
+    const id = params.id;
+    activeId.current = id;
     setImgIndex(0);
-    const { data } = await supabase.from("listings").select("*").eq("id", params.id).single();
-    if (data) {
-      setListing(data);
-      const { data: sim } = await supabase.from("listings").select("*").eq("category", data.category).neq("id", data.id).eq("is_active", true).limit(4);
-      setSimilar(sim ?? []);
-      const { data: profile } = await supabase.from("profiles").select("username, phone, avatar_url, is_verified").eq("id", data.user_id).single();
-      if (profile) setSellerProfile(profile);
+    setSimilar([]);
+    setSellerProfile(null);
+
+    // Si on vient d'une carte, on affiche tout de suite ce qu'elle connaît
+    const cached = getCachedListing(id);
+    if (cached) {
+      setListing(cached);
+      setLoading(false);
+    } else {
+      setListing(null);
+      setLoading(true);
     }
+
+    const { data } = await supabase.from("listings").select("*").eq("id", id).single();
+    if (activeId.current !== id) return;
+
+    if (!data) {
+      setLoading(false);
+      return;
+    }
+
+    rememberListing(data);
+    setListing(data);
     setLoading(false);
+
+    // Le vendeur et les annonces similaires se chargent en même temps, sans bloquer la page
+    supabase
+      .from("profiles")
+      .select("username, phone, avatar_url, is_verified")
+      .eq("id", data.user_id)
+      .single()
+      .then(({ data: profile }) => {
+        if (activeId.current === id && profile) setSellerProfile(profile);
+      });
+
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("category", data.category)
+      .neq("id", data.id)
+      .eq("is_active", true)
+      .limit(4)
+      .then(({ data: sim }) => {
+        if (activeId.current === id) setSimilar(sim ?? []);
+      });
   };
 
   const images: string[] = Array.isArray(listing?.images) ? listing.images : [];
@@ -233,10 +272,24 @@ export default function ListingDetail() {
     navigate(`/messages/${conversationId}`);
   };
 
+  // Silhouette grise (au lieu du rond qui tourne) quand on n'a encore rien à montrer
   if (loading) {
     return (
-      <div className="bg-white min-h-[100dvh] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="bg-white min-h-[100dvh]">
+        <div className="relative bg-muted aspect-[4/3] animate-pulse">
+          <button
+            onClick={handleBack}
+            aria-label="Retour"
+            className="absolute top-[calc(1rem+env(safe-area-inset-top))] start-4 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center"
+          >
+            <ChevronLeft className={`w-5 h-5 text-gray-900 ${isRTL ? "rotate-180" : ""}`} strokeWidth={2.4} />
+          </button>
+        </div>
+        <div className="px-5 pt-5 space-y-3">
+          <div className="h-8 w-1/2 bg-muted rounded-xl animate-pulse" />
+          <div className="h-5 w-3/4 bg-muted rounded-xl animate-pulse" />
+          <div className="h-5 w-2/3 bg-muted rounded-xl animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -314,6 +367,16 @@ export default function ListingDetail() {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
+        {/* La petite photo de la carte s'affiche tout de suite, la grande arrive par-dessus */}
+        {imgIndex === 0 && listing.thumb_url && (
+          <img
+            src={listing.thumb_url}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+
         {images.length > 0 ? (
           <button
             type="button"
@@ -321,7 +384,7 @@ export default function ListingDetail() {
               if (swiped.current) { swiped.current = false; return; }
               setLightboxOpen(true);
             }}
-            className="w-full h-full block"
+            className="relative w-full h-full block"
             aria-label={tr("Agrandir la photo", "تكبير الصورة")}
           >
             <AnimatePresence mode="wait">
