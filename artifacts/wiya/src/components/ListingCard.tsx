@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { WILAYAS_DATA } from "@/lib/wilayas";
+import { rememberListing } from "@/lib/listingCache";
 
 interface Props {
   listing: any;
@@ -54,6 +55,20 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   const jobSectorRaw: string = listing.job_sector ?? "";
   const jobSector = isRTL ? JOB_SECTOR_AR[jobSectorRaw] ?? jobSectorRaw : jobSectorRaw;
   const isSeeking = isJob && listing.job_kind === "seeking";
+
+  // Ouvre l'annonce tout de suite : la page de détail reçoit déjà les infos de la carte
+  const openListing = () => {
+    rememberListing(listing);
+    navigate(`/listing/${listing.id}`);
+  };
+
+  // Dès que le doigt touche la carte, on commence à charger la grande photo
+  const prefetchPhoto = () => {
+    if (images[0]) {
+      const im = new Image();
+      im.src = images[0];
+    }
+  };
 
   const priceText = isJob
     ? price > 0
@@ -191,7 +206,8 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   if (variant === "list") {
     return (
       <div
-        onClick={() => navigate(`/listing/${listing.id}`)}
+        onPointerDown={prefetchPhoto}
+        onClick={openListing}
         className="bg-card rounded-3xl p-2.5 flex gap-3 cursor-pointer ring-1 ring-border/60 active:scale-[0.98] transition-transform"
       >
         <div className="relative w-28 h-28 flex-shrink-0 rounded-2xl overflow-hidden bg-muted">
@@ -243,7 +259,8 @@ export default function ListingCard({ listing, variant = "grid" }: Props) {
   // ─── Carte en grille (accueil, annonces similaires) : photo, prix, titre, lieu ───
   return (
     <div
-      onClick={() => navigate(`/listing/${listing.id}`)}
+      onPointerDown={prefetchPhoto}
+      onClick={openListing}
       className="cursor-pointer active:scale-[0.97] transition-transform"
     >
       <div className="relative aspect-square rounded-[18px] overflow-hidden bg-muted">
