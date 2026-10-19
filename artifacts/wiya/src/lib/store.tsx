@@ -5,6 +5,10 @@ import { compressImage } from "./imageCompress";
 
 const FAV_KEY = "wiya_favorites";
 
+// Colonnes des demandes de boost SANS le reçu (le reçu est une grosse image : on ne la télécharge pas)
+const BOOST_COLUMNS =
+  "id, listing_id, listing_title, listing_image, plan_id, plan_label, price, days, type, status, submitted_at, seller_name";
+
 function loadLocalFavorites(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
@@ -117,7 +121,7 @@ function rowToBoostRequest(r: any): BoostRequest {
     price: r.price,
     days: r.days,
     type: r.type,
-    receiptImage: r.receipt_image,
+    receiptImage: r.receipt_image ?? "",
     status: r.status,
     submittedAt: r.submitted_at,
     sellerName: r.seller_name,
@@ -200,14 +204,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [user?.id]);
 
+  // Les demandes de boost ne sont chargées que pour un utilisateur connecté (et sans les reçus)
   useEffect(() => {
-    fetchBoostRequests();
-  }, []);
+    if (user) fetchBoostRequests();
+    else setBoostRequests([]);
+  }, [user?.id]);
 
   const fetchBoostRequests = async () => {
     const { data, error } = await supabase
       .from("boost_requests")
-      .select("*")
+      .select(BOOST_COLUMNS)
       .order("submitted_at", { ascending: false });
 
     if (error) { console.error("Erreur fetch boost_requests:", error); return; }
@@ -478,7 +484,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         submitted_at: new Date().toISOString(),
         seller_name: req.sellerName,
       })
-      .select()
+      .select(BOOST_COLUMNS)
       .single();
 
     if (error) {
